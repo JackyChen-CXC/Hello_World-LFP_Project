@@ -1,0 +1,14 @@
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  height: auto;
+}
+.side_panel{
+  width: 15%;
+  background-color: #5C6F62;
+}
+
+.main-content {
+  flex: 1;
+  background-color: white; 
+}

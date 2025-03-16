@@ -1,0 +1,65 @@
+.page-container{
+    background-color:#D7E5DB ;
+    width: 100%;
+    padding: 3%;
+    height: 100%;
+}
+
+.joint-questions{
+    display: flex;
+    gap: 30%;
+    align-items: center;
+}
+
+.joint-inputs{
+    display: flex;
+    gap: 11%;
+    align-items: center;
+}
+
+.header{
+    display: flex;
+    font-weight: bold;
+    font-size: 34px;
+    gap: 72%;
+}
+
+.subheading{
+    text-decoration: underline;
+    font-weight: bold;
+    font-size: 28px;
+    padding-top: 2%;
+}
+
+.question{
+    font-size: 20px;
+    padding: 2%
+}
+
+.input-boxes{
+    height: 30px;
+    width:400px;
+    border-radius: 20px;
+    margin-top: 2%;
+}
+.checkbox-group {
+    display: flex;
+    gap: 5%;
+    align-items: center;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox{
+    width: 30px;
+    height: 30px;
+    border-radius: 20px;
+}
+
+.normal_text{
+    padding-top: 2%;
+}
+
