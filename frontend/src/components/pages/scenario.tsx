@@ -1,11 +1,13 @@
 import React from "react";
+import '../css_files/page_style.css';
 
-const CreatePlan = () => {
+const Scenario = () => {
   return (
-  <div>scenario
+  <div className="page-container">scenario
     
   </div>
   );
 };
-export default CreatePlan;
+export default Scenario;
+
 

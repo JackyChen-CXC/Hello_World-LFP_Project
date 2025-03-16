@@ -1,11 +1,12 @@
 import React from "react";
+import '../css_files/page_style.css';
 
-const CreatePlan = () => {
+const Footer = () => {
   return (
-  <div>footer
+  <div className="page-container">footer
     
   </div>
   );
 };
-export default CreatePlan;
+export default Footer;
 

@@ -1,11 +1,12 @@
 import React from "react";
+import '../css_files/page_style.css';
 
-const CreatePlan = () => {
+const Dashboard = () => {
   return (
-  <div>Dashboard
+  <div className="page-container">Dashboard
     
   </div>
   );
 };
-export default CreatePlan;
+export default Dashboard;
 

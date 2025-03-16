@@ -1,11 +1,12 @@
 import React from "react";
+import '../css_files/page_style.css';
 
-const CreatePlan = () => {
+const Help = () => {
   return (
-  <div>help
+  <div className="page-container">help
     
   </div>
   );
 };
-export default CreatePlan;
+export default Help;
 

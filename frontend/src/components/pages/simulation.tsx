@@ -1,11 +1,12 @@
 import React from "react";
+import '../css_files/page_style.css';
 
-const CreatePlan = () => {
+const Simulation = () => {
   return (
-  <div>simulation
+  <div className="page-container" >simulation
     
   </div>
   );
 };
-export default CreatePlan;
+export default Simulation;
 
