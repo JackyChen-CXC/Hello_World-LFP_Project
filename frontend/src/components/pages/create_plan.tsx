@@ -57,7 +57,7 @@ const CreatePlan = () => {
             <div className="normal-text">What Year Was Your Spouse Born (If joint plan)</div>
             <input className="input-boxes" type="text" />
           </div>
-        </div>
+        </div> 
 
         {/* Life Expectancy Option */}
         <div className="normal-text">Would you like to specify a life expectancy or sample it from a normal distribution?</div>
@@ -74,14 +74,23 @@ const CreatePlan = () => {
       <div className="collapse-container">
         <div className="split-container">
           <div className="left-side">
-
+          <div className="normal-text">Select Investment Type*</div>
+          <select className="collapse-options" name="investmentType">
+              <option value="domestic-stocks">Domestic Stocks</option>
+              <option value="foreign-stocks">Foreign Stocks</option>
+              <option value="bonds">Bonds</option>
+              <option value="real-estate">Real Estate</option>
+              <option value="cash-other">Cash & Other</option>
+              <option value="investments">Investments</option>
+              <option value="custom">Custom</option>
+          </select>
           </div>
           <div className = "right-side"> 
             <div className="normal-text"> Name of Investment*</div>
             <input className="input-boxes" type="text" />
             <div className="normal-text"> Brief Description of Investment*</div>
+            <textarea className="input-boxes textarea-box" rows="4"></textarea>
           </div>
-          <textarea className="input-boxes textarea-box" rows="4"></textarea>
 
         </div>
         
