@@ -2,6 +2,8 @@
   display: flex;
   min-height: 100vh;
   height: auto;
+  width: 100%;
+  overflow: hidden;
 }
 .side_panel{
   width: 15%;
@@ -11,4 +13,5 @@
 .main-content {
   flex: 1;
   background-color: white; 
+  max-width: 85vw;
 }

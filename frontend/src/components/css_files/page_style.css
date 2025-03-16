@@ -23,7 +23,7 @@
 
 /*----------------------------------------Questions and inputs-------------------------------*/
 /* 2 questions on a line*/
-.split-container{
+.split-container {
     display: flex;
     justify-content: space-between;
     gap: 10px;
@@ -37,37 +37,27 @@
     gap: 10px; 
 }
 /* regular input box formatting*/
-.input-boxes{
-    height: 30px;
-    width:400px;
+.input-boxes {
+    height: 40px; 
+    width: 400px;
     border-radius: 20px;
     margin-top: 2%;
-    padding: 1%;
+    padding:10px; 
     font-size: 16px;
+    box-sizing: border-box; 
 }
 
 .textarea-box{
     height: 120px;
     width: 600px;
+    padding: 10px;
 }
 
 .checkbox-group {
     display: flex;
-    gap: 5%;
+    gap: 10%;
     align-items: center;
 }
-
-.checkbox-container {
-    display: flex;
-    align-items: center;
-}
-
-.checkbox{
-    width: 30px;
-    height: 30px;
-    border-radius: 20px;
-}
-
 
 /*----------------------------------------text formats-------------------------------*/
 /* font style for normal text*/
@@ -84,4 +74,14 @@
     padding-top: 2%;
 }
 
+.page-buttons{
+    margin-top: 2%;
+    margin-left: 69%;
+    width: 150px;
+    height: 50px;
+    border-radius: 10%;
+    background-color: #7EC995;
+    font-weight: bold;
+    font-size: 24px;
+}
 

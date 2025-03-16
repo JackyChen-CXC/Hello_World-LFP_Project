@@ -1,10 +1,41 @@
 .collapse-container{
     margin-top: 3%;
-    padding: 3%;
     background-color: #B9D0C0;
     border-radius: 20px;
+    width: 80%;
+    padding: 1%;
+}
+
+.collapse-heading{
+    display: flex;
+    align-items: center;
 }
 
 .collapse-options{
     width: 300px;
+    height: 30px;
+    font-size: 20px;
+}
+
+.collapse-button{
+    margin-left:80%;
+    font-size: 30px;
+    background: none;
+    border: none;
+}
+
+.collapsed-text{
+    font-size: 24px;
+    font-weight: bold;
+    margin-left: 2%;
+}
+
+.delete-button{
+    font-size: 30px;
+    background: none;
+    border: none;
+    color: red;
+    font-weight: bold;
+    margin-left:10px;
+    margin-bottom: 2px;
 }
