@@ -10,6 +10,14 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["mydatabase"]
 collection = db["federal_tax"]
 
+def clean_and_convert(value):
+    """ Remove '$' and ',' then convert to integer """
+    return float(re.sub(r'[^\d]', '', value)) if value else None
+
+def string_to_float(s):
+    cleaned_string = s.replace('$', '').replace(',', '').strip()  
+    return float(cleaned_string)
+
 def saveFederalTax(min,max,single,married,over,rate,subamount,type):
     data = {
         "min_value": min,
@@ -24,6 +32,8 @@ def saveFederalTax(min,max,single,married,over,rate,subamount,type):
 
     }
 
+    #collection.replace_one({}, data, upsert=True)
+    collection = db["federal_tax"]
     collection.insert_one(data)
 
 def scrape_federal_tax():
@@ -45,10 +55,11 @@ def scrape_federal_tax():
 
         cells = row.find_all("td")
         if len(cells) == 6:
-            min_value = cells[0].text.strip()  
-            max_value = cells[1].text.strip()   
-            single_value = cells[2].text.strip() 
-            married_value = cells[3].text.strip()
+            min_value = clean_and_convert(cells[0].text.strip())
+            max_value = clean_and_convert(cells[1].text.strip())   
+            single_value = clean_and_convert(cells[2].text.strip()) 
+            married_value = clean_and_convert(cells[3].text.strip())
+
 
             saveFederalTax(min_value,max_value,single_value,married_value,False,None,None,None)
 
@@ -79,6 +90,10 @@ def scrape_federal_tax():
                 rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
                 subamount = cells[4].text.strip()
 
+            
+                rate = string_to_float(rate)
+                subamount = string_to_float(subamount)
+
                 saveFederalTax(min_val,max_val,None,None,True,rate,subamount,"single")
     
             else:
@@ -89,6 +104,11 @@ def scrape_federal_tax():
                 rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
 
                 subamount = cells[4].text.strip()
+
+        
+                rate = string_to_float(rate)
+                subamount = string_to_float(subamount)
+
                 saveFederalTax(min_val,None,None,None,True,rate,subamount,"single")
 
 
@@ -120,6 +140,10 @@ def scrape_federal_tax():
 
                 subamount = cells[4].text.strip()
 
+            
+                rate = string_to_float(rate)
+                subamount = string_to_float(subamount)
+
                 saveFederalTax(min_val,max_val,None,None,True,rate,subamount,"married")
     
             else:
@@ -127,9 +151,14 @@ def scrape_federal_tax():
                 if match:
                     min_val = int(match.group(1).replace(",", ""))
                     
+                
                 rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
 
                 subamount = cells[4].text.strip()
+
+          
+                rate = string_to_float(rate)
+                subamount = string_to_float(subamount)
 
                 saveFederalTax(min_val,None,None,None,True,rate,subamount,"married")
 
@@ -154,6 +183,8 @@ def saveStateTax(state,single_rate,married_rate,single_deduc,married_deduc,singl
 
     }
 
+    collection = db["state_tax"]
+    #collection.replace_one({}, data, upsert=True)
     collection.insert_one(data)
 
 def parse_percentage(value):
@@ -205,6 +236,8 @@ def scrape_state_tax():
             name = cells[0].text.strip()
             if name not in state:
                 saveStateTax(state, single_rate, married_rate, single_deduction, married_deduction, single_exemption, married_exemption)
+                single_rate = []
+                married_rate = []
 
                 state = name
                 single_rate.append([s_rate,s_bracket])
@@ -217,6 +250,8 @@ def scrape_state_tax():
             else:
                 single_rate.append([s_rate,s_bracket])
                 married_rate.append([m_rate,m_bracket])
+        
+
 
                 
     if state:
@@ -234,6 +269,8 @@ def saveStandardDeduction(single,married):
         "married": married
     }
 
+    collection = db["standard_deduction"]
+    #collection.replace_one({}, data, upsert=True)
     collection.insert_one(data)
 
 
@@ -262,18 +299,12 @@ def scrape_standard_deduction():
         if "single or married" in cells[0].text.strip().lower():
             single = parse_currency(cells[1].text.strip())
 
-            print(single)
+
         if "married filing jointly" in cells[0].text.strip().lower():
             married = parse_currency(cells[1].text.strip())
 
-            print(married)
 
     saveStandardDeduction(single,married)
-
-
-    
-
-
 
 
 
@@ -296,13 +327,15 @@ def extract_min_max_from_text(text):
     else:
         return None, None
 
-collection = db["captialGainTax"]
+collection = db["captial_gain_tax"]
 def saveCaptialGain(single,married):
     data = {
         "single": single,
         "married": married
     }
 
+    collection = db["captial_gain_tax"]
+    #collection.replace_one({}, data, upsert=True)
     collection.insert_one(data)
 
 
@@ -346,6 +379,12 @@ def scrape_captial_gain():
                 
 
                     
+
+scrape_federal_tax()
+#scrape_state_tax()
+#scrape_standard_deduction()
+#scrape_captial_gain()
+
 
 
 
