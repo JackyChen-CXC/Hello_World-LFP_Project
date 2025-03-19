@@ -1,0 +1,31 @@
+.footer-container{
+    display: flex;
+    flex-direction: column;
+    background-color:#B9D0C0 ;
+    align-items: center;
+    font-family: serif;
+    font-size: 30px;
+    font-weight: bold;
+    color:#27332B ;
+    padding: 2%;
+}
+
+.nav-container{
+    font-weight: normal;
+    padding-top: 2%;
+    display:flex;
+    font-size: 16px;
+    font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+    gap: 10px;
+    color: #27332B;
+    text-decoration: none;
+    
+}
+
+.nav-container a:visited,
+.nav-container a:active,
+.nav-container a:focus {
+    color: #27332B; 
+    text-decoration: none;
+    outline: none; 
+}

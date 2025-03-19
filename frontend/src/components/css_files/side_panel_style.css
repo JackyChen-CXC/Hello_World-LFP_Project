@@ -1,11 +1,12 @@
-.background-container{
+.background-container {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
 }
 
-.logo-btn{
-    background-color:#7EC995;
+.logo-btn {
+    background-color: #7EC995;
     color: #27332B;
     font-family: serif;
     font-size: 64px;
@@ -15,11 +16,26 @@
     width: 100%;
 }
 
-.tab-btn{
+.tab-btn {
     outline: none;
     border: none;
     font-size: 24px;
     background-color: transparent;
     color: white;
-    padding: 15%
+    padding: 15%;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s ease, color 0.3s ease;
 }
+
+
+.tab-btn:focus {
+    background-color:#B9D0C0;
+    color: #27332B;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+
+
+
