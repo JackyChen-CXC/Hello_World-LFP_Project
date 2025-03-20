@@ -1,23 +1,23 @@
-import mongoose, { Document, ObjectId, Schema } from "mongoose";
-import { IInvestmentType } from "./InvestmentType";
+// import mongoose, { Document, ObjectId, Schema } from "mongoose";
+// import { IInvestmentType } from "./InvestmentType";
 
-export interface IInvestment extends Document {
-    assetType: IInvestmentType;
-    balance: number;
-    // ISSUE - Check if these are the right 3 tax statuses
-    accountTaxStatus: "taxable" | "tax-deferred" | "tax-free";
-    growthRate: number;
-}
+// export interface IInvestment extends Document {
+//     investmentType: IInvestmentType;
+//     value: number;
+//     taxStatus: "non-retirement" | "pre-tax" | "after-tax";
+//     id: string;
+// }
 
-const investmentSchema = new Schema<IInvestment>({
-    assetType: { type: Schema.Types.ObjectId, ref: "InvestmentType", required: true },
-    balance: { type: Number, required: true },
-    accountTaxStatus: { type: String, enum: ["taxable", "tax-deferred", "tax-free"], required: true },
-    growthRate: { type: Number, required: true },
-});
+// const investmentSchema = new Schema<IInvestment>({
+//     investmentType: { type: Schema.Types.ObjectId, ref: "InvestmentType", required: true },
+//     value: { type: Number, required: true },
+//     taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
+//     id: { type: String, required: true },
+    
+// });
 
-investmentSchema.index({ assetType: 1 });
+// investmentSchema.index({ assetType: 1 });
 
-const Investment = mongoose.model<IInvestment>('Simulation', investmentSchema);
+// const Investment = mongoose.model<IInvestment>('Investment', investmentSchema);
 
-export default Investment;
+// export default Investment;

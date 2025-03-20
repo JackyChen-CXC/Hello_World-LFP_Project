@@ -22,7 +22,7 @@ const userSchema = new Schema<IUser>({
 	email: { type: String, unique: true, sparse: true },
 	googleId: { type: String, unique: true, sparse: true },
 	isAnonymous: { type: Boolean, required: true, default: false },
-	plans: { type: [{ type: Schema.Types.ObjectId, ref: 'FinancialPlan' }], default: [] }
+	plans: { type: [Schema.Types.ObjectId], ref: 'FinancialPlan', default: [] }
 });
 
 userSchema.index({ username: 1 });
