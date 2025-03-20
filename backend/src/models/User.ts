@@ -25,8 +25,6 @@ const userSchema = new Schema<IUser>({
 	plans: { type: [Schema.Types.ObjectId], ref: 'FinancialPlan', default: [] }
 });
 
-userSchema.index({ username: 1 });
-
 const User = mongoose.model<IUser>('User', userSchema);
 
 export default User;

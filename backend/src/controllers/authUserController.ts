@@ -1,4 +1,3 @@
-// functions for routes for adduser and verify
 import User from "../models/User";
 
 export const login = async (req: any, res: any) => {

@@ -1,4 +1,3 @@
-//functions for route user login, logout and checkauth
 import User from "../models/User";
 
 export const addUser = async (req: any, res: any) => {
