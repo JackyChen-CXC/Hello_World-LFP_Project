@@ -10,7 +10,10 @@ const Help = () => {
       {/* ------------------ Header ------------------ */}
       <div className="header" style={{ marginBottom: "5%" }}>
         <div>Help</div>
-        <div>user</div>
+        <div style={{display:"flex", justifyContent:"center", alignItems:"center",position: "absolute", right: "40px"}}>
+          <div>user</div>
+          <img src="/images/user.png" height={80} width={90} />
+        </div>
       </div>
       <div className="help-container">
         <button className="help-button" onClick={() => navigate("/dashboard")}>

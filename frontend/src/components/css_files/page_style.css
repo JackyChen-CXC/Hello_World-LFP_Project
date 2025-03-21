@@ -17,9 +17,54 @@
     display: flex;
     font-weight: bold;
     font-size: 34px;
-    gap: 72%;
 }
 
+.help-container{
+    display:flex;
+    gap: 90px;
+    margin-bottom: 70px;
+    margin-right: 8%;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-button{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 300px;
+    height: 300px;
+    background-color: white;
+    border-radius: 20%;
+    padding: 30px;
+    font-size: 20px;
+}
+.scenario-container{
+    background-color: white;
+    width: 400px;
+    height: 150px;
+    border-radius: 10%;
+    padding:3%;
+    align-items: center;
+    margin-top: 4%;
+    margin-left: 8%;
+}
+
+.scenario-grid{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 50px;
+}
+
+.simulation-container{
+    margin-top: 2%;
+    border-radius: 10%;
+    background-color: #B9D0C0;
+    width: 80%;
+    padding: 3%;
+    justify-content: center;
+}
 
 /*----------------------------------------Questions and inputs-------------------------------*/
 /* 2 questions on a line*/
@@ -59,27 +104,6 @@
     align-items: center;
 }
 
-.help-container{
-    display:flex;
-    gap: 90px;
-    margin-bottom: 70px;
-    margin-right: 8%;
-    align-content: center;
-    align-items: center;
-    justify-content: center;
-}
-
-.help-button{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 300px;
-    height: 300px;
-    background-color: white;
-    border-radius: 20%;
-    padding: 30px;
-    font-size: 20px;
-}
 /*----------------------------------------text formats-------------------------------*/
 /* font style for normal text*/
 .normal-text{

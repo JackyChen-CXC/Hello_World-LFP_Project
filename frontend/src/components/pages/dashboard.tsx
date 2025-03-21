@@ -6,7 +6,10 @@ const Dashboard = () => {
   <div className="page-container">
     <div className="header">
         <div>Dashboard</div>
-        <div>user</div>
+        <div style={{display:"flex", justifyContent:"center", alignItems:"center",  position: "absolute", right: "40px"}}>
+          <div>user</div>
+          <img src="/images/user.png" height={80} width={90} />
+        </div>
       </div>
   </div>
   );
