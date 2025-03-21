@@ -6,7 +6,7 @@ import Dashboard from "./dashboard.tsx";
 import Scenario from "./scenario.tsx";
 import Simulation from "./simulation.tsx";
 import Help from "./help.tsx";
-
+import Login from "./Login.tsx";
 const Footer = () => {
   return (
     <div className="footer-container">
@@ -23,6 +23,8 @@ const Footer = () => {
         <Link to="/simulate" className="nav-button">Simulation</Link>
         <>|</>
         <Link to="/help" className="nav-button">Help</Link>
+        <>|</>
+        <Link to="/login" className="nav-button">Login</Link>
       </div>
 
 

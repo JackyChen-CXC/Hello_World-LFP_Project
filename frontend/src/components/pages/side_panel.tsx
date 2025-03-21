@@ -13,6 +13,7 @@ const SidePanel = () => {
       <button className="tab-btn" onClick={() => navigate("/scenario")}>Scenarios</button>
       <button className="tab-btn" onClick={() => navigate("/simulate")}>Simulation</button>
       <button className="tab-btn" onClick={() => navigate("/help")}>Help</button>
+      <button className="tab-btn" onClick={() => navigate("/Login")}>Login</button>
     </div>
   );
 };

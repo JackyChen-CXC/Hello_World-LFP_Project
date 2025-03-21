@@ -9,6 +9,7 @@ import Scenario from "./components/pages/scenario.tsx";
 import Simulation from "./components/pages/simulation.tsx";
 import Help from "./components/pages/help.tsx";
 import Footer from "./components/pages/Footer.tsx";
+import Login from "./components/pages/Login.tsx";
 
 function App() {
   const [message, setMessage] = useState("");
@@ -32,6 +33,7 @@ function App() {
             <Route path="/scenario" element={<Scenario />} />
             <Route path="/simulate" element={<Simulation />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/" element={<Dashboard />} /> {/* Default page */}
           </Routes>
         </div>

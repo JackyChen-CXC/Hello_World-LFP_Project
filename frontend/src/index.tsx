@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
-
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 
 // Ensure 'root' is a valid HTML element before using it
@@ -15,7 +15,10 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement as HTMLElement);
 
-root.render(<App />);
-
+root.render(
+  <GoogleOAuthProvider clientId="652813948700-9rl6ubd2feohbnl16i1ndhph04hv59al.apps.googleusercontent.com">
+    <App />
+  </GoogleOAuthProvider>
+);
 // Start performance measurement
 reportWebVitals();

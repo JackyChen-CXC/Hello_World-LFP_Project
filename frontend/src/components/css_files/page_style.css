@@ -130,3 +130,55 @@
     font-size: 24px;
 }
 
+
+/*-----Login------*/
+
+.oval-google-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 50px; /* Oval shape */
+    background-color: #7EC995;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.5s ease;
+  }
+  
+  .oval-google-button:hover {
+    background-color: #7ec99422;
+  }
+  
+  .guest-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 50px;
+    background-color: #e0e0e0;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .guest-button:hover {
+    background-color: #949494;
+  }
+  
+  /* Additional container styling, if needed */
+  .Login-page-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%; /* Full viewport height */
+    background: #B9D0C0; /* or a gradient if you prefer */
+  }
+  
+  .login-container {
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 15px 25px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+  
