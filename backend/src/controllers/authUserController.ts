@@ -1,5 +1,6 @@
 import User from "../models/User";
 
+// Google Login,
 export const login = async (req: any, res: any) => {
 	try {
 		
@@ -12,6 +13,7 @@ export const login = async (req: any, res: any) => {
 	}
 };
 
+// Takes off any cookie/websocket, etc used in determining session(?)
 export const logout = async (req: any, res: any) => {
 	try {
 		

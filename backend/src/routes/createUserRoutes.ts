@@ -1,9 +1,11 @@
-// Create User Routes
+// Manage User Routes
 import { Router } from "express";
-import { addUser } from "../controllers/createUserController";
+import { addAnonymousUser, addUser, endUser } from "../controllers/createUserController";
 
 const createUserRouter = Router();
 
 createUserRouter.post('/adduser', addUser);
+createUserRouter.get('/addanonymoususer', addAnonymousUser);
+createUserRouter.post('/enduser', endUser);
 
 export default createUserRouter;

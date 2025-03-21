@@ -6,16 +6,9 @@ export interface IUser extends Document {
 	email?: string;
 	googleId?: string;
 	isAnonymous: boolean;
-	plans?: IFinancialPlan[]
+	plans?: IFinancialPlan[];
+	
 }
-
-/** How anonymous users can be made 
-import { v4 as uuidv4 } from "uuid";
-const anonymousUser = new User({
-	username: `anon-${uuidv4().slice(0, 8)}`, // Generates something like "anon-1a2b3c4d"
-	isAnonymous: true,
-});
- */
 
 const userSchema = new Schema<IUser>({
 	username: { type: String, required: true, unique: true, sparse: true },

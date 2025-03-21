@@ -7,7 +7,7 @@ export const getFinancialPlans = async (req: any, res: any) => {
 	try {
         const { username } = req.body;
         const plans = await getPlansByUser(username);
-
+		console.log(plans)
         return res.status(200).json({
             status: "SUCCESS",
             error: false,
@@ -25,9 +25,21 @@ export const getFinancialPlans = async (req: any, res: any) => {
 	}
 };
 
-
-
 export const webscrape = async (req: any, res: any) => {
+	try {
+		// use app.py from ..\microservices\webscraping
+        // await axios.post('http://localhost:5001/api/flask/videos'
+	} catch (error) {
+		res.status(200).json({
+			status: "ERROR",
+			error: true,
+			message: "Login failed.",
+		});
+	}
+};
+
+
+export const scrapeDoc = async (req: any, res: any) => {
 	try {
 		// use app.py from ..\microservices\webscraping
         // await axios.post('http://localhost:5001/api/flask/videos'

@@ -1,4 +1,4 @@
-// Authenicating Routes (Maybe add a checkAuthenication function/route)
+// Authenicating User Routes (Maybe add a checkAuthenication function/route)
 import { Router } from "express";
 import { login, logout } from "../controllers/authUserController";
 
