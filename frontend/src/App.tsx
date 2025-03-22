@@ -10,6 +10,7 @@ import Simulation from "./components/pages/simulation.tsx";
 import Help from "./components/pages/help.tsx";
 import Footer from "./components/pages/Footer.tsx";
 import Login from "./components/pages/Login.tsx";
+import OpenScenario from "./components/pages/open_scenario.tsx";
 
 function App() {
   const [message, setMessage] = useState("");
@@ -31,6 +32,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create-plan" element={<CreatePlan />} />
             <Route path="/scenario" element={<Scenario />} />
+            <Route path="/scenario/:id" element={<OpenScenario />} />
             <Route path="/simulate" element={<Simulation />} />
             <Route path="/help" element={<Help />} />
             <Route path="/login" element={<Login />} />

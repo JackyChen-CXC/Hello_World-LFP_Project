@@ -5,6 +5,25 @@ import axios from "axios";
 
 import { Request, Response } from "express";
 
+export const getAllFinancialPlans = async (req: any, res: any) => {
+	try {
+	  const plans = await FinancialPlan.find({});
+	  return res.status(200).json({
+		status: "SUCCESS",
+		error: false,
+		message: "All Financial Plans retrieved successfully",
+		data: plans,
+	  });
+	} catch (err) {
+	  console.error("Error fetching all plans:", err);
+	  return res.status(500).json({
+		status: "ERROR",
+		error: true,
+		message: "Failed to retrieve plans",
+	  });
+	}
+  };
+
 export const createFinancialPlan = async (req:any, res:any) => {
 	try {
 	  console.log("Received body:", req.body); // 👈 DEBUG LINE
