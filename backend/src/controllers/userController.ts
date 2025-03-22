@@ -63,17 +63,20 @@ export const editPlan = async (req: any, res: any) => {
 	}
 };
 
-export const deletePlan = async (req: any, res: any) => {
-	try {
-		// delete
-	} catch (error) {
-		res.status(200).json({
-			status: "ERROR",
-			error: true,
-			message: "Deleting plan failed.",
-		});
-	}
-};
+export const deletePlan = async (req:any, res:any) => {
+    try {
+      const { id } = req.body;
+      await FinancialPlan.findByIdAndDelete(id);
+      res.status(200).json({ message: "Plan deleted successfully" });
+    } catch (error) {
+      res.status(500).json({
+        status: "ERROR",
+        error: true,
+        message: "Deleting plan failed.",
+      });
+    }
+  };
+  
 
 export const importPlan = async (req: any, res: any) => {
     try {

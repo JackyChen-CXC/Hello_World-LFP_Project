@@ -4,22 +4,18 @@ import { useNavigate } from "react-router-dom";
 
 // Define the shape of a scenario
 interface ScenarioData {
-  id: number;
+  id: string;
   title: string;
   planType: string;
   financialGoal: string;
   dateCreated: string;
 }
 
-const ScenarioItem: FC<{ scenario: ScenarioData }> = ({ scenario }) => {
+const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: number) => void }> = ({ scenario, onDelete }) => {
   const navigate = useNavigate();
 
-  const handleClick = () => {
-    navigate(`/scenario/${scenario.id}`);
-  };
-
   return (
-    <div className="scenario-container" onClick={() => navigate("/scenario/:id")}>
+    <div className="scenario-container" onClick={() => navigate(`/scenario/${scenario.id}`)}>
       <div className="normal-text">Title: {scenario.title}</div>
       <div className="normal-text">Plan Type: {scenario.planType}</div>
       <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
@@ -27,12 +23,25 @@ const ScenarioItem: FC<{ scenario: ScenarioData }> = ({ scenario }) => {
       <div style={{ display: "flex", marginLeft: "250px", marginTop: "60px" }}>
         <img src="/images/edit.png" height={50} width={50} />
         <img src="/images/share.png" height={50} width={50} />
-        <img src="/images/trash.png" height={50} width={50} />
+        <img
+          src="/images/trash.png"
+          height={50}
+          width={50}
+          onClick={(e) => {
+            e.stopPropagation(); 
+            const confirmed = window.confirm("Are you sure you want to delete this scenario?");
+            if (confirmed) {
+              onDelete(scenario.id);
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        />
         <img src="/images/export.png" height={50} width={50} />
       </div>
     </div>
   );
 };
+
 
 const Scenario: FC = () => {
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
@@ -63,8 +72,27 @@ const Scenario: FC = () => {
     };
   
     fetchScenarios();
-  }, []);
+}, []);
   
+const handleDeleteScenario = async (id: string) => {
+  try {
+    const response = await fetch("http://localhost:5000/api/deleteplan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete scenario");
+    }
+
+    setScenarios((prevScenarios) => prevScenarios.filter((sc) => sc.id !== id));
+  } catch (error) {
+    console.error("Error deleting scenario:", error);
+  }
+};
 
 
   return (
@@ -78,8 +106,8 @@ const Scenario: FC = () => {
       </div>
 
       <div className="scenario-grid">
-        {scenarios.map((scenario) => (
-          <ScenarioItem key={scenario.id} scenario={scenario} />
+      {scenarios.map((scenario) => (
+        <ScenarioItem key={scenario.id} scenario={scenario} onDelete={handleDeleteScenario} />
         ))}
       </div>
     </div>
