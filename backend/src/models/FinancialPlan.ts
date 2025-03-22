@@ -14,7 +14,7 @@ export interface IInvestment extends Document {
 }
 
 const InvestmentSchema = new Schema<IInvestment>({
-    investmentType: { type: Schema.Types.ObjectId, ref: "InvestmentType", required: true },
+    investmentType: { type: String, required: true },
     value: { type: Number, required: true },
     taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
     id: { type: String, required: true },
@@ -141,7 +141,7 @@ export interface IFinancialPlan extends Document {
 }
 
 const financialplanSchema = new Schema<IFinancialPlan>({
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, },
+    userId: { type: String, required: true }, // was Schema.Types.ObjectId
     name: { type: String, required: true },
     maritalStatus : { type: String, enum: ["couple", "individual"] },
     birthYears: { type: [Number], required: true , default: [] },

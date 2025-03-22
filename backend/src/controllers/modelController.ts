@@ -3,6 +3,22 @@ import FinancialPlan from "../models/FinancialPlan";
 import { getPlansByUser } from "../queries/financialQueries";
 import axios from "axios";
 
+import { Request, Response } from "express";
+
+export const createFinancialPlan = async (req:any, res:any) => {
+	try {
+	  console.log("Received body:", req.body); // 👈 DEBUG LINE
+	  const newPlan = new FinancialPlan(req.body);
+	  await newPlan.save();
+	  res.status(201).json(newPlan);
+	} catch (err) {
+	  console.error("Error creating plan:", err); // 👈 DEBUG LINE
+	  res.status(500).json({ error: "Failed to create financial plan" });
+	}
+  };
+  
+
+
 export const getFinancialPlans = async (req: any, res: any) => {
 	try {
         const { username } = req.body;

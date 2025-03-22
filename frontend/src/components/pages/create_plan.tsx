@@ -229,6 +229,99 @@ const CreatePlan = () => {
     });
   };
 
+  const transformFormData = (formData) => {
+    return {
+      userId: "placeholder-user-id", // replace with actual user ID if available
+      name: formData.planName,
+      maritalStatus: formData.planType === "joint" ? "couple" : "individual",
+      birthYears: [parseInt(formData.birthYear)],
+      spousebirthyear: [],
+      lifeExpectancy: [
+        formData.lifeExpectancyRadio === "yes"
+          ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
+          : { type: "normal", mean: 90, stdev: 10 }
+      ],
+      financialGoal: parseFloat(formData.financialGoal || 0),
+      RothConversionOpt: formData.rothConversion === "yes",
+      RothConversionStart: parseInt(formData.rothStartYear || "0"),
+      RothConversionEnd: parseInt(formData.rothEndYear || "0"),
+      investments: formData.investments.map((inv) => ({
+        investmentType: inv.investmentType,
+        value: 0,
+        taxStatus: inv.accountType,
+        id: inv.id.toString(),
+      })),
+      eventSeries: formData.lifeEvents.map((event) => ({
+        name: event.eventName,
+        description: event.eventDescription,
+        startYear: parseInt(event.startYear || "0"),
+        durationYears: parseInt(event.duration || "0"),
+        type: event.lifeEventType,
+        initialAmount: (event.lifeEventType === "income" || event.lifeEventType === "expense")
+          ? parseFloat(event.annualChangeFixed || 0)
+          : undefined,
+        changeAmtOrPct: (event.lifeEventType === "income" || event.lifeEventType === "expense")
+          ? parseFloat(event.annualChangeFixed || 0)
+          : undefined,
+        changeDistribution: (event.lifeEventType === "income" || event.lifeEventType === "expense")
+          ? {
+              type: event.annualChangeType || "fixed",
+              ...(event.annualChangeType === "normal"
+                ? {
+                    mean: parseFloat(event.annualChangeMean || 0),
+                    stdev: parseFloat(event.annualChangeStdev || 0),
+                  }
+                : { value: parseFloat(event.annualChangeFixed || 0) })
+            }
+          : undefined,
+        inflationAdjusted: (event.lifeEventType === "income" || event.lifeEventType === "expense") ? true : undefined,
+        userFraction: (event.lifeEventType === "income" || event.lifeEventType === "expense") ? 1 : undefined,
+        socialSecurity: event.lifeEventType === "income" ? false : undefined,
+        discretionary: event.lifeEventType === "expense" ? true : undefined,
+        assetAllocation: (event.lifeEventType === "invest" || event.lifeEventType === "rebalance")
+          ? { sampleAsset: 100 }
+          : undefined,
+        glidePath: event.lifeEventType === "invest" ? true : undefined,
+        assetAllocation2: event.lifeEventType === "invest" ? { sampleAsset: 100 } : undefined,
+        maxCash: event.lifeEventType === "invest" ? 10000 : undefined,
+      })),
+      investmentTypes: [],
+      inflationAssumption: { type: "fixed", value: 0.02 },
+      afterTaxContributionLimit: 6500,
+      spendingStrategy: [],
+      expenseWithdrawalStrategy: [],
+      RMDStrategy: [],
+      RothConversionStrategy: [],
+      residenceState: "NY",
+      sharedUsersId: [],
+      sharedUserPerms: [],
+      version: 1,
+    };
+  };
+  
+  const handleSubmit = async () => {
+    const payload = transformFormData(formData); 
+    try {
+      const res = await fetch("http://localhost:5000/api/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+  
+      if (!res.ok) {
+        throw new Error("Failed to save plan");
+      }
+  
+      const result = await res.json();
+      console.log("Plan saved:", result);
+      alert("Plan saved successfully!");
+    } catch (error) {
+      console.error("Error submitting plan:", error);
+      alert("There was an error. Check the console for details.");
+    }
+  };
+  
+
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
   return (
     <div className="page-container">
@@ -1076,7 +1169,7 @@ const CreatePlan = () => {
       </div>
 
       {/* Final Save Button */}
-      <button className="page-buttons" onClick={() => console.log(formData)}>
+      <button className="page-buttons" onClick={handleSubmit}>
         SAVE
       </button>
     </div>
