@@ -3,90 +3,71 @@ import "../css_files/page_style.css";
 import "../css_files/collapsible.css";
 
 const CreatePlan = () => {
-  const [formData, setFormData] = useState({
-    // Basic info
+  const defaultFormData = {
     planName: "",
     planType: "",
     currentAge: "",
     birthYear: "",
-    // This is the radio for "yes/no" life expectancy vs. sample
     lifeExpectancyRadio: "",
-    // If user chooses "yes," store the actual numeric life expectancy here
     lifeExpectancyYears: "",
-
-    // Roth Conversion
-    rothConversion: "",     // "yes" or "no"
+  
+    rothConversion: "",
     rothStartYear: "",
     rothEndYear: "",
-
-    // INVESTMENTS
+  
     financialGoal: "",
     investments: [
       {
         id: 1,
         isExpanded: false,
-        // Investment Type fields
         investmentType: "",
         investmentName: "",
         investmentDescription: "",
-
-        // Annual Return fields
-        annualReturnType: "",      // "fixed", "normal", or "markov"
+        annualReturnType: "",
         annualReturnFixed: "",
         annualReturnMean: "",
         annualReturnStdev: "",
         annualReturnDrift: "",
         annualReturnVolatility: "",
-
-        // Annual Income fields
         annualIncomeType: "",
         annualIncomeFixed: "",
         annualIncomeMean: "",
         annualIncomeStdev: "",
         annualIncomeDrift: "",
         annualIncomeVolatility: "",
-
-        // Tax-related
-        taxability: "",            // "taxable" or "tax-exempt"
-        taxFile: null,             // File upload
-        accountType: "",           // "non-retirement", "pre-tax", "after-tax"
+        taxability: "",
+        taxFile: null,
+        accountType: "",
       },
     ],
-
-    // LIFE EVENTS
     lifeEvents: [
       {
         id: 1,
         isExpanded: false,
-        lifeEventType: "",        // "income", "expense"
+        lifeEventType: "",
         eventName: "",
         eventDescription: "",
-
-        // Start date radio
-        startType: "",            // "startingYear", "normal", "startEvent", "startEndEvent"
-        startYear: "",            // If "startingYear"
-        startMean: "",            // If "normal"
-        startStdev: "",           // If "normal"
-        startEvent: "",           // If "startEvent"
-        startEndEvent: "",        // If "startEndEvent"
-
-        duration: "",             // Duration in years
-
-        // Annual Change
-        annualChangeType: "",     // "fixed" or "normal"
+        startType: "",
+        startYear: "",
+        startMean: "",
+        startStdev: "",
+        startEvent: "",
+        startEndEvent: "",
+        duration: "",
+        annualChangeType: "",
         annualChangeFixed: "",
         annualChangeMean: "",
         annualChangeStdev: "",
-
-        // Inflation
         inflationType: "",
         inflationFixed: "",
         inflationMean: "",
         inflationStdev: "",
       },
     ],
-  });
+  };
+  const [formData, setFormData] = useState(defaultFormData);
 
+  
   // -----------------------------------------------------BASIC INFO STUFF   -----------------------------------------------------//
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -315,11 +296,13 @@ const CreatePlan = () => {
       const result = await res.json();
       console.log("Plan saved:", result);
       alert("Plan saved successfully!");
+      setFormData(JSON.parse(JSON.stringify(defaultFormData)));
     } catch (error) {
       console.error("Error submitting plan:", error);
       alert("There was an error. Check the console for details.");
     }
   };
+  
   
 
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
