@@ -6,10 +6,30 @@ import '../css_files/page_style.css';
 const Login = () => {
   const navigate = useNavigate();
 
-  const onSuccess = (credentialResponse: any) => {
-    console.log("Google login successful:", credentialResponse);
-    navigate("/dashboard");
+  const onSuccess = async (tokenResponse: any) => {
+    console.log("Google login successful:", tokenResponse);
+  
+    try {
+      const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: {
+          Authorization: `Bearer ${tokenResponse.access_token}`,
+        },
+      });
+      const userInfo = await res.json();
+  
+      console.log("Google user info:", userInfo);
+  
+      // Save user info locally
+      localStorage.setItem("userId", userInfo.sub);        // Google's unique user ID
+      localStorage.setItem("username", userInfo.email);    // Optional if using email
+      localStorage.setItem("name", userInfo.name);         // Optional for display
+  
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Failed to fetch Google user info:", error);
+    }
   };
+  
 
   const onError = () => {
     console.error("Google login failed");

@@ -48,15 +48,27 @@ const Scenario: FC = () => {
 
   useEffect(() => {
     const fetchScenarios = async () => {
+      const userId = localStorage.getItem("userId"); 
+      console.log("userID", userId)
+  
+      if (!userId) {
+        console.warn("No userId found in localStorage");
+        return;
+      }
+  
       try {
         const response = await fetch("http://localhost:5000/api/plans/all", {
-          method: "GET",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId }), // 👈 send userId instead
         });
   
-        if (!response.ok) throw new Error("Failed to fetch all plans");
-
+        if (!response.ok) throw new Error("Failed to fetch plans");
+  
         const result = await response.json();
-        const data = result.data; 
+        const data = result.data;
         const formatted = data.map((item: any, index: number) => ({
           id: item._id || index,
           title: item.name || "Untitled Plan",
@@ -72,7 +84,9 @@ const Scenario: FC = () => {
     };
   
     fetchScenarios();
-}, []);
+  }, []);
+  
+  
   
 const handleDeleteScenario = async (id: string) => {
   try {

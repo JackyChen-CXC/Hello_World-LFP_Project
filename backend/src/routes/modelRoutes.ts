@@ -13,5 +13,5 @@ modelRouter.post("/plans", createFinancialPlan);
 modelRouter.get("/plans", getFinancialPlans); 
 modelRouter.post("/webscrape", webscrape);
 modelRouter.post("/scrapedoc", scrapeDoc);
-modelRouter.get("/plans/all", getAllFinancialPlans)
+modelRouter.post("/plans/all", getAllFinancialPlans)
 export default modelRouter;

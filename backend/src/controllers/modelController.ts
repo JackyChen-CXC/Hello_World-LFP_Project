@@ -7,15 +7,26 @@ import { Request, Response } from "express";
 
 export const getAllFinancialPlans = async (req: any, res: any) => {
 	try {
-	  const plans = await FinancialPlan.find({});
+	  const { userId } = req.body;
+  
+	  if (!userId) {
+		return res.status(400).json({
+		  status: "ERROR",
+		  error: true,
+		  message: "User ID is required to fetch plans",
+		});
+	  }
+  
+	  const plans = await FinancialPlan.find({ userId }); 
+  
 	  return res.status(200).json({
 		status: "SUCCESS",
 		error: false,
-		message: "All Financial Plans retrieved successfully",
+		message: "Financial Plans retrieved successfully",
 		data: plans,
 	  });
 	} catch (err) {
-	  console.error("Error fetching all plans:", err);
+	  console.error("Error fetching plans by userId:", err);
 	  return res.status(500).json({
 		status: "ERROR",
 		error: true,
@@ -23,15 +34,17 @@ export const getAllFinancialPlans = async (req: any, res: any) => {
 	  });
 	}
   };
+  
+  
 
 export const createFinancialPlan = async (req:any, res:any) => {
 	try {
-	  console.log("Received body:", req.body); // 👈 DEBUG LINE
+	  console.log("Received body:", req.body); 
 	  const newPlan = new FinancialPlan(req.body);
 	  await newPlan.save();
 	  res.status(201).json(newPlan);
 	} catch (err) {
-	  console.error("Error creating plan:", err); // 👈 DEBUG LINE
+	  console.error("Error creating plan:", err); 
 	  res.status(500).json({ error: "Failed to create financial plan" });
 	}
   };

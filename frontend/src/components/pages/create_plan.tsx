@@ -212,7 +212,7 @@ const CreatePlan = () => {
 
   const transformFormData = (formData) => {
     return {
-      userId: "placeholder-user-id", // replace with actual user ID if available
+      userId: localStorage.getItem("userId") || "", 
       name: formData.planName,
       maritalStatus: formData.planType === "joint" ? "couple" : "individual",
       birthYears: [parseInt(formData.birthYear)],
