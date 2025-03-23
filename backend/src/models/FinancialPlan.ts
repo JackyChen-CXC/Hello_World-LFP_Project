@@ -7,20 +7,59 @@ import { IInvestmentType } from "./InvestmentType";
 
 // Investments individual to Financial Plan (Unlike InvestmentType)
 export interface IInvestment extends Document {
+    id: string;
     investmentType: IInvestmentType;
-    value: number;
+    investmentName?: string;
+    investmentDescription?: string;
+  
+    annualReturnType?: "fixed" | "normal" | "markov";
+    annualReturnFixed?: number;
+    annualReturnMean?: number;
+    annualReturnStdev?: number;
+    annualReturnDrift?: number;
+    annualReturnVolatility?: number;
+  
+    annualIncomeType?: "fixed" | "normal" | "markov";
+    annualIncomeFixed?: number;
+    annualIncomeMean?: number;
+    annualIncomeStdev?: number;
+    annualIncomeDrift?: number;
+    annualIncomeVolatility?: number;
+  
+    taxability?: "taxable" | "tax-exempt";
+    taxFile?: string; // file name or path if stored
+  
     taxStatus: "non-retirement" | "pre-tax" | "after-tax";
-    id: string
-}
+    accountType?: string;
+    value: number;
+}  
 
 const InvestmentSchema = new Schema<IInvestment>({
-    investmentType: { type: String, required: true },
-    value: { type: Number, required: true },
-    taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
     id: { type: String, required: true },
-    },
-    { _id: false }
-);
+    investmentType: { type: String, required: true },
+    investmentName: { type: String, required: false },
+    investmentDescription: { type: String, required: false },
+  
+    annualReturnType: { type: String, enum: ["fixed", "normal", "markov"], required: false },
+    annualReturnFixed: { type: Number },
+    annualReturnMean: { type: Number },
+    annualReturnStdev: { type: Number },
+    annualReturnDrift: { type: Number },
+    annualReturnVolatility: { type: Number },
+  
+    annualIncomeType: { type: String, enum: ["fixed", "normal", "markov"], required: false },
+    annualIncomeFixed: { type: Number },
+    annualIncomeMean: { type: Number },
+    annualIncomeStdev: { type: Number },
+    annualIncomeDrift: { type: Number },
+    annualIncomeVolatility: { type: Number },
+  
+    taxability: { type: String, enum: ["taxable", "tax-exempt"], required: false },
+    taxFile: { type: String }, // store file path or filename reference
+  
+    accountType: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true }
+  }, { _id: false });
+  
 
 // LifeEvents are also individual to Financial Plans
 // ATTRIBUTES PER TYPE
@@ -29,65 +68,84 @@ const InvestmentSchema = new Schema<IInvestment>({
 // invest    -> assetAllocation, glidePath, assetAllocation2, maxCash
 // rebalance -> assetAllocation
 export interface ILifeEvent extends Document {
+    id: string;
     name: string;
     description: string;
-    startYear: number;
+    lifeEventType: "income" | "expense" | "invest" | "rebalance";
+  
+    // Start
+    startType?: "startingYear" | "normal" | "startEvent" | "startEndEvent";
+    startYear?: number;
+    startMean?: number;
+    startStdev?: number;
+    startEvent?: string;
+    startEndEvent?: string;
+  
     durationYears: number;
-    type: "income" | "expense" | "invest" | "rebalance";
-    initialAmount?: number;
-    changeAmtOrPct?: number;
-    changeDistribution?: IDistribution;
+
+    annualChangeType?: "fixed" | "normal";
+    annualChangeFixed?: number;
+    annualChangeMean?: number;
+    annualChangeStdev?: number;
+
+    inflationType?: "fixed" | "normal";
+    inflationFixed?: number;
+    inflationMean?: number;
+    inflationStdev?: number;
+  
     inflationAdjusted?: boolean;
     userFraction?: number;
     socialSecurity?: boolean;
     discretionary?: boolean;
+
     assetAllocation?: Record<string, number>;
     glidePath?: boolean;
     assetAllocation2?: Record<string, number>;
     maxCash?: number;
-}
+  }
+  
 
 const LifeEventSchema = new Schema<ILifeEvent>({
+    id: { type: String, required: true },
+    lifeEventType: { type: String, enum: ["income", "expense", "invest", "rebalance"], required: true },
     name: { type: String, required: true },
     description: { type: String, default: "" },
-    startYear: { type: Number, required: true },
+  
+    // Start Date Options
+    startType: { type: String, enum: ["startingYear", "normal", "startEvent", "startEndEvent"] },
+    startYear: { type: Number },
+    startMean: { type: Number },
+    startStdev: { type: Number },
+    startEvent: { type: String },
+    startEndEvent: { type: String },
+  
     durationYears: { type: Number, required: true },
-    type: { type: String, required: true, enum: ["income", "expense", "invest", "rebalance"] },
-    initialAmount: { type: Number, 
-        required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
-    }},
-    changeAmtOrPct: { type: Number, 
-        required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
-    }},
-    changeDistribution: { type: DistributionSchema, 
-        required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
-    }},
-    inflationAdjusted: { type: Boolean, 
-        required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
-    }},
-    userFraction: { type: Number, 
-        required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
-    }},
-    socialSecurity: { type: Boolean, 
-        required: function (this: ILifeEvent) { return this.type === "income";
-    }},
-    discretionary: { type: Boolean, 
-        required: function (this: ILifeEvent) { return this.type === "expense";
-    }},
-    assetAllocation: { type: Map, of: Number,
-        required: function (this: ILifeEvent) { return this.type === "invest" || this.type === "rebalance";
-    }},
-    glidePath: { type: Boolean, 
-        required: function (this: ILifeEvent) { return this.type === "invest";
-    }},
-    assetAllocation2: { type: Map, of: Number,
-        required: function (this: ILifeEvent) { return this.type === "invest";
-    }},
-    maxCash: { type: Number, 
-        required: function (this: ILifeEvent) { return this.type === "invest";
-    }}},
-    { _id: false }
-);
+  
+    // Annual Change
+    annualChangeType: { type: String, enum: ["fixed", "normal"] },
+    annualChangeFixed: { type: Number },
+    annualChangeMean: { type: Number },
+    annualChangeStdev: { type: Number },
+  
+    // Inflation
+    inflationType: { type: String, enum: ["fixed", "normal"] },
+    inflationFixed: { type: Number },
+    inflationMean: { type: Number },
+    inflationStdev: { type: Number },
+  
+    // Extra Optional Flags
+    inflationAdjusted: { type: Boolean },
+    userFraction: { type: Number },
+    socialSecurity: { type: Boolean },
+    discretionary: { type: Boolean },
+  
+    // Investment-specific
+    assetAllocation: { type: Map, of: Number },
+    glidePath: { type: Boolean },
+    assetAllocation2: { type: Map, of: Number },
+    maxCash: { type: Number }
+  }, { _id: false });
+  
 
 // FROM CHATGPT, AS A ALTERNATIVE TO INDIVIDUAL REQUIRED FUNCTIONS
 // **Pre-validation for required fields**
@@ -116,6 +174,7 @@ export interface IFinancialPlan extends Document {
     userId: IUser;
     name: string;
     maritalStatus: "couple" | "individual"
+    currentAge: number[];
     birthYears: number[];
     lifeExpectancy: IDistribution[];
     spousebirthyear: IDistribution[];
@@ -144,6 +203,7 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     userId: { type: String, required: true }, // was Schema.Types.ObjectId
     name: { type: String, required: true },
     maritalStatus : { type: String, enum: ["couple", "individual"] },
+    currentAge: { type: [Number], required: true , default: [] },
     birthYears: { type: [Number], required: true , default: [] },
     lifeExpectancy: { type: [DistributionSchema], required: true },
     spousebirthyear: { type: [DistributionSchema], required: true },

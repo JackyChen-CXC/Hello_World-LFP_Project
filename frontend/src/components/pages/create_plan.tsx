@@ -8,6 +8,8 @@ const CreatePlan = () => {
     planType: "",
     currentAge: "",
     birthYear: "",
+    spouseAge: "",
+    spouseBirthYear: "",
     lifeExpectancyRadio: "",
     lifeExpectancyYears: "",
   
@@ -212,60 +214,95 @@ const CreatePlan = () => {
 
   const transformFormData = (formData) => {
     return {
-      userId: localStorage.getItem("userId") || "", 
+      userId: localStorage.getItem("userId") || "",
       name: formData.planName,
       maritalStatus: formData.planType === "joint" ? "couple" : "individual",
-      birthYears: [parseInt(formData.birthYear)],
-      spousebirthyear: [],
+      currentAge:
+        formData.planType === "joint"
+          ? [parseInt(formData.currentAge), parseInt(formData.spouseAge || "0")]
+          : [parseInt(formData.currentAge)],
+      birthYears:
+        formData.planType === "joint"
+          ? [parseInt(formData.birthYear), parseInt(formData.spouseBirthYear || "0")]
+          : [parseInt(formData.birthYear)],
+      spousebirthyear:
+        formData.planType === "joint"
+          ? [{ type: "fixed", value: parseInt(formData.spouseBirthYear || "0") }]
+          : [{ type: "fixed", value: 0 }],
+  
       lifeExpectancy: [
         formData.lifeExpectancyRadio === "yes"
           ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
-          : { type: "normal", mean: 90, stdev: 10 }
+          : { type: "normal", mean: 90, stdev: 10 },
       ],
       financialGoal: parseFloat(formData.financialGoal || 0),
       RothConversionOpt: formData.rothConversion === "yes",
       RothConversionStart: parseInt(formData.rothStartYear || "0"),
       RothConversionEnd: parseInt(formData.rothEndYear || "0"),
+  
       investments: formData.investments.map((inv) => ({
-        investmentType: inv.investmentType,
-        value: 0,
-        taxStatus: inv.accountType,
         id: inv.id.toString(),
+        investmentType: inv.investmentType,
+        investmentName: inv.investmentName || "",
+        investmentDescription: inv.investmentDescription || "",
+        annualReturnType: inv.annualReturnType || undefined,
+        annualReturnFixed: parseFloat(inv.annualReturnFixed) || undefined,
+        annualReturnMean: parseFloat(inv.annualReturnMean) || undefined,
+        annualReturnStdev: parseFloat(inv.annualReturnStdev) || undefined,
+        annualReturnDrift: parseFloat(inv.annualReturnDrift) || undefined,
+        annualReturnVolatility: parseFloat(inv.annualReturnVolatility) || undefined,
+        annualIncomeType: inv.annualIncomeType || undefined,
+        annualIncomeFixed: parseFloat(inv.annualIncomeFixed) || undefined,
+        annualIncomeMean: parseFloat(inv.annualIncomeMean) || undefined,
+        annualIncomeStdev: parseFloat(inv.annualIncomeStdev) || undefined,
+        annualIncomeDrift: parseFloat(inv.annualIncomeDrift) || undefined,
+        annualIncomeVolatility: parseFloat(inv.annualIncomeVolatility) || undefined,
+        taxability: inv.taxability || undefined,
+        taxFile: inv.taxFile?.name || undefined,
+        accountType: inv.accountType,
+        taxStatus: inv.accountType,
+        value: 0,
       })),
+  
       eventSeries: formData.lifeEvents.map((event) => ({
+        id: event.id.toString(),
+        lifeEventType: event.lifeEventType,
         name: event.eventName,
         description: event.eventDescription,
+        startType: event.startType,
         startYear: parseInt(event.startYear || "0"),
+        startMean: parseFloat(event.startMean || "0"),
+        startStdev: parseFloat(event.startStdev || "0"),
+        startEvent: event.startEvent || undefined,
+        startEndEvent: event.startEndEvent || undefined,
         durationYears: parseInt(event.duration || "0"),
-        type: event.lifeEventType,
-        initialAmount: (event.lifeEventType === "income" || event.lifeEventType === "expense")
-          ? parseFloat(event.annualChangeFixed || 0)
+  
+        annualChangeType: event.annualChangeType || undefined,
+        annualChangeFixed: parseFloat(event.annualChangeFixed || "0"),
+        annualChangeMean: parseFloat(event.annualChangeMean || "0"),
+        annualChangeStdev: parseFloat(event.annualChangeStdev || "0"),
+  
+        inflationType: event.inflationType || undefined,
+        inflationFixed: parseFloat(event.inflationFixed || "0"),
+        inflationMean: parseFloat(event.inflationMean || "0"),
+        inflationStdev: parseFloat(event.inflationStdev || "0"),
+  
+        inflationAdjusted: ["income", "expense"].includes(event.lifeEventType)
+          ? true
           : undefined,
-        changeAmtOrPct: (event.lifeEventType === "income" || event.lifeEventType === "expense")
-          ? parseFloat(event.annualChangeFixed || 0)
-          : undefined,
-        changeDistribution: (event.lifeEventType === "income" || event.lifeEventType === "expense")
-          ? {
-              type: event.annualChangeType || "fixed",
-              ...(event.annualChangeType === "normal"
-                ? {
-                    mean: parseFloat(event.annualChangeMean || 0),
-                    stdev: parseFloat(event.annualChangeStdev || 0),
-                  }
-                : { value: parseFloat(event.annualChangeFixed || 0) })
-            }
-          : undefined,
-        inflationAdjusted: (event.lifeEventType === "income" || event.lifeEventType === "expense") ? true : undefined,
-        userFraction: (event.lifeEventType === "income" || event.lifeEventType === "expense") ? 1 : undefined,
+        userFraction: ["income", "expense"].includes(event.lifeEventType) ? 1 : undefined,
         socialSecurity: event.lifeEventType === "income" ? false : undefined,
         discretionary: event.lifeEventType === "expense" ? true : undefined,
-        assetAllocation: (event.lifeEventType === "invest" || event.lifeEventType === "rebalance")
-          ? { sampleAsset: 100 }
-          : undefined,
+  
+        assetAllocation:
+          ["invest", "rebalance"].includes(event.lifeEventType) && event.lifeEventType !== ""
+            ? { sampleAsset: 100 }
+            : undefined,
         glidePath: event.lifeEventType === "invest" ? true : undefined,
         assetAllocation2: event.lifeEventType === "invest" ? { sampleAsset: 100 } : undefined,
         maxCash: event.lifeEventType === "invest" ? 10000 : undefined,
       })),
+  
       investmentTypes: [],
       inflationAssumption: { type: "fixed", value: 0.02 },
       afterTaxContributionLimit: 6500,
@@ -279,6 +316,7 @@ const CreatePlan = () => {
       version: 1,
     };
   };
+  
   
   const handleSubmit = async () => {
     const payload = transformFormData(formData); 
@@ -378,6 +416,32 @@ const CreatePlan = () => {
             />
           </div>
         </div>
+
+        {/* Spouse's Age & Birth Year (only for joint plan) */}
+        {formData.planType === "joint" && (
+          <div className="split-container">
+            <div className="left-side">
+              <div className="normal-text">Spouse's Current Age*</div>
+              <input
+                className="input-boxes"
+                type="text"
+                name="spouseAge"
+                value={formData.spouseAge || ""}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="right-side">
+              <div className="normal-text">Spouse's Birth Year*</div>
+              <input
+                className="input-boxes"
+                type="text"
+                name="spouseBirthYear"
+                value={formData.spouseBirthYear || ""}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Life Expectancy Radio */}
         <div className="normal-text">

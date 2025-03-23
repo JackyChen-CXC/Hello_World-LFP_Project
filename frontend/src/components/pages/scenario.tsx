@@ -62,7 +62,7 @@ const Scenario: FC = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ userId }), // 👈 send userId instead
+          body: JSON.stringify({ userId }),
         });
   
         if (!response.ok) throw new Error("Failed to fetch plans");

@@ -50,56 +50,48 @@ export const createFinancialPlan = async (req:any, res:any) => {
 	  res.status(500).json({ error: "Failed to create financial plan" });
 	}
   };
-  
 
 
-export const getFinancialPlans = async (req: any, res: any) => {
+export const getSpecificFinancialPlan = async (req: any, res: any) => {
 	try {
-        const { username } = req.body;
-        const plans = await getPlansByUser(username);
-		console.log(plans)
-        return res.status(200).json({
-            status: "SUCCESS",
-            error: false,
-            message: "Financial Plans retrieved successfully",
-            data: plans,
-        });
+		const { id } = req.params;
+		const plan = await FinancialPlan.findById(id);
 
-    } catch (error) {
-		console.log(error)
-		res.status(200).json({
-			status: "ERROR",
-			error: true,
-			message: "Error getting Financial Plans",
-		});
+		if (!plan) {
+			return res.status(404).json({ message: "Plan not found" });
+		}
+
+		return res.status(200).json({ data: plan });
+		} catch (err) {
+		console.error("Error fetching plan by ID:", err);
+		return res.status(500).json({ message: "Failed to retrieve plan" });
 	}
 };
 
-// export const webscrape = async (req: any, res: any) => {
-//     exec('python3 ../microservices/webscraping/taxdataScrap.py', (error, stdout, stderr) => {
-//         if (error) {
-//             console.error(`Error: ${error.message}`);
-//             res.status(500).json({
-//                 status: "ERROR",
-//                 error: true,
-//                 message: "Web scraping failed.",
-//             });
-//             return;
-//         }
-//         if (stderr) {
-//             console.error(`stderr: ${stderr}`);
-//         }
 
-//         console.log(`Python Output: ${stdout}`);
-//         res.status(200).json({
-//             status: "SUCCESS",
-//             error: false,
-//             message: stdout.trim(),  // Return script output
-//         });
-//     });
-// };
+export const webscrape = async (req: any, res: any) => {
+    exec('python3 ../microservices/webscraping/taxdataScrap.py', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error: ${error.message}`);
+            res.status(500).json({
+                status: "ERROR",
+                error: true,
+                message: "Web scraping failed.",
+            });
+            return;
+        }
+        if (stderr) {
+            console.error(`stderr: ${stderr}`);
+        }
 
-
+        console.log(`Python Output: ${stdout}`);
+        res.status(200).json({
+            status: "SUCCESS",
+            error: false,
+            message: stdout.trim(),  // Return script output
+        });
+    });
+};
 
 
 export const scrapeDoc = async (req: any, res: any) => {

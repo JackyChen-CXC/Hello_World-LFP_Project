@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  getFinancialPlans,
+  getSpecificFinancialPlan,
   scrapeDoc,
   webscrape,
   createFinancialPlan,
@@ -10,7 +10,7 @@ import {
 const modelRouter = Router();
 
 modelRouter.post("/plans", createFinancialPlan);
-modelRouter.get("/plans", getFinancialPlans); 
+modelRouter.get("/plans/:id", getSpecificFinancialPlan); 
 modelRouter.post("/webscrape", webscrape);
 modelRouter.post("/scrapedoc", scrapeDoc);
 modelRouter.post("/plans/all", getAllFinancialPlans)
