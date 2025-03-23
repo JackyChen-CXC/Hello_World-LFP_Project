@@ -187,8 +187,38 @@ def calculate_federal_tax(income,married_status):
         return tax
 
 
-def update_db_for_inflation(inflation):
-    return
+def update_db_for_flat_inflation(inflation_rate):
+    federal_tax = db["federal_tax"]
+    inflation_db = db["inflation_federal_tax"]
+
+    documents = federal_tax.find()
+
+    for doc in documents:
+        if doc["over_100k"] == False:
+            inflated_doc = {
+                "min_value": doc["min_value"] * inflation_rate,
+                "max_value": doc["max_value"] * inflation_rate,
+                "single": doc["single"] * inflation_rate,
+                "married": doc["married"] * inflation_rate,
+                "over_100k": doc["over_100k"],
+                "tax_rate": doc["tax_rate"],
+                "subtract_amount": doc["subtract_amount"],
+                "marriage_type": doc["marriage_type"]
+            }
+            inflation_db.insert_one(inflated_doc)
+        else:
+            inflated_doc = {
+                "min_value": doc["min_value"] * inflation_rate,
+                "max_value": doc["max_value"] * inflation_rate,
+                "single": doc["single"],
+                "married": doc["married"],
+                "over_100k": doc["over_100k"],
+                "tax_rate": doc["tax_rate"] * inflation_rate,
+                "subtract_amount": doc["subtract_amount"] * inflation_rate,
+                "marriage_type": doc["marriage_type"]
+            }
+            inflation_db.insert_one(inflated_doc)
+
 
 #print(calculate_standard_deduction(345,"single"))
 #print(calculate_state_tax(300000,"married","colorado"))

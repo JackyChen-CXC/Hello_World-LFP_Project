@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "nodemon --exitcrash src/index.ts"
+    "dev": "nodemon --exitcrash src/index.ts",
+    "postinstall": "ts-node src/webscrap.ts"
   },
   "keywords": [],
   "author": "",

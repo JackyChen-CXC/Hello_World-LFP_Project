@@ -1,9 +1,11 @@
-#do
+#do the following so that when you npm install backend it auto webscrape
 #pip install requests beautifulsoup4 pymongo
+#npm install --save-dev ts-node
 import requests
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 import re
+import sys
 
 
 client = MongoClient("mongodb://localhost:27017/")
@@ -380,12 +382,17 @@ def scrape_captial_gain():
 
                     
 
-scrape_federal_tax()
+#scrape_federal_tax()
 #scrape_state_tax()
 #scrape_standard_deduction()
 #scrape_captial_gain()
 
-
+if __name__ == "__main__":
+    scrape_federal_tax()
+    scrape_state_tax()
+    scrape_standard_deduction()
+    scrape_captial_gain()
+    print("Scrape completed")
 
 
 

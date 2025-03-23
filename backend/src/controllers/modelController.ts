@@ -5,6 +5,8 @@ import axios from "axios";
 
 import { Request, Response } from "express";
 
+import { exec } from 'child_process';
+
 export const getAllFinancialPlans = async (req: any, res: any) => {
 	try {
 	  const { userId } = req.body;
@@ -73,18 +75,31 @@ export const getFinancialPlans = async (req: any, res: any) => {
 	}
 };
 
-export const webscrape = async (req: any, res: any) => {
-	try {
-		// use app.py from ..\microservices\webscraping
-        // await axios.post('http://localhost:5001/api/flask/videos'
-	} catch (error) {
-		res.status(200).json({
-			status: "ERROR",
-			error: true,
-			message: "Login failed.",
-		});
-	}
-};
+// export const webscrape = async (req: any, res: any) => {
+//     exec('python3 ../microservices/webscraping/taxdataScrap.py', (error, stdout, stderr) => {
+//         if (error) {
+//             console.error(`Error: ${error.message}`);
+//             res.status(500).json({
+//                 status: "ERROR",
+//                 error: true,
+//                 message: "Web scraping failed.",
+//             });
+//             return;
+//         }
+//         if (stderr) {
+//             console.error(`stderr: ${stderr}`);
+//         }
+
+//         console.log(`Python Output: ${stdout}`);
+//         res.status(200).json({
+//             status: "SUCCESS",
+//             error: false,
+//             message: stdout.trim(),  // Return script output
+//         });
+//     });
+// };
+
+
 
 
 export const scrapeDoc = async (req: any, res: any) => {
