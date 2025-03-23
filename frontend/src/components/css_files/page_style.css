@@ -45,7 +45,7 @@
     width: 400px;
     height: 150px;
     border-radius: 10%;
-    padding:3%;
+    padding:5%;
     align-items: center;
     margin-top: 4%;
     margin-left: 8%;
@@ -110,7 +110,12 @@
     padding-top: 2%;
     font-size: 20px;
 }
-
+.value-text{
+  font-size: 17px;
+  display: flex;
+  flex-direction: row;
+  justify-content: end;
+}
 /* font style for subheading*/
 .subheading{
     text-decoration: underline;

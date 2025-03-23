@@ -24,6 +24,7 @@ const CreatePlan = () => {
         isExpanded: false,
         investmentType: "",
         investmentName: "",
+        investmentValue:"",
         investmentDescription: "",
         annualReturnType: "",
         annualReturnFixed: "",
@@ -103,6 +104,7 @@ const CreatePlan = () => {
           isExpanded: false,
           investmentType: "",
           investmentName: "",
+          investmentValue:"",
           investmentDescription: "",
           annualReturnType: "",
           annualReturnFixed: "",
@@ -213,91 +215,82 @@ const CreatePlan = () => {
   };
 
   const transformFormData = (formData) => {
+    const isJoint = formData.planType === "joint";
+  
     return {
       userId: localStorage.getItem("userId") || "",
       name: formData.planName,
-      maritalStatus: formData.planType === "joint" ? "couple" : "individual",
-      currentAge:
-        formData.planType === "joint"
-          ? [parseInt(formData.currentAge), parseInt(formData.spouseAge || "0")]
-          : [parseInt(formData.currentAge)],
-      birthYears:
-        formData.planType === "joint"
-          ? [parseInt(formData.birthYear), parseInt(formData.spouseBirthYear || "0")]
-          : [parseInt(formData.birthYear)],
-      spousebirthyear:
-        formData.planType === "joint"
-          ? [{ type: "fixed", value: parseInt(formData.spouseBirthYear || "0") }]
-          : [{ type: "fixed", value: 0 }],
-  
+      maritalStatus: isJoint ? "couple" : "individual",
+      currentAge: [parseInt(formData.currentAge)],
+      spouseAge: isJoint ? parseInt(formData.spouseAge || "0") : undefined,
+
+      birthYears: [parseInt(formData.birthYear)],
+      spousebirthyear: isJoint
+        ? parseInt(formData.spouseBirthYear || "0")
+        : undefined,
+
       lifeExpectancy: [
         formData.lifeExpectancyRadio === "yes"
           ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
           : { type: "normal", mean: 90, stdev: 10 },
       ],
-      financialGoal: parseFloat(formData.financialGoal || 0),
+
+      financialGoal: parseFloat(formData.financialGoal || "0"),
       RothConversionOpt: formData.rothConversion === "yes",
       RothConversionStart: parseInt(formData.rothStartYear || "0"),
       RothConversionEnd: parseInt(formData.rothEndYear || "0"),
   
       investments: formData.investments.map((inv) => ({
         id: inv.id.toString(),
-        investmentType: inv.investmentType,
+        investmentType: inv.investmentType || "",
         investmentName: inv.investmentName || "",
+        investmentValue: inv.investmentValue|| "",
         investmentDescription: inv.investmentDescription || "",
-        annualReturnType: inv.annualReturnType || undefined,
-        annualReturnFixed: parseFloat(inv.annualReturnFixed) || undefined,
-        annualReturnMean: parseFloat(inv.annualReturnMean) || undefined,
-        annualReturnStdev: parseFloat(inv.annualReturnStdev) || undefined,
-        annualReturnDrift: parseFloat(inv.annualReturnDrift) || undefined,
-        annualReturnVolatility: parseFloat(inv.annualReturnVolatility) || undefined,
-        annualIncomeType: inv.annualIncomeType || undefined,
-        annualIncomeFixed: parseFloat(inv.annualIncomeFixed) || undefined,
-        annualIncomeMean: parseFloat(inv.annualIncomeMean) || undefined,
-        annualIncomeStdev: parseFloat(inv.annualIncomeStdev) || undefined,
-        annualIncomeDrift: parseFloat(inv.annualIncomeDrift) || undefined,
-        annualIncomeVolatility: parseFloat(inv.annualIncomeVolatility) || undefined,
-        taxability: inv.taxability || undefined,
+        annualReturnType: inv.annualReturnType || "",
+        annualReturnFixed: inv.annualReturnFixed ? parseFloat(inv.annualReturnFixed) : undefined,
+        annualReturnMean: inv.annualReturnMean ? parseFloat(inv.annualReturnMean) : undefined,
+        annualReturnStdev: inv.annualReturnStdev ? parseFloat(inv.annualReturnStdev) : undefined,
+        annualReturnDrift: inv.annualReturnDrift ? parseFloat(inv.annualReturnDrift) : undefined,
+        annualReturnVolatility: inv.annualReturnVolatility ? parseFloat(inv.annualReturnVolatility) : undefined,
+        annualIncomeType: inv.annualIncomeType || "",
+        annualIncomeFixed: inv.annualIncomeFixed ? parseFloat(inv.annualIncomeFixed) : undefined,
+        annualIncomeMean: inv.annualIncomeMean ? parseFloat(inv.annualIncomeMean) : undefined,
+        annualIncomeStdev: inv.annualIncomeStdev ? parseFloat(inv.annualIncomeStdev) : undefined,
+        annualIncomeDrift: inv.annualIncomeDrift ? parseFloat(inv.annualIncomeDrift) : undefined,
+        annualIncomeVolatility: inv.annualIncomeVolatility ? parseFloat(inv.annualIncomeVolatility) : undefined,
+        taxability: inv.taxability || "",
         taxFile: inv.taxFile?.name || undefined,
-        accountType: inv.accountType,
-        taxStatus: inv.accountType,
-        value: 0,
+        accountType: inv.accountType || "",
+        taxStatus: inv.accountType || "",
+        value: 0, 
       })),
   
       eventSeries: formData.lifeEvents.map((event) => ({
         id: event.id.toString(),
-        lifeEventType: event.lifeEventType,
-        name: event.eventName,
-        description: event.eventDescription,
-        startType: event.startType,
+        lifeEventType: event.lifeEventType || "",
+        name: event.eventName || "",
+        description: event.eventDescription || "",
+        startType: event.startType || "",
         startYear: parseInt(event.startYear || "0"),
         startMean: parseFloat(event.startMean || "0"),
         startStdev: parseFloat(event.startStdev || "0"),
         startEvent: event.startEvent || undefined,
         startEndEvent: event.startEndEvent || undefined,
         durationYears: parseInt(event.duration || "0"),
-  
-        annualChangeType: event.annualChangeType || undefined,
+        annualChangeType: event.annualChangeType || "",
         annualChangeFixed: parseFloat(event.annualChangeFixed || "0"),
         annualChangeMean: parseFloat(event.annualChangeMean || "0"),
         annualChangeStdev: parseFloat(event.annualChangeStdev || "0"),
-  
-        inflationType: event.inflationType || undefined,
+        inflationType: event.inflationType || "",
         inflationFixed: parseFloat(event.inflationFixed || "0"),
         inflationMean: parseFloat(event.inflationMean || "0"),
         inflationStdev: parseFloat(event.inflationStdev || "0"),
   
-        inflationAdjusted: ["income", "expense"].includes(event.lifeEventType)
-          ? true
-          : undefined,
-        userFraction: ["income", "expense"].includes(event.lifeEventType) ? 1 : undefined,
-        socialSecurity: event.lifeEventType === "income" ? false : undefined,
-        discretionary: event.lifeEventType === "expense" ? true : undefined,
+        inflationAdjusted: ["income", "expense"].includes(event.lifeEventType) ? true : undefined,
   
-        assetAllocation:
-          ["invest", "rebalance"].includes(event.lifeEventType) && event.lifeEventType !== ""
-            ? { sampleAsset: 100 }
-            : undefined,
+        assetAllocation: ["invest", "rebalance"].includes(event.lifeEventType)
+          ? { sampleAsset: 100 }
+          : undefined,
         glidePath: event.lifeEventType === "invest" ? true : undefined,
         assetAllocation2: event.lifeEventType === "invest" ? { sampleAsset: 100 } : undefined,
         maxCash: event.lifeEventType === "invest" ? 10000 : undefined,
@@ -316,7 +309,6 @@ const CreatePlan = () => {
       version: 1,
     };
   };
-  
   
   const handleSubmit = async () => {
     const payload = transformFormData(formData); 
@@ -556,6 +548,15 @@ const CreatePlan = () => {
                   ></textarea>
                 </div>
               </div>
+
+              <div className="normal-text">What is the current value of the investment?*</div>
+                  <input
+                    className="input-boxes"
+                    type="text"
+                    name="investmentValue"
+                    value={investment.investmentValue}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                  />
 
               {/* Annual Return */}
               <div className="normal-text">

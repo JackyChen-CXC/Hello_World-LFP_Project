@@ -11,6 +11,7 @@ export interface IInvestment extends Document {
     investmentType: IInvestmentType;
     investmentName?: string;
     investmentDescription?: string;
+    investmentValue?: number;
   
     annualReturnType?: "fixed" | "normal" | "markov";
     annualReturnFixed?: number;
@@ -39,6 +40,7 @@ const InvestmentSchema = new Schema<IInvestment>({
     investmentType: { type: String, required: true },
     investmentName: { type: String, required: false },
     investmentDescription: { type: String, required: false },
+    investmentValue:{ type: Number },
   
     annualReturnType: { type: String, enum: ["fixed", "normal", "markov"], required: false },
     annualReturnFixed: { type: Number },
@@ -175,6 +177,7 @@ export interface IFinancialPlan extends Document {
     name: string;
     maritalStatus: "couple" | "individual"
     currentAge: number[];
+    spouseAge: number[];
     birthYears: number[];
     lifeExpectancy: IDistribution[];
     spousebirthyear: IDistribution[];
@@ -204,9 +207,10 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     name: { type: String, required: true },
     maritalStatus : { type: String, enum: ["couple", "individual"] },
     currentAge: { type: [Number], required: true , default: [] },
+    spouseAge: { type: [Number], required: false, default:[] },
     birthYears: { type: [Number], required: true , default: [] },
     lifeExpectancy: { type: [DistributionSchema], required: true },
-    spousebirthyear: { type: [DistributionSchema], required: true },
+    spousebirthyear: { type: [Number], required: false , default: [] },
     investmentTypes: { type: [Schema.Types.ObjectId], ref: "InvestmentType", required: true},
     investments: { type: [InvestmentSchema], required: true, default: [] },
     eventSeries: { type: [LifeEventSchema], required: true, default: [] },
