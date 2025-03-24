@@ -1,5 +1,5 @@
 import { Router } from "express";
-import getSampleData from "../testing";
+import getSampleData from "../template";
 
 const testingRouter = Router();
 

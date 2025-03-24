@@ -207,24 +207,24 @@ const OpenScenario = () => {
                 )}
                 {/* Start Year */}
                 <div>
-                  Start Year Type: <span className="value-text">{event.startYear?.type}</span>
-                  {event.startYear?.value !== undefined && (
-                    <div>Start Year: <span className="value-text">{event.startYear.value}</span></div>
+                  Start Year Type: <span className="value-text">{event.start?.type}</span>
+                  {event.start?.value !== undefined && (
+                    <div>Start Year: <span className="value-text">{event.start.value}</span></div>
                   )}
-                  {event.startYear?.mean !== undefined && (
-                    <div>Mean: <span className="value-text">{event.startYear.mean}</span></div>
+                  {event.start?.mean !== undefined && (
+                    <div>Mean: <span className="value-text">{event.start.mean}</span></div>
                   )}
-                  {event.startYear?.stdev !== undefined && (
-                    <div>Stdev: <span className="value-text">{event.startYear.stdev}</span></div>
+                  {event.start?.stdev !== undefined && (
+                    <div>Stdev: <span className="value-text">{event.start.stdev}</span></div>
                   )}
                 </div>
 
                 {/* Duration */}
-                {event.durationYears && (
+                {event.duration && (
                   <div>
-                    Duration Type: <span className="value-text">{event.durationYears.type}</span>
-                    {event.durationYears.value !== undefined && (
-                      <div>Duration (Years): <span className="value-text">{event.durationYears.value}</span></div>
+                    Duration Type: <span className="value-text">{event.duration.type}</span>
+                    {event.duration.value !== undefined && (
+                      <div>Duration (Years): <span className="value-text">{event.duration.value}</span></div>
                     )}
                   </div>
                 )}

@@ -3,16 +3,16 @@
 // export interface ILifeEvent extends Document {
 //     name: string;
 //     description: string;
-//     startYear: number;
-//     durationYears: number;
+//     start: number;
+//     duration: number;
 //     type: "income" | "expense" | "invest" | "rebalance";
 // }
 
 // const lifeEventSchema = new Schema<ILifeEvent>({
 //     name: { type: String, required: true },
 //     description: { type: String, default: "" },
-//     startYear: { type: Number, required: true },
-//     durationYears: { type: Number, required: true },
+//     start: { type: Number, required: true },
+//     duration: { type: Number, required: true },
 //     type: { type: String, required: true, enum: ["income", "expense", "invest", "rebalance"] },
 // }, { discriminatorKey: "type", collection: "lifeEvents" });
 

@@ -110,11 +110,7 @@ const Scenario: FC = () => {
 
   // Handle the file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      console.warn("No userId found in localStorage");
-      return;
-    }
+    const username = localStorage.getItem("name") || "User";
     const selectedFile = e.target.files?.[0];
     const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
     if (fileExtension === 'yaml' || fileExtension === 'yml') {
@@ -133,7 +129,7 @@ const Scenario: FC = () => {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ userId: userId, data : parsedYaml }),
+            body: JSON.stringify({ username: username, data : parsedYaml }),
           });
           if (!response.ok) {
             throw new Error("Failed to upload YAML data.");
