@@ -113,7 +113,7 @@ const LifeEventSchema = new Schema<ILifeEvent>({
 // Actual Financial Plan
 
 export interface IFinancialPlan extends Document {
-    userId: IUser;
+    userId: String;
     name: string;
     maritalStatus: "couple" | "individual"
     birthYears: number[];
@@ -140,7 +140,7 @@ export interface IFinancialPlan extends Document {
 }
 
 const financialplanSchema = new Schema<IFinancialPlan>({
-    userId: { type: String, required: true }, // was Schema.Types.ObjectId
+    userId: { type: String }, // was Schema.Types.ObjectId
     name: { type: String, required: true },
     maritalStatus : { type: String, enum: ["couple", "individual"] },
     birthYears: { type: [Number], required: true, default: [] },
