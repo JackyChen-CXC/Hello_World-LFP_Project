@@ -9,6 +9,7 @@ const CreatePlan = () => {
     planName: "",
     planType: "",
     birthYear: "",
+    residentState:"",
     spouseBirthYear: "",
     lifeExpectancyRadio: "",
     lifeExpectancyYears: "",
@@ -545,382 +546,477 @@ const CreatePlan = () => {
           
         )}
 
+        <div className="normal-text">What state are you in?*</div>
+        <input
+          className="input-boxes"
+          type="text"
+          name="residentState"
+          value={formData.residentState}
+          placeholder="Enter 2 Letter State Acronym"
+          onChange={handleChange}
+        />
+
         
       </div>
 
-      {/* ------------------------------------------Investments & Savings------------------------------------------ */}
-      <div className="subheading">Investments & Savings</div>
-      <div className="normal-text">What is your financial goal?*</div>
-      <input
-        className="input-boxes"
-        type="text"
-        name="financialGoal"
-        value={formData.financialGoal}
-        onChange={handleChange}
-      />
+    {/* ------------------------------------------Investments & Savings------------------------------------------ */}
+    <div className="subheading">Investments & Savings</div>
 
-      {formData.investments.map((investment, index) => (
-        <div
-          key={investment.id}
-          className={`collapse-container ${investment.isExpanded ? "expanded" : ""}`}
-        >
-          {/* Collapsible Header */}
-          <div className="collapse-heading">
-            <div className="collapsed-text">Investment {investment.id}</div>
-            <button className="collapse-button" onClick={() => toggleInvestment(index)}>
-              {investment.isExpanded ? "−" : "+"}
-            </button>
-            <button className="delete-button" onClick={() => handleDeleteInvestment(investment.id)}>
-              x
-            </button>
-          </div>
+    <div className="normal-text">What is your financial goal?*</div>
+    <input
+      className="input-boxes"
+      type="text"
+      name="financialGoal"
+      value={formData.financialGoal}
+      onChange={handleChange}
+    />
 
-          {investment.isExpanded && (
-            <>
-              {/* Investment Type */}
-              <div className="split-container">
-                <div className="left-side">
-                  <div className="normal-text">Select Investment Type*</div>
-                  <select
-                    className="collapse-options"
-                    name="investmentType"
-                    value={investment.investmentType}
+    {formData.investments.map((investment, index) => (
+      <div
+        key={investment.id}
+        className={`collapse-container ${investment.isExpanded ? "expanded" : ""}`}
+      >
+        {/* Collapsible Header */}
+        <div className="collapse-heading">
+          <div className="collapsed-text">Investment {investment.id}</div>
+          <button className="collapse-button" onClick={() => toggleInvestment(index)}>
+            {investment.isExpanded ? "−" : "+"}
+          </button>
+          <button className="delete-button" onClick={() => handleDeleteInvestment(investment.id)}>
+            x
+          </button>
+        </div>
+
+        {investment.isExpanded && (
+          <>
+            {/* Investment Type, Name, Description */}
+            <div className="split-container">
+              <div className="left-side">
+                <div className="normal-text">Select Investment Type*</div>
+                <select
+                  className="collapse-options"
+                  name="investmentType"
+                  value={investment.investmentType}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                >
+                  <option value="">--Select--</option>
+                  <option value="domestic-stocks">Domestic Stocks</option>
+                  <option value="foreign-stocks">Foreign Stocks</option>
+                  <option value="bonds">Bonds</option>
+                  <option value="real-estate">Real Estate</option>
+                  <option value="cash-other">Cash & Other</option>
+                  <option value="investments">Investments</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div className="right-side">
+                <div className="normal-text">Name of Investment*</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="investmentName"
+                  value={investment.investmentName}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                />
+                <div className="normal-text">Brief Description of Investment*</div>
+                <textarea
+                  className="input-boxes textarea-box"
+                  rows="4"
+                  name="investmentDescription"
+                  value={investment.investmentDescription}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                ></textarea>
+              </div>
+            </div>
+
+            {/* Investment Value */}
+            <div className="normal-text">What is the current value of the investment?*</div>
+            <input
+              className="input-boxes"
+              type="text"
+              name="investmentValue"
+              value={investment.investmentValue}
+              onChange={(e) => handleInvestmentChange(index, e)}
+            />
+
+            {/* Annual Return Section */}
+            <div className="normal-text">How would you like to express the investment's annual return?*</div>
+            <div className="split-container">
+              <div className="left-side">
+                <label className="normal-text">
+                  <input
+                    type="radio"
+                    name="annualReturnType"
+                    value="fixed"
+                    checked={investment.annualReturnType === "fixed"}
                     onChange={(e) => handleInvestmentChange(index, e)}
-                  >
-                    <option value="">--Select--</option>
-                    <option value="domestic-stocks">Domestic Stocks</option>
-                    <option value="foreign-stocks">Foreign Stocks</option>
-                    <option value="bonds">Bonds</option>
-                    <option value="real-estate">Real Estate</option>
-                    <option value="cash-other">Cash & Other</option>
-                    <option value="investments">Investments</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </div>
+                  />
+                  Fixed Amount / Percentage
+                </label>
+                <label className="normal-text">
+                  <input
+                    type="radio"
+                    name="annualReturnType"
+                    value="normal"
+                    checked={investment.annualReturnType === "normal"}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                  />
+                  Normal Distribution Percentage
+                </label>
+                <label className="normal-text">
+                  <input
+                    type="radio"
+                    name="annualReturnType"
+                    value="markov"
+                    checked={investment.annualReturnType === "markov"}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                  />
+                  Markov Process (GBM)
+                </label>
+              </div>
+              <div className="right-side">
+                {/* Fixed Return */}
+                {investment.annualReturnType === "fixed" && (
+                  <>
+                    <div className="checkbox-group">
+                      <label className="normal-text">
+                        <input
+                          type="radio"
+                          name="annualReturnAmtOrPct"
+                          value="amount"
+                          checked={investment.annualReturnAmtOrPct === "amount"}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        Fixed Amount
+                      </label>
+                      <label className="normal-text">
+                        <input
+                          type="radio"
+                          name="annualReturnAmtOrPct"
+                          value="percent"
+                          checked={investment.annualReturnAmtOrPct === "percent"}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        Percentage
+                      </label>
+                    </div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualReturnFixed"
+                      placeholder="Enter fixed return..."
+                      value={investment.annualReturnFixed}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                  </>
+                )}
+
+                {/* Normal Return */}
+                {investment.annualReturnType === "normal" && (
+                  <>
+                    <div className="checkbox-group">
+                      <label className="normal-text">
+                        <input
+                          type="radio"
+                          name="annualReturnAmtOrPct"
+                          value="amount"
+                          checked={investment.annualReturnAmtOrPct === "amount"}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        Fixed Amount
+                      </label>
+                      <label className="normal-text">
+                        <input
+                          type="radio"
+                          name="annualReturnAmtOrPct"
+                          value="percent"
+                          checked={investment.annualReturnAmtOrPct === "percent"}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        Percentage
+                      </label>
+                    </div>
+                    <div className="normal-text">Mean</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualReturnMean"
+                      placeholder="Enter mean..."
+                      value={investment.annualReturnMean}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                    <div className="normal-text">Standard Deviation</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualReturnStdev"
+                      placeholder="Enter standard deviation..."
+                      value={investment.annualReturnStdev}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                  </>
+                )}
+
+
+                {/* Markov Return */}
+                {investment.annualReturnType === "markov" && (
+                  <>
+                    <div>Drift (μ)</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualReturnDrift"
+                      value={investment.annualReturnDrift || ""}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                    <div>Volatility (σ)</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualReturnVolatility"
+                      value={investment.annualReturnVolatility || ""}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Annual Income Section */}
+            <br />
+            <div className="normal-text">What is the expected annual income from dividends or interest?*</div>
+            <div className="split-container">
+              <div className="left-side">
+                <label className="normal-text">
+                  <input
+                    type="radio"
+                    name="annualIncomeType"
+                    value="fixed"
+                    checked={investment.annualIncomeType === "fixed"}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                  />
+                  Fixed Amount / Percentage
+                </label>
+                <label className="normal-text">
+                  <input
+                    type="radio"
+                    name="annualIncomeType"
+                    value="normal"
+                    checked={investment.annualIncomeType === "normal"}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                  />
+                  Normal Distribution Percentage
+                </label>
+                <label className="normal-text">
+                  <input
+                    type="radio"
+                    name="annualIncomeType"
+                    value="markov"
+                    checked={investment.annualIncomeType === "markov"}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                  />
+                  Markov Process (GBM)
+                </label>
+              </div>
+              <div className="right-side">
+                {/* Fixed Income */}
                 <div className="right-side">
-                  {/* Name */}
-                  <div className="normal-text">Name of Investment*</div>
+                {investment.annualIncomeType === "fixed" && (
+                  <>
+                    <div className="checkbox-group">
+                      <label className="normal-text">
+                        <input
+                          type="radio"
+                          name="annualIncomeAmtOrPct"
+                          value="amount"
+                          checked={investment.annualIncomeAmtOrPct === "amount"}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        Fixed Amount
+                      </label>
+                      <label className="normal-text">
+                        <input
+                          type="radio"
+                          name="annualIncomeAmtOrPct"
+                          value="percent"
+                          checked={investment.annualIncomeAmtOrPct === "percent"}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        Percentage
+                      </label>
+                    </div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualIncomeFixed"
+                      placeholder="Enter fixed income..."
+                      value={investment.annualIncomeFixed}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                  </>
+                )}
+              </div>
+
+
+              {/* Normal Income */}
+              {investment.annualIncomeType === "normal" && (
+                <>
+                  <div className="checkbox-group">
+                    <label className="normal-text">
+                      <input
+                        type="radio"
+                        name="annualIncomeAmtOrPct"
+                        value="amount"
+                        checked={investment.annualIncomeAmtOrPct === "amount"}
+                        onChange={(e) => handleInvestmentChange(index, e)}
+                      />
+                      Fixed Amount
+                    </label>
+                    <label className="normal-text">
+                      <input
+                        type="radio"
+                        name="annualIncomeAmtOrPct"
+                        value="percent"
+                        checked={investment.annualIncomeAmtOrPct === "percent"}
+                        onChange={(e) => handleInvestmentChange(index, e)}
+                      />
+                      Percentage
+                    </label>
+                  </div>
+                  <div className="normal-text">Mean</div>
                   <input
                     className="input-boxes"
                     type="text"
-                    name="investmentName"
-                    value={investment.investmentName}
+                    name="annualIncomeMean"
+                    placeholder="Enter mean..."
+                    value={investment.annualIncomeMean}
                     onChange={(e) => handleInvestmentChange(index, e)}
                   />
-                  {/* Description */}
-                  <div className="normal-text">Brief Description of Investment*</div>
-                  <textarea
-                    className="input-boxes textarea-box"
-                    rows="4"
-                    name="investmentDescription"
-                    value={investment.investmentDescription}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  ></textarea>
-                </div>
-              </div>
-
-              <div className="normal-text">What is the current value of the investment?*</div>
-              <input
-                className="input-boxes"
-                type="text"
-                name="investmentValue"
-                value={investment.investmentValue}
-                onChange={(e) => handleInvestmentChange(index, e)}
-              />
-
-              {/* Annual Return */}
-              <div className="normal-text">
-                How would you like to express the investment's annual return?*
-              </div>
-              <div className="split-container">
-                <div className="left-side">
-                  {/* Radio set: "fixed", "normal", "markov" */}
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualReturnType"
-                      value="fixed"
-                      checked={investment.annualReturnType === "fixed"}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    Fixed Amount / Percentage
-                  </label>
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualReturnType"
-                      value="normal"
-                      checked={investment.annualReturnType === "normal"}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    Normal Distribution Percentage
-                  </label>
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualReturnType"
-                      value="markov"
-                      checked={investment.annualReturnType === "markov"}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    Markov Process (GBM)
-                  </label>
-                </div>
-                <div className="right-side">
-                  {/* If fixed */}
-                  {investment.annualReturnType === "fixed" && (
-                    <>
-                      <div className="normal-text">Fixed Return (Amount or %)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualReturnFixed"
-                        placeholder="Enter fixed return..."
-                        value={investment.annualReturnFixed}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                    </>
-                  )}
-                  {/* If normal */}
-                  {investment.annualReturnType === "normal" && (
-                    <>
-                      <div>Mean (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualReturnMean"
-                        placeholder="Enter mean..."
-                        value={investment.annualReturnMean}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                      <div>Standard Deviation (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualReturnStdev"
-                        placeholder="Enter standard deviation..."
-                        value={investment.annualReturnStdev}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                    </>
-                  )}
-                  {/* If markov */}
-                  {investment.annualReturnType === "markov" && (
-                    <>
-                      <div>Drift (μ)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualReturnDrift"
-                        placeholder="Enter drift value..."
-                        value={investment.annualReturnDrift || ""}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                      <div>Volatility (σ)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualReturnVolatility"
-                        placeholder="Enter volatility..."
-                        value={investment.annualReturnVolatility || ""}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Annual Income */}
-              <br />
-              <div className="normal-text">
-                What is the expected annual income from dividends or interest?*
-              </div>
-              <div className="split-container">
-                <div className="left-side">
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualIncomeType"
-                      value="fixed"
-                      checked={investment.annualIncomeType === "fixed"}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    Fixed Amount / Percentage
-                  </label>
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualIncomeType"
-                      value="normal"
-                      checked={investment.annualIncomeType === "normal"}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    Normal Distribution Percentage
-                  </label>
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualIncomeType"
-                      value="markov"
-                      checked={investment.annualIncomeType === "markov"}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    Markov Process (GBM)
-                  </label>
-                </div>
-                <div className="right-side">
-                  {/* If fixed */}
-                  {investment.annualIncomeType === "fixed" && (
-                    <>
-                      <div className="normal-text">Fixed Return (Amount or %)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualIncomeFixed"
-                        placeholder="Enter fixed return..."
-                        value={investment.annualIncomeFixed}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                    </>
-                  )}
-                  {/* If normal */}
-                  {investment.annualIncomeType === "normal" && (
-                    <>
-                      <div>Mean (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualIncomeMean"
-                        placeholder="Enter mean..."
-                        value={investment.annualIncomeMean}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                      <div>Standard Deviation (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualIncomeStdev"
-                        placeholder="Enter standard deviation..."
-                        value={investment.annualIncomeStdev}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                    </>
-                  )}
-                  {/* If markov */}
-                  {investment.annualIncomeType === "markov" && (
-                    <>
-                      <div>Drift (μ)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualIncomeDrift"
-                        placeholder="Enter drift value..."
-                        value={investment.annualIncomeDrift || ""}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                      <div>Volatility (σ)</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualIncomeVolatility"
-                        placeholder="Enter volatility..."
-                        value={investment.annualIncomeVolatility || ""}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Taxability Section */}
-              <div className="normal-text">Is this investment taxable?*</div>
-              <div className="checkbox-group">
-                <label className="normal-text">
+                  <div className="normal-text">Standard Deviation</div>
                   <input
-                    type="radio"
-                    name="taxability"
-                    value="taxable"
-                    checked={investment.taxability === "taxable"}
+                    className="input-boxes"
+                    type="text"
+                    name="annualIncomeStdev"
+                    placeholder="Enter standard deviation..."
+                    value={investment.annualIncomeStdev}
                     onChange={(e) => handleInvestmentChange(index, e)}
                   />
-                  Taxable
-                </label>
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name="taxability"
-                    value="tax-exempt"
-                    checked={investment.taxability === "tax-exempt"}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  Tax-Exempt
-                </label>
-              </div>
-
-              {/* If taxable, show file input */}
-              {investment.taxability === "taxable" && (
-                <div>
-                  <div className="normal-text"> Upload State Tax File</div>
-                  <div style={{ color: "red" }}>
-                    (If no file is uploaded, taxes will not be simulated)
-                  </div>
-                  <input
-                    style={{ margin: "1%", fontSize: "16px" }}
-                    type="file"
-                    name="taxFile"
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  {investment.taxFile && <p>Selected File: {investment.taxFile.name}</p>}
-                </div>
+                </>
               )}
 
-              {/* Account Type */}
-              <div className="normal-text">
-                What type of account is this investment stored in?*
+
+                {/* Markov Income */}
+                {investment.annualIncomeType === "markov" && (
+                  <>
+                    <div>Drift (μ)</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualIncomeDrift"
+                      value={investment.annualIncomeDrift || ""}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                    <div>Volatility (σ)</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="annualIncomeVolatility"
+                      value={investment.annualIncomeVolatility || ""}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                    />
+                  </>
+                )}
               </div>
-              <select
-                className="collapse-options"
-                name="accountType"
-                value={investment.accountType}
-                onChange={(e) => handleInvestmentChange(index, e)}
-              >
-                <option value="">--Select--</option>
-                <option value="non-retirement">Non-Retirement</option>
-                <option value="pre-tax">Pre-Tax Retirement</option>
-                <option value="after-tax">After-Tax Retirement</option>
-              </select>
+            </div>
 
-              <button className="page-buttons" style={{ marginLeft: "85%" }}>
-                SAVE
-              </button>
-            </>
-          )}
-        </div>
-      ))}
-      <button className="page-buttons" onClick={handleAddInvestment}>
-        ADD
-      </button>
-      <div className="normal-text" style={{ marginTop: "20px" }}>
-        How do you want to order your RMD strategy (pre-tax investment IDs comma-separated)
-      </div>
-      <input
-        className="input-boxes"
-        type="text"
-        name="rmdStrategy"
-        value={formData.rmdStrategy}
-        onChange={handleChange}
-      />
+            {/* Taxability & Account Type */}
+            <div className="normal-text">Is this investment taxable?*</div>
+            <div className="checkbox-group">
+              <label className="normal-text">
+                <input
+                  type="radio"
+                  name="taxability"
+                  value="taxable"
+                  checked={investment.taxability === "taxable"}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                />
+                Taxable
+              </label>
+              <label className="normal-text">
+                <input
+                  type="radio"
+                  name="taxability"
+                  value="tax-exempt"
+                  checked={investment.taxability === "tax-exempt"}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                />
+                Tax-Exempt
+              </label>
+            </div>
 
-      <div className="normal-text" style={{ marginTop: "20px" }}>
-        How do you want to order your Expense Withdrawal Strategy (investment IDs comma-separated)
+            {investment.taxability === "taxable" && (
+              <div>
+                <div className="normal-text">Upload State Tax File</div>
+                <div style={{ color: "red" }}>
+                  (If no file is uploaded, taxes will not be simulated)
+                </div>
+                <input
+                  style={{ margin: "1%", fontSize: "16px" }}
+                  type="file"
+                  name="taxFile"
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                />
+                {investment.taxFile && <p>Selected File: {investment.taxFile.name}</p>}
+              </div>
+            )}
+
+            <div className="normal-text">What type of account is this investment stored in?*</div>
+            <select
+              className="collapse-options"
+              name="accountType"
+              value={investment.accountType}
+              onChange={(e) => handleInvestmentChange(index, e)}
+            >
+              <option value="">--Select--</option>
+              <option value="non-retirement">Non-Retirement</option>
+              <option value="pre-tax">Pre-Tax Retirement</option>
+              <option value="after-tax">After-Tax Retirement</option>
+            </select>
+
+            <button className="page-buttons" style={{ marginLeft: "85%" }}>
+              SAVE
+            </button>
+          </>
+        )}
       </div>
-      <input
-        className="input-boxes"
-        type="text"
-        name="expenseWithdrawalStrategy"
-        value={formData.expenseWithdrawalStrategy}
-        onChange={handleChange}
-      />
+    ))}
+
+    <button className="page-buttons" onClick={handleAddInvestment}>
+      ADD
+    </button>
+
+    <div className="normal-text" style={{ marginTop: "20px" }}>
+      How do you want to order your RMD strategy (pre-tax investment IDs comma-separated)
+    </div>
+    <input
+      className="input-boxes"
+      type="text"
+      name="rmdStrategy"
+      value={formData.rmdStrategy}
+      onChange={handleChange}
+    />
+
+    <div className="normal-text" style={{ marginTop: "20px" }}>
+      How do you want to order your Expense Withdrawal Strategy (investment IDs comma-separated)
+    </div>
+    <input
+      className="input-boxes"
+      type="text"
+      name="expenseWithdrawalStrategy"
+      value={formData.expenseWithdrawalStrategy}
+      onChange={handleChange}
+    />
+
 
       {/* ------------------------------------------Life Events------------------------------------------ */}
       <div className="subheading">Life Events</div>
@@ -1140,20 +1236,69 @@ const CreatePlan = () => {
                 <div className="right-side">
                   {lifeEvent.annualChangeType === "fixed" && (
                     <>
-                      <div className="normal-text">Fixed Return (Amount or %)</div>
+                      <div className="checkbox-group">
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="annualChangeAmtOrPct"
+                            value="amount"
+                            checked={lifeEvent.annualChangeAmtOrPct === "amount"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Fixed Amount
+                        </label>
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="annualChangeAmtOrPct"
+                            value="percent"
+                            checked={lifeEvent.annualChangeAmtOrPct === "percent"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Percentage
+                        </label>
+                      </div>
+
+                      {/* Input box */}
                       <input
                         className="input-boxes"
                         type="text"
                         name="annualChangeFixed"
-                        placeholder="Enter fixed return..."
+                        placeholder={`Enter fixed ${lifeEvent.annualChangeAmtOrPct || "amount"}...`}
                         value={lifeEvent.annualChangeFixed}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
+
                   {lifeEvent.annualChangeType === "normal" && (
                     <>
-                      <div>Mean (%)</div>
+                      {/* Amount vs Percentage Selector */}
+                      <div className="checkbox-group">
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="annualChangeAmtOrPct"
+                            value="amount"
+                            checked={lifeEvent.annualChangeAmtOrPct === "amount"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Fixed Amount
+                        </label>
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="annualChangeAmtOrPct"
+                            value="percent"
+                            checked={lifeEvent.annualChangeAmtOrPct === "percent"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Percentage
+                        </label>
+                      </div>
+
+                      {/* Input fields */}
+                      <div className="normal-text">Mean ({lifeEvent.annualChangeAmtOrPct === "percent" ? "%" : "Amount"})</div>
                       <input
                         className="input-boxes"
                         type="text"
@@ -1162,7 +1307,8 @@ const CreatePlan = () => {
                         value={lifeEvent.annualChangeMean}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
-                      <div>Standard Deviation (%)</div>
+
+                      <div className="normal-text">Standard Deviation ({lifeEvent.annualChangeAmtOrPct === "percent" ? "%" : "Amount"})</div>
                       <input
                         className="input-boxes"
                         type="text"
@@ -1173,6 +1319,7 @@ const CreatePlan = () => {
                       />
                     </>
                   )}
+
                 </div>
               </div>
 
@@ -1203,23 +1350,79 @@ const CreatePlan = () => {
                     Normal Distribution Percentage
                   </label>
                 </div>
+
                 <div className="right-side">
+                  {/* Fixed Inflation */}
                   {lifeEvent.inflationType === "fixed" && (
                     <>
-                      <div className="normal-text">Fixed Return (Amount or %)</div>
+                      {/* Amount or Percent selector */}
+                      <div className="checkbox-group">
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="inflationAmtOrPct"
+                            value="amount"
+                            checked={lifeEvent.inflationAmtOrPct === "amount"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Fixed Amount
+                        </label>
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="inflationAmtOrPct"
+                            value="percent"
+                            checked={lifeEvent.inflationAmtOrPct === "percent"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Percentage
+                        </label>
+                      </div>
+
+                      <div className="normal-text">
+                        Fixed Return ({lifeEvent.inflationAmtOrPct === "percent" ? "%" : "Amount"})
+                      </div>
                       <input
                         className="input-boxes"
                         type="text"
                         name="inflationFixed"
-                        placeholder="Enter fixed return..."
+                        placeholder={`Enter fixed ${lifeEvent.inflationAmtOrPct || "amount"}...`}
                         value={lifeEvent.inflationFixed}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
+
+                  {/* Normal Inflation */}
                   {lifeEvent.inflationType === "normal" && (
                     <>
-                      <div>Mean (%)</div>
+                      {/* Amount or Percent selector */}
+                      <div className="checkbox-group">
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="inflationAmtOrPct"
+                            value="amount"
+                            checked={lifeEvent.inflationAmtOrPct === "amount"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Fixed Amount
+                        </label>
+                        <label className="normal-text">
+                          <input
+                            type="radio"
+                            name="inflationAmtOrPct"
+                            value="percent"
+                            checked={lifeEvent.inflationAmtOrPct === "percent"}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                          Percentage
+                        </label>
+                      </div>
+
+                      <div className="normal-text">
+                        Mean ({lifeEvent.inflationAmtOrPct === "percent" ? "%" : "Amount"})
+                      </div>
                       <input
                         className="input-boxes"
                         type="text"
@@ -1228,7 +1431,9 @@ const CreatePlan = () => {
                         value={lifeEvent.inflationMean}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
-                      <div>Standard Deviation (%)</div>
+                      <div className="normal-text">
+                        Standard Deviation ({lifeEvent.inflationAmtOrPct === "percent" ? "%" : "Amount"})
+                      </div>
                       <input
                         className="input-boxes"
                         type="text"
@@ -1241,6 +1446,7 @@ const CreatePlan = () => {
                   )}
                 </div>
               </div>
+
 
               {/* Save button for each life event*/}
               <button className="page-buttons" style={{ marginLeft: "85%" }}>
