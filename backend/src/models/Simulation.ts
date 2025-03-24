@@ -14,7 +14,7 @@ export interface ISimulation extends Document {
 const simulationSchema = new Schema<ISimulation>({
     planId: { type: String, required: true },
     status: { type: String, required: true, enum: ["pending", "running", "completed", "failed"], default: "pending" },
-    resultsId: { type: String, required: true },
+    resultsId: { type: String, },
     InvestmentsOverTime: { type: [[Number]], required: true, default: [] },
     ExpensesOverTime: { type: [[Number]], required: true, default: [] },
     earlyWithdrawalTaxOverTime: { type: [[Number]], required: true, default: [] },

@@ -1,216 +1,430 @@
-import mongoose from "mongoose";
-import Simulation from "./models/Simulation";
-import FinancialPlan from "./models/FinancialPlan";
-import SimulationResult from "./models/SimulationResult";
+import { Request, Response } from 'express';
+import mongoose from 'mongoose';
+import InvestmentType from '../src/models/InvestmentType';
+import FinancialPlan from '../src/models/FinancialPlan';
+import Simulation from '../src/models/Simulation';
+import SimulationResult from '../src/models/SimulationResult';
 
-// Creates a template financial plan, simulation & simulation result to simulate the use of each
-export const seedTestData = async () => {
+
+/**
+ * GET endpoint that creates sample data for testing frontend functionality
+ * Creates InvestmentTypes, a Financial Plan, Simulation, and SimulationResults
+ */
+export const getSampleData = async (req: Request, res: Response): Promise<void> => {
   try {
-    // First create a financial plan
-    const financialPlan = new FinancialPlan({
-      name: "Retirement Plan 2045",
-      description: "Balanced portfolio targeting retirement at age 65",
-      retirementAge: 65,
-      currentAge: 35,
-      initialInvestment: 250000,
-      annualContribution: 25000,
-      annualContributionIncrease: 0.03, // 3% annual increase
-      inflationAssumption: {
-        type: "fixed",
-        value: 0.025 // 2.5% inflation
+    // Check if data already exists in the database
+    const existingTypes = await InvestmentType.find();
+    
+    if (existingTypes.length > 0) {
+      res.status(200).json({ 
+        message: 'Sample data already exists in the database',
+        investmentTypes: existingTypes
+      });
+      return;
+    }
+
+    // 1. Sample Investment Types
+    const sampleInvestmentTypes = [
+      {
+        name: "S&P 500 Index Fund",
+        description: "Tracks the performance of the S&P 500 index",
+        returnAmtOrPct: "percent",
+        returnDistribution: {
+          type: "normal",
+          mean: 0.09,  // 9% average annual return
+          stdev: 0.16  // 16% standard deviation
+        },
+        expenseRatio: 0.004, // 0.4% expense ratio
+        incomeAmtOrPct: "percent",
+        incomeDistribution: {
+          type: "fixed",
+          value: 0.02  // 2% dividend yield
+        },
+        taxability: true
       },
-      retirementExpenses: 85000,
-      investmentAllocation: [
-        { 
-          name: "S&P 500 Index Fund", 
-          allocation: 0.60, 
-          expectedReturn: 0.08
+      {
+        name: "Total Bond Market ETF",
+        description: "Broad exposure to US investment grade bonds",
+        returnAmtOrPct: "percent",
+        returnDistribution: {
+          type: "normal",
+          mean: 0.04,  // 4% average annual return
+          stdev: 0.05  // 5% standard deviation
         },
-        { 
-          name: "US Treasury Bonds", 
-          allocation: 0.30, 
-          expectedReturn: 0.035
+        expenseRatio: 0.003, // 0.3% expense ratio
+        incomeAmtOrPct: "percent",
+        incomeDistribution: {
+          type: "fixed",
+          value: 0.03  // 3% yield
         },
-        { 
-          name: "Real Estate Investment Trust", 
-          allocation: 0.10, 
-          expectedReturn: 0.065
+        taxability: true
+      },
+      {
+        name: "Money Market Fund",
+        description: "Short-term, high-quality investments",
+        returnAmtOrPct: "percent",
+        returnDistribution: {
+          type: "fixed",
+          value: 0.03  // 3% fixed return
+        },
+        expenseRatio: 0.0015, // 0.15% expense ratio
+        incomeAmtOrPct: "percent",
+        incomeDistribution: {
+          type: "fixed",
+          value: 0.03  // 3% yield
+        },
+        taxability: true
+      }
+    ];
+
+    // Insert investment types
+    const savedInvestmentTypes = await InvestmentType.insertMany(sampleInvestmentTypes);
+    const investmentTypeIds = savedInvestmentTypes.map(type => type._id);
+
+    // 2. Sample Financial Plan
+    const sampleFinancialPlan = {
+      userId: new mongoose.Types.ObjectId().toString(),
+      name: "Retirement Plan 2040",
+      maritalStatus: "couple",
+      birthYears: [1980, 1982],
+      lifeExpectancy: [
+        {
+          type: "normal",
+          mean: 85,
+          stdev: 5
+        },
+        {
+          type: "normal",
+          mean: 87,
+          stdev: 5
         }
       ],
+      investmentTypes: investmentTypeIds,
+      investments: [
+        {
+          investmentType: "S&P 500 Index Fund",
+          value: 250000,
+          taxStatus: "pre-tax",
+          id: "inv1"
+        },
+        {
+          investmentType: "Total Bond Market ETF",
+          value: 150000,
+          taxStatus: "pre-tax",
+          id: "inv2"
+        },
+        {
+          investmentType: "S&P 500 Index Fund",
+          value: 100000,
+          taxStatus: "after-tax",
+          id: "inv3"
+        },
+        {
+          investmentType: "Money Market Fund",
+          value: 50000,
+          taxStatus: "non-retirement",
+          id: "inv4"
+        }
+      ],
+      eventSeries: [
+        {
+          name: "Salary Income",
+          description: "Annual income from employment",
+          startYear: {
+            type: "fixed",
+            value: 2025
+          },
+          durationYears: {
+            type: "fixed",
+            value: 15
+          },
+          type: "income",
+          initialAmount: 150000,
+          changeAmtOrPct: "percent",
+          changeDistribution: {
+            type: "fixed",
+            value: 0.03
+          },
+          inflationAdjusted: true,
+          userFraction: 1,
+          socialSecurity: false
+        },
+        {
+          name: "Social Security",
+          description: "Social security benefits",
+          startYear: {
+            type: "fixed",
+            value: 2040
+          },
+          durationYears: {
+            type: "fixed",
+            value: 20
+          },
+          type: "income",
+          initialAmount: 40000,
+          changeAmtOrPct: "percent",
+          changeDistribution: {
+            type: "fixed",
+            value: 0.02
+          },
+          inflationAdjusted: true,
+          userFraction: 1,
+          socialSecurity: true
+        },
+        {
+          name: "Living Expenses",
+          description: "Basic living expenses",
+          startYear: {
+            type: "fixed",
+            value: 2025
+          },
+          durationYears: {
+            type: "fixed",
+            value: 20
+          },
+          type: "expense",
+          initialAmount: 80000,
+          changeAmtOrPct: "percent",
+          changeDistribution: {
+            type: "fixed",
+            value: 0.02
+          },
+          inflationAdjusted: true,
+          userFraction: 1,
+          discretionary: false
+        },
+        {
+          name: "Travel Expenses",
+          description: "Annual travel budget",
+          startYear: {
+            type: "fixed",
+            value: 2040
+          },
+          durationYears: {
+            type: "fixed",
+            value: 20
+          },
+          type: "expense",
+          initialAmount: 20000,
+          changeAmtOrPct: "percent",
+          changeDistribution: {
+            type: "fixed",
+            value: 0
+          },
+          inflationAdjusted: true,
+          userFraction: 1,
+          discretionary: true
+        },
+        {
+          name: "Initial Investment Allocation",
+          description: "Asset allocation strategy",
+          startYear: {
+            type: "fixed",
+            value: 2025
+          },
+          durationYears: {
+            type: "fixed",
+            value: 15
+          },
+          type: "invest",
+          assetAllocation: {
+            "S&P 500 Index Fund": 0.7,
+            "Total Bond Market ETF": 0.2,
+            "Money Market Fund": 0.1
+          },
+          glidePath: true,
+          assetAllocation2: {
+            "S&P 500 Index Fund": 0.5,
+            "Total Bond Market ETF": 0.4,
+            "Money Market Fund": 0.1
+          },
+          maxCash: 50000
+        },
+        {
+          name: "Annual Rebalance",
+          description: "Yearly portfolio rebalancing",
+          startYear: {
+            type: "fixed",
+            value: 2025
+          },
+          durationYears: {
+            type: "fixed",
+            value: 20
+          },
+          type: "rebalance",
+          assetAllocation: {
+            "S&P 500 Index Fund": 0.6,
+            "Total Bond Market ETF": 0.3,
+            "Money Market Fund": 0.1
+          }
+        }
+      ],
+      inflationAssumption: {
+        type: "normal",
+        mean: 0.025,
+        stdev: 0.01
+      },
+      afterTaxContributionLimit: 22500,
+      spendingStrategy: ["inv4", "inv3", "inv1", "inv2"],
+      expenseWithdrawalStrategy: ["inv4", "inv3", "inv1", "inv2"],
+      RMDStrategy: ["inv1", "inv2"],
+      RothConversionOpt: true,
+      RothConversionStart: 2040,
+      RothConversionEnd: 2045,
+      RothConversionStrategy: ["inv1", "inv2"],
       financialGoal: 2000000,
-      savingsRate: 0.20, // 20% of income
-      taxBracket: 0.24 // 24% tax bracket
-    });
+      residenceState: "California",
+    };
 
-    await financialPlan.save();
-    console.log("Financial plan created with ID:", financialPlan._id);
+    // Insert financial plan
+    const savedFinancialPlan = await FinancialPlan.create(sampleFinancialPlan);
 
-    // Create simulation with sample paths
-    const numYears = 30;
-    const numSimulations = 1000;
-    
-    // Generate random paths for investments, expenses, taxes, and discretionary percentages
-    const investmentsOverTime = generateSimulationPaths(numSimulations, numYears, 250000, 0.07);
-    const expensesOverTime = generateSimulationPaths(numSimulations, numYears, 85000, 0.025);
-    const earlyWithdrawalTaxOverTime = generateSimulationPaths(numSimulations, numYears, 0, 0);
-    const percentageTotalDiscretionary = generateSimulationPaths(numSimulations, numYears, 0.25, 0.01);
-
-    const simulation = new Simulation({
-      planId: financialPlan._id,
+    // 3. Sample Simulation
+    const sampleSimulation = {
+      planId: savedFinancialPlan._id.toString(),
       status: "completed",
-      InvestmentsOverTime: investmentsOverTime,
-      ExpensesOverTime: expensesOverTime,
-      earlyWithdrawalTaxOverTime: earlyWithdrawalTaxOverTime,
-      percentageTotalDiscretionary: percentageTotalDiscretionary
-    });
+      resultsId: "", // Will be updated after creating the result
+      InvestmentsOverTime: [
+        // 10 paths x 20 years of predefined data
+        Array(20).fill(0).map((_, i) => 550000 + i * 50000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 530000 + i * 45000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 560000 + i * 48000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 540000 + i * 52000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 555000 + i * 49000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 545000 + i * 51000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 535000 + i * 53000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 565000 + i * 47000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 570000 + i * 46000 + Math.random() * 20000),
+        Array(20).fill(0).map((_, i) => 525000 + i * 54000 + Math.random() * 20000)
+      ],
+      ExpensesOverTime: [
+        // 10 paths x 20 years of predefined data
+        Array(20).fill(0).map((_, i) => 80000 + i * 2000 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 82000 + i * 1900 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 79000 + i * 2100 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 81000 + i * 2050 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 83000 + i * 1950 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 78000 + i * 2150 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 80500 + i * 2025 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 81500 + i * 2075 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 79500 + i * 2125 + Math.random() * 5000),
+        Array(20).fill(0).map((_, i) => 82500 + i * 1975 + Math.random() * 5000)
+      ],
+      earlyWithdrawalTaxOverTime: [
+        // 10 paths x 20 years of predefined data 
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 5000 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 4800 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 5200 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 4900 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 5100 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 4700 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 5300 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 4600 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 5400 + Math.random() * 1000),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : 4500 + Math.random() * 1000)
+      ],
+      percentageTotalDiscretionary: [
+        // 10 paths x 20 years of predefined percentage data
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.2 + i * 0.005 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.19 + i * 0.0045 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.21 + i * 0.0055 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.18 + i * 0.006 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.22 + i * 0.004 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.17 + i * 0.0065 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.23 + i * 0.0035 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.16 + i * 0.007 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.24 + i * 0.003 + Math.random() * 0.05))),
+        Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.9, Math.max(0.1, 0.15 + i * 0.0075 + Math.random() * 0.05)))
+      ]
+    };
 
-    await simulation.save();
-    console.log("Simulation created with ID:", simulation._id);
+    const savedSimulation = await Simulation.create(sampleSimulation);
 
-    // Create simulation results
-    const simulationResult = new SimulationResult({
-      simulationId: simulation._id,
+    // 4. Sample Simulation Result
+    const sampleSimulationResult = {
+      simulationId: savedSimulation._id,
       financialGoal: 2000000,
       inflationAssumption: {
-        type: "fixed",
-        value: 0.025
+        type: "normal",
+        mean: 0.025,
+        stdev: 0.01
       },
-      probabilityOverTime: calculateProbabilityOverTime(investmentsOverTime, 2000000),
+      probabilityOverTime: Array(20).fill(0).map((_, i) => Math.min(0.95, Math.max(0.1, i / 20 * 0.85))),
       
-      // Average investment values over time
-      avgInvestmentsOverTime: [
-        250000, 272500, 297025, 323757, 352795, 384546, 418955, 456261, 496724, 540629,
-        588285, 640231, 696851, 758567, 825838, 899163, 979088, 1066106, 1161055, 1264750,
-        1378577, 1503449, 1640659, 1791318, 1956637, 2137934, 2336649, 2548347, 2777699, 3027692
-      ],
+      // Average values over time
+      avgInvestmentsOverTime: Array(20).fill(0).map((_, i) => 550000 + i * 50000),
+      medianInvestmentsOverTime: Array(20).fill(0).map((_, i) => 540000 + i * 48000),
       
-      // Median investment values over time
-      medianInvestmentsOverTime: [
-        250000, 271000, 294035, 319228, 346912, 377181, 410141, 446053, 485168, 527957,
-        574773, 625902, 681607, 742050, 807835, 879539, 957692, 1042884, 1135743, 1237159,
-        1348353, 1470705, 1605068, 1752524, 1914252, 2091535, 2285774, 2498494, 2731359, 2986181
-      ],
+      // Ranges: four ranges per year [min, max] for 10-90%, 20-80%, 30-70%, 40-60%
+      investmentsRange: Array(20).fill(0).map((_, i) => [
+        [500000 + i * 45000, 600000 + i * 55000],  // 10-90%
+        [510000 + i * 46000, 590000 + i * 54000],  // 20-80%
+        [520000 + i * 47000, 580000 + i * 53000],  // 30-70%
+        [530000 + i * 48000, 570000 + i * 52000]   // 40-60%
+      ]),
       
-      // Investment ranges (10-90%, 20-80%, 30-70%, 40-60%)
-      investmentsRange: generateProbabilityRanges(investmentsOverTime),
+      avgExpensesOverTime: Array(20).fill(0).map((_, i) => 80000 + i * 2000),
+      medianExpensesOverTime: Array(20).fill(0).map((_, i) => 79000 + i * 1900),
       
-      // Average expenses over time
-      avgExpensesOverTime: [
-        85000, 87125, 89303, 91536, 93824, 96170, 98574, 101038, 103564, 106153,
-        108807, 111527, 114316, 117174, 120103, 123106, 126184, 129338, 132572, 135886,
-        139283, 142765, 146334, 149993, 153742, 157586, 161526, 165564, 169703, 173946
-      ],
+      expensesRange: Array(20).fill(0).map((_, i) => [
+        [75000 + i * 1800, 85000 + i * 2200],  // 10-90%
+        [76000 + i * 1850, 84000 + i * 2150],  // 20-80%
+        [77000 + i * 1900, 83000 + i * 2100],  // 30-70%
+        [78000 + i * 1950, 82000 + i * 2050]   // 40-60%
+      ]),
       
-      // Median expenses over time
-      medianExpensesOverTime: [
-        85000, 86700, 88434, 90203, 92007, 93847, 95724, 97638, 99591, 101583,
-        103615, 105687, 107801, 109957, 112156, 114399, 116687, 119021, 121401, 123829,
-        126306, 128832, 131409, 134037, 136718, 139452, 142241, 145086, 147988, 150948
-      ],
+      avgEarlyWithdrawalTaxOverTime: Array(20).fill(0).map((_, i) => i < 15 ? 0 : 5000),
+      medianEarlyWithdrawalTaxOverTime: Array(20).fill(0).map((_, i) => i < 15 ? 0 : 4800),
       
-      // Expense ranges
-      expensesRange: generateProbabilityRanges(expensesOverTime),
+      earlyWithdrawTaxRange: Array(20).fill(0).map((_, i) => i < 15 ? 
+        [[0, 0], [0, 0], [0, 0], [0, 0]] : 
+        [
+          [4000, 6000],  // 10-90%
+          [4200, 5800],  // 20-80%
+          [4400, 5600],  // 30-70%
+          [4600, 5400]   // 40-60%
+        ]
+      ),
       
-      // Early withdrawal tax metrics
-      avgEarlyWithdrawalTaxOverTime: Array(numYears).fill(0),
-      medianEarlyWithdrawalTaxOverTime: Array(numYears).fill(0),
-      earlyWithdrawTaxRange: Array(numYears).fill([0, 0, 0, 0, 0, 0, 0, 0]),
+      avgTotalDiscretionary: Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.5, 0.2 + i * 0.005)),
+      medianTotalDiscretionary: Array(20).fill(0).map((_, i) => i < 15 ? 0 : Math.min(0.45, 0.19 + i * 0.0048)),
       
-      // Discretionary spending percentages
-      avgTotalDiscretionary: Array(numYears).fill(0.25).map((val, i) => val + (i * 0.002)),
-      medianTotalDiscretionary: Array(numYears).fill(0.25).map((val, i) => val + (i * 0.002)),
-      totalDiscretionaryRange: generateProbabilityRanges(percentageTotalDiscretionary)
+      totalDiscretionaryRange: Array(20).fill(0).map((_, i) => i < 15 ? 
+        [[0, 0], [0, 0], [0, 0], [0, 0]] : 
+        [
+          [Math.max(0, 0.15 + i * 0.004), Math.min(0.6, 0.25 + i * 0.006)],  // 10-90%
+          [Math.max(0, 0.16 + i * 0.004), Math.min(0.58, 0.24 + i * 0.006)],  // 20-80%
+          [Math.max(0, 0.17 + i * 0.004), Math.min(0.56, 0.23 + i * 0.006)],  // 30-70%
+          [Math.max(0, 0.18 + i * 0.004), Math.min(0.54, 0.22 + i * 0.006)]   // 40-60%
+        ]
+      )
+    };
+
+    // console.log(sampleSimulationResult.investmentsRange);
+
+    const savedSimulationResult = await SimulationResult.create(sampleSimulationResult);
+
+    // // Update simulation with result ID
+    await Simulation.findByIdAndUpdate(savedSimulation._id, { 
+      resultsId: savedSimulationResult._id.toString() 
     });
 
-    await simulationResult.save();
-    console.log("Simulation result created with ID:", simulationResult._id);
+    // Return success response
+    res.status(201).json({
+      message: 'Sample data created successfully',
+      // investmentTypes: savedInvestmentTypes,
+      // financialPlan: savedFinancialPlan,
+      // simulation: savedSimulation,
+      // simulationResult: savedSimulationResult
+    });
     
-    console.log("Simulation result created with ID:", simulationResult._id); // Debugging check
-
-    if (!simulationResult._id) {
-       throw new Error("simulationResult._id is undefined after saving.");
-    }
-    // Update simulation with results ID
-    simulation.resultsId = simulationResult._id.toString();
-    
-    await simulation.save();
-    console.log("Updated simulation with result ID");
-
-    console.log("Database seeded with example template.");
-    console.log(financialPlan);
-    console.log(simulation);
-    console.log(simulationResult);
   } catch (error) {
-    console.error("Error adding template to database:", error);
-    throw error;
+    // console.error('Error creating sample data:', error);
+    res.status(500).json({ 
+      message: 'Error creating sample data', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
   }
 };
 
-// Helper function to generate simulation paths
-function generateSimulationPaths(numPaths: number, numYears: number, startValue: number, avgGrowth: number) {
-  const paths = [];
-  
-  for (let i = 0; i < numPaths; i++) {
-    const path = [startValue];
-    
-    for (let year = 1; year < numYears; year++) {
-      // Generate random growth with some volatility
-      const growthRate = avgGrowth + ((Math.random() - 0.5) * 0.04);
-      const prevValue = path[year - 1];
-      const nextValue = prevValue * (1 + growthRate);
-      path.push(Number(nextValue.toFixed(2)));
-    }
-    
-    paths.push(path);
-  }
-  
-  return paths;
-}
-
-// Helper function to calculate probability of reaching financial goal
-function calculateProbabilityOverTime(investmentPaths: any, goal: number) {
-  const numYears = investmentPaths[0].length;
-  const numPaths = investmentPaths.length;
-  const probabilities = [];
-  
-  for (let year = 0; year < numYears; year++) {
-    let successCount = 0;
-    
-    for (let path = 0; path < numPaths; path++) {
-      if (investmentPaths[path][year] >= goal) {
-        successCount++;
-      }
-    }
-    
-    probabilities.push(Number((successCount / numPaths).toFixed(4)));
-  }
-  
-  return probabilities;
-}
-
-// Helper function to generate probability ranges
-function generateProbabilityRanges(paths: any) {
-  const numYears = paths[0].length;
-  const ranges = [];
-  
-  for (let year = 0; year < numYears; year++) {
-    // Create sample ranges based on the growth pattern
-    const baseValue = paths[0][year];
-    
-    // Format: [10%, 90%, 20%, 80%, 30%, 70%, 40%, 60%]
-    ranges.push([
-      baseValue * 0.85,  // 10th percentile
-      baseValue * 1.15,  // 90th percentile
-      baseValue * 0.9,   // 20th percentile
-      baseValue * 1.1,   // 80th percentile
-      baseValue * 0.95,  // 30th percentile
-      baseValue * 1.05,  // 70th percentile
-      baseValue * 0.98,  // 40th percentile
-      baseValue * 1.02   // 60th percentile
-    ].map(v => Number(v.toFixed(2))));
-  }
-  
-  return ranges;
-}
-
-export default seedTestData;
+export default getSampleData;

@@ -15,7 +15,7 @@ export interface IInvestmentType extends Document {
 }
 
 const investmentTypeSchema = new Schema<IInvestmentType>({
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
     description: { type: String, default: "" },
     returnAmtOrPct: { type: String, enum: ["amount", "percent"], required: true},
     returnDistribution: { type: DistributionSchema, required: true },
@@ -25,7 +25,7 @@ const investmentTypeSchema = new Schema<IInvestmentType>({
     taxability: { type: Boolean, required: true },
 });
 
-investmentTypeSchema.index({ username: 1 });
+investmentTypeSchema.index({ name: 1 });
 
 const InvestmentType = mongoose.model<IInvestmentType>('InvestmentType', investmentTypeSchema);
 

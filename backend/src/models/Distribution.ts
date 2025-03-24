@@ -5,6 +5,7 @@ import { Schema } from "mongoose";
 # {type: normal, mean: <number>, stdev: <number>}
 # {type: uniform, lower: <number>, upper: <number>}
 # {type: startWith, eventSeries: <string>}
+# {type: endWhen, eventSeries: <string>}
 # percentages are represented by their decimal value, e.g., 4% is represented as 0.04.
 */
 

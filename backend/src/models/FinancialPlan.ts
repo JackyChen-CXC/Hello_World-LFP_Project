@@ -48,7 +48,7 @@ export interface ILifeEvent extends Document {
 }
 
 const LifeEventSchema = new Schema<ILifeEvent>({
-    name: { type: String, required: true },
+    name: { type: String, required: true, default: "" },
     description: { type: String, required: true, default: "" },
     startYear: { type: DistributionSchema, required: true },
     durationYears: { type: DistributionSchema, required: true },
@@ -113,12 +113,13 @@ const LifeEventSchema = new Schema<ILifeEvent>({
 // Actual Financial Plan
 
 export interface IFinancialPlan extends Document {
-    userId: String;
+    _id: mongoose.Types.ObjectId;
+    userId: string;
     name: string;
     maritalStatus: "couple" | "individual"
     birthYears: number[];
     lifeExpectancy: IDistribution[];
-    investmentTypes: IInvestmentType[];
+    investmentTypes: string[];
     investments: IInvestment[];
     eventSeries: ILifeEvent[];
     inflationAssumption: IDistribution;
@@ -145,7 +146,7 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     maritalStatus : { type: String, enum: ["couple", "individual"] },
     birthYears: { type: [Number], required: true, default: [] },
     lifeExpectancy: { type: [DistributionSchema], required: true, default: [] },
-    investmentTypes: { type: [Schema.Types.ObjectId], ref: "InvestmentType", required: true, default: [] },
+    investmentTypes: { type: [String], required: true, default: [] },
     investments: { type: [InvestmentSchema], required: true, default: [] },
     eventSeries: { type: [LifeEventSchema], required: true, default: [] },
     inflationAssumption: { type: DistributionSchema, required: true},
@@ -165,8 +166,8 @@ const financialplanSchema = new Schema<IFinancialPlan>({
 });
 
 // Index for faster queries by userId
-financialplanSchema.index({ userId: 1 });
+// financialplanSchema.index({ userId: 1 });
 
-const FinancialPlan2 = mongoose.model<IFinancialPlan>("FinancialPlan", financialplanSchema);
+const FinancialPlan = mongoose.model<IFinancialPlan>("FinancialPlan", financialplanSchema);
 
-export default FinancialPlan2;
+export default FinancialPlan;

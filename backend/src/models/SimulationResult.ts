@@ -3,7 +3,8 @@ import { ISimulation } from "./Simulation";
 import { IDistribution } from "./Distribution";
 
 export interface ISimulationResult extends Document {
-    simulationId: ObjectId;
+    _id: mongoose.Types.ObjectId;
+    simulationId: string;
     // Add all variables required for chart creation? (+ Scenario Exploration?)
     financialGoal: number;
     inflationAssumption: IDistribution; // For displaying items in future dollars? (All charts can be shown in future dollars)
@@ -28,22 +29,22 @@ export interface ISimulationResult extends Document {
 }
 
 const simulationResultSchema = new Schema<ISimulationResult>({
-    simulationId: { type: Schema.Types.ObjectId, ref: "Simulation", required: true },
+    simulationId: { type: String, required: true },
     avgInvestmentsOverTime: { type: [Number], required: true, default: [] },
     medianInvestmentsOverTime: { type: [Number], required: true, default: [] },
-    investmentsRange: { type: [[Number]], required: true, default: [] },
+    investmentsRange: { type: [[[Number]]], required: true, default: [] },
     avgExpensesOverTime: { type: [Number], required: true, default: [] },
     medianExpensesOverTime: { type: [Number], required: true, default: [] },
-    expensesRange: { type: [[Number]], required: true, default: [] },
+    expensesRange: { type: [[[Number]]], required: true, default: [] },
     avgEarlyWithdrawalTaxOverTime: { type: [Number], required: true, default: [] },
     medianEarlyWithdrawalTaxOverTime: { type: [Number], required: true, default: [] },
-    earlyWithdrawTaxRange: { type: [[Number]], required: true, default: [] },
+    earlyWithdrawTaxRange: { type: [[[Number]]], required: true, default: [] },
     avgTotalDiscretionary: { type: [Number], required: true, default: [] },
     medianTotalDiscretionary: { type: [Number], required: true, default: [] },
-    totalDiscretionaryRange: { type: [[Number]], required: true, default: [] },
+    totalDiscretionaryRange: { type: [[[Number]]], required: true, default: [] },
 });
 
-simulationResultSchema.index({ simulationId: 1 });
+// simulationResultSchema.index({ simulationId: 1 });
 
 const SimulationResult = mongoose.model<ISimulationResult>('SimulationResult', simulationResultSchema);
 
