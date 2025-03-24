@@ -1,7 +1,7 @@
+import yaml from 'js-yaml';
 import React, { FC, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../css_files/page_style.css";
-import yaml from 'js-yaml';
 
 
 // Define the shape of a scenario
@@ -17,7 +17,10 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
   const navigate = useNavigate();
 
   return (
-    <div className="scenario-container" onClick={() => navigate(`/scenario/${scenario.id}`)}>
+    <div className="scenario-container" onClick={() => navigate(`/scenario/${scenario.id}`, {
+      state: { dateCreated: scenario.dateCreated }
+    })}>
+    
       <div className="normal-text">Title: {scenario.title}</div>
       <div className="normal-text">Plan Type: {scenario.planType}</div>
       <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
