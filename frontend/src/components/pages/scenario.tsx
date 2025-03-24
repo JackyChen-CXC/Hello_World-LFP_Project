@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState } from "react";
-import "../css_files/page_style.css";
 import { useNavigate } from "react-router-dom";
+import "../css_files/page_style.css";
 
 // Define the shape of a scenario
 interface ScenarioData {
@@ -11,7 +11,7 @@ interface ScenarioData {
   dateCreated: string;
 }
 
-const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: number) => void }> = ({ scenario, onDelete }) => {
+const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void }> = ({ scenario, onDelete }) => {
   const navigate = useNavigate();
 
   return (
@@ -28,7 +28,7 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: number) => void 
           height={50}
           width={50}
           onClick={(e) => {
-            e.stopPropagation(); 
+            e.stopPropagation();
             const confirmed = window.confirm("Are you sure you want to delete this scenario?");
             if (confirmed) {
               onDelete(scenario.id);
@@ -42,20 +42,20 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: number) => void 
   );
 };
 
-
 const Scenario: FC = () => {
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
+  const [file, setFile] = useState<File | null>(null); // State to hold the selected file
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchScenarios = async () => {
-      const userId = localStorage.getItem("userId"); 
-      console.log("userID", userId)
-  
+      const userId = localStorage.getItem("userId");
+
       if (!userId) {
         console.warn("No userId found in localStorage");
         return;
       }
-  
+
       try {
         const response = await fetch("http://localhost:5000/api/plans/all", {
           method: "POST",
@@ -64,9 +64,9 @@ const Scenario: FC = () => {
           },
           body: JSON.stringify({ userId }),
         });
-  
+
         if (!response.ok) throw new Error("Failed to fetch plans");
-  
+
         const result = await response.json();
         const data = result.data;
         const formatted = data.map((item: any, index: number) => ({
@@ -76,38 +76,47 @@ const Scenario: FC = () => {
           financialGoal: item.financialGoal?.toString() || "N/A",
           dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
         }));
-  
+
         setScenarios(formatted);
       } catch (error) {
         console.error("Error loading scenarios:", error);
       }
     };
-  
+
     fetchScenarios();
   }, []);
-  
-  
-  
-const handleDeleteScenario = async (id: string) => {
-  try {
-    const response = await fetch("http://localhost:5000/api/deleteplan", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id }),
-    });
 
-    if (!response.ok) {
-      throw new Error("Failed to delete scenario");
+  const handleDeleteScenario = async (id: string) => {
+    try {
+      const response = await fetch("http://localhost:5000/api/deleteplan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete scenario");
+      }
+
+      setScenarios((prevScenarios) => prevScenarios.filter((sc) => sc.id !== id));
+    } catch (error) {
+      console.error("Error deleting scenario:", error);
     }
+  };
 
-    setScenarios((prevScenarios) => prevScenarios.filter((sc) => sc.id !== id));
-  } catch (error) {
-    console.error("Error deleting scenario:", error);
-  }
-};
-
+  // Handle the file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile && selectedFile.type === "application/x-yaml") {
+      setFile(selectedFile);
+      // You can parse and process the YAML file here
+      console.log("Selected YAML file:", selectedFile);
+    } else {
+      alert("Please select a valid YAML file.");
+    }
+  };
 
   return (
     <div className="page-container">
@@ -118,10 +127,26 @@ const handleDeleteScenario = async (id: string) => {
           <img src="/images/user.png" height={80} width={90} />
         </div>
       </div>
+      <button
+        className="page-buttons"
+        style={{ marginTop: "5%", marginLeft: "70%", width: "200px" }}
+        onClick={() => document.getElementById("file-input")?.click()} // Trigger the file input
+      >
+        Import Plan
+      </button>
+
+      {/* Hidden file input */}
+      <input
+        id="file-input"
+        type="file"
+        accept=".yaml,.yml"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
 
       <div className="scenario-grid">
-      {scenarios.map((scenario) => (
-        <ScenarioItem key={scenario.id} scenario={scenario} onDelete={handleDeleteScenario} />
+        {scenarios.map((scenario) => (
+          <ScenarioItem key={scenario.id} scenario={scenario} onDelete={handleDeleteScenario} />
         ))}
       </div>
     </div>

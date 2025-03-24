@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import "../css_files/page_style.css";
 import "../css_files/collapsible.css";
+import "../css_files/page_style.css";
 
 const CreatePlan = () => {
   const defaultFormData = {
@@ -256,19 +256,26 @@ const CreatePlan = () => {
       userId: localStorage.getItem("userId") || "",
       name: formData.planName,
       maritalStatus: isJoint ? "couple" : "individual",
-      currentAge: [parseInt(formData.currentAge)],
-      spouseAge: isJoint ? parseInt(formData.spouseAge || "0") : undefined,
 
-      birthYears: [parseInt(formData.birthYear)], // [user, spouse] or no array and combine after
-      spousebirthyear: isJoint
-        ? parseInt(formData.spouseBirthYear || "0")
-        : undefined,
+      birthYears: isJoint
+        ? [parseInt(formData.birthYear), parseInt(formData.spouseBirthYear || "0")]
+        : [parseInt(formData.birthYear)],
 
-      lifeExpectancy: [ // [user, spouse] or no array and combine after
-        formData.lifeExpectancyRadio === "yes"
-          ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
-          : { type: "normal", mean: 90, stdev: 10 },
-      ],
+        lifeExpectancy: isJoint
+        ? [
+            formData.lifeExpectancyRadio === "yes"
+              ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
+              : { type: "normal", mean: 90, stdev: 10 },
+            formData.spouseLifeExpectancyRadio === "yes"
+              ? { type: "fixed", value: parseInt(formData.spouseLifeExpectancyYears) }
+              : { type: "normal", mean: 90, stdev: 10 },
+          ]
+        : [
+            formData.lifeExpectancyRadio === "yes"
+              ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
+              : { type: "normal", mean: 90, stdev: 10 },
+          ],
+      
 
       inflationAssumptionType: "", // fixed, normal, uniform
       inflationAssumptionFixed: "", //
@@ -276,10 +283,12 @@ const CreatePlan = () => {
       inflationAssumptionStdev: "", //
       inflationAssumptionLower: "", //
       inflationAssumptionUpper: "", //
+
       // Not sure how (Error also)
-      // spendingStrategy: "", //
-      // expenseWithdrawalStrategy: "", //
-      // rmdStrategy: "", //
+      // spendingStrategy: "", // list of discrectionary investments in a particular orderr that we want to use them in (life events)
+      // expenseWithdrawalStrategy: "", //list of investments in a particular orderr that we want to use them in(investments)
+      // rmdStrategy: "", // list of pretax investments(investments)
+      // roth coversion strategy: //list of pretax investments (roth optimizer)
 
       financialGoal: parseFloat(formData.financialGoal || "0"),
       RothConversionOpt: formData.rothConversion === "yes",
