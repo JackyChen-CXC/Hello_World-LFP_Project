@@ -91,11 +91,9 @@ const CreatePlan = () => {
         annualChangeUpper: "",
         inflationAdjusted: "",
         userFraction: "",
+        changeDistribution: { type: "", value: "", mean: "", stdev: "" }
+
         // delete
-        inflationType: "",
-        inflationFixed: "",
-        inflationMean: "",
-        inflationStdev: "",
       },
     ],
   };
@@ -226,10 +224,6 @@ const CreatePlan = () => {
           inflationAdjusted: "",
           userFraction: "",
           // delete
-          inflationType: "",
-          inflationFixed: "",
-          inflationMean: "",
-          inflationStdev: "",
         },
       ],
     }));
@@ -248,7 +242,18 @@ const CreatePlan = () => {
   
     setFormData((prevData) => {
       const newLifeEvents = [...prevData.lifeEvents];
-      newLifeEvents[index][name] = value;
+      const [parentKey, childKey] = name.split(".");
+  
+      if (childKey) {
+        // It's a nested field like changeDistribution.type
+        newLifeEvents[index][parentKey] = {
+          ...(newLifeEvents[index][parentKey] || {}),
+          [childKey]: value,
+        };
+      } else {
+        // Simple top-level field
+        newLifeEvents[index][name] = value;
+      }
   
       return {
         ...prevData,
@@ -257,7 +262,6 @@ const CreatePlan = () => {
     });
   };
   
-
   const transformFormData = (formData) => {
     const isJoint = formData.planType === "joint";
   
@@ -359,15 +363,15 @@ const CreatePlan = () => {
                 userFraction: parseFloat(event.userPct || "1"),
                 socialSecurity: isIncome && event.incomeSource === "socialSecurity",
                 discretionary: isExpense && event.expenseSource === "Discretionary",
-
+        
                 inflationType: event.inflationType || "fixed",
                 inflationAmtOrPct: event.inflationAmtOrPct || "amount",
-                inflationFixed:
-                  event.inflationType === "fixed"
-                    ? parseFloat(event.inflationFixed || "0")
-                    : undefined,
+                ...(event.inflationType === "fixed"
+                  ? { inflationFixed: parseFloat(event.inflationFixed || "0") }
+                  : {}),
               }
             : {}),
+          
 
   
           ...(isInvest || isRebalance
@@ -454,7 +458,7 @@ const CreatePlan = () => {
       return updated;
     });
   };
-  
+
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
   return (
     <div className="page-container">
@@ -1744,24 +1748,25 @@ const CreatePlan = () => {
               <div className="normal-text">
                 How would you like to adjust for inflation? (select 1)*
               </div>
+
               <div className="split-container">
                 <div className="left-side">
                   <label className="normal-text">
                     <input
                       type="radio"
-                      name="inflationType"
+                      name="changeDistribution.type"
                       value="fixed"
-                      checked={lifeEvent.inflationType === "fixed"}
+                      checked={lifeEvent.changeDistribution?.type === "fixed"}
                       onChange={(e) => handleLifeEventChange(index, e)}
                     />
-                    Fixed Amount / Percentage
+                    Fixed Percentage
                   </label>
                   <label className="normal-text">
                     <input
                       type="radio"
-                      name="inflationType"
+                      name="changeDistribution.type"
                       value="normal"
-                      checked={lifeEvent.inflationType === "normal"}
+                      checked={lifeEvent.changeDistribution?.type === "normal"}
                       onChange={(e) => handleLifeEventChange(index, e)}
                     />
                     Normal Distribution Percentage
@@ -1769,100 +1774,42 @@ const CreatePlan = () => {
                 </div>
 
                 <div className="right-side">
-                  {/* Fixed Inflation */}
-                  {lifeEvent.inflationType === "fixed" && (
+                  {lifeEvent.changeDistribution?.type === "fixed" && (
                     <>
-                      {/* Amount or Percent selector */}
-                      <div className="checkbox-group">
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="inflationAmtOrPct"
-                            value="amount"
-                            checked={lifeEvent.inflationAmtOrPct === "amount"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Fixed Amount
-                        </label>
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="inflationAmtOrPct"
-                            value="percent"
-                            checked={lifeEvent.inflationAmtOrPct === "percent"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Percentage
-                        </label>
-                      </div>
-
-                      <div className="normal-text">
-                        Fixed Return ({lifeEvent.inflationAmtOrPct === "percent" ? "%" : "Amount"})
-                      </div>
+                      <div className="normal-text">Fixed Value (%)</div>
                       <input
                         className="input-boxes"
-                        type="text"
-                        name="inflationFixed"
-                        placeholder={`Enter fixed ${lifeEvent.inflationAmtOrPct || "amount"}...`}
-                        value={lifeEvent.inflationFixed}
+                        type="number"
+                        name="changeDistribution.value"
+                        value={lifeEvent.changeDistribution?.value || ""}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
 
-                  {/* Normal Inflation */}
-                  {lifeEvent.inflationType === "normal" && (
+                  {lifeEvent.changeDistribution?.type === "normal" && (
                     <>
-                      {/* Amount or Percent selector */}
-                      <div className="checkbox-group">
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="inflationAmtOrPct"
-                            value="amount"
-                            checked={lifeEvent.inflationAmtOrPct === "amount"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Fixed Amount
-                        </label>
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="inflationAmtOrPct"
-                            value="percent"
-                            checked={lifeEvent.inflationAmtOrPct === "percent"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Percentage
-                        </label>
-                      </div>
-
-                      <div className="normal-text">
-                        Mean ({lifeEvent.inflationAmtOrPct === "percent" ? "%" : "Amount"})
-                      </div>
+                      <div className="normal-text">Mean (%)</div>
                       <input
                         className="input-boxes"
-                        type="text"
-                        name="inflationMean"
-                        placeholder="Enter mean..."
-                        value={lifeEvent.inflationMean}
+                        type="number"
+                        name="changeDistribution.mean"
+                        value={lifeEvent.changeDistribution?.mean || ""}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
-                      <div className="normal-text">
-                        Standard Deviation ({lifeEvent.inflationAmtOrPct === "percent" ? "%" : "Amount"})
-                      </div>
+                      <div className="normal-text">Standard Deviation (%)</div>
                       <input
                         className="input-boxes"
-                        type="text"
-                        name="inflationStdev"
-                        placeholder="Enter standard deviation..."
-                        value={lifeEvent.inflationStdev}
+                        type="number"
+                        name="changeDistribution.stdev"
+                        value={lifeEvent.changeDistribution?.stdev || ""}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
                 </div>
               </div>
+
 
 
               {/* Save button for each life event*/}

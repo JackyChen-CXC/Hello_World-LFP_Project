@@ -26,6 +26,11 @@ interface ScenarioData {
     type: string;
     value: number;
   };
+  inflationType: string;
+  inflationFixed: number;
+  inflationAmtorPct: string;
+  inflationMean: number;
+  inflationStdev: number;
   afterTaxContributionLimit: number;
   spendingStrategy: any[];
   expenseWithdrawalStrategy: any[];
@@ -104,8 +109,31 @@ const OpenScenario = () => {
         </div>
 
         <div className="normal-text">
-          Inflation Assumption: <span className="value-text">{capitalizeWords(scenario.inflationAssumption.type)} ({scenario.inflationAssumption.value})</span>
+          Inflation Assumption: <span className="value-text">{capitalizeWords(scenario.inflationAssumption.type)}</span>
         </div>
+        {scenario.inflationAssumption.type === "fixed" ? (
+          <div className="normal-text">
+            Inflation (Fixed):{" "}
+            <span className="value-text">{scenario.inflationFixed}%</span>
+          </div>
+        ) : scenario.inflationAssumption.type === "normal" ? (
+          <>
+            <div className="normal-text">
+              Inflation (Normal - Mean):{" "}
+              <span className="value-text">{scenario.inflationMean}%</span>
+            </div>
+            <div className="normal-text">
+              Inflation (Normal - Std Dev):{" "}
+              <span className="value-text">{scenario.inflationStdev}%</span>
+            </div>
+          </>
+        ) : (
+          <div className="normal-text">
+            Inflation Type:{" "}
+            <span className="value-text">{capitalizeWords(scenario.inflationType)}</span>
+          </div>
+        )}
+
 
         <hr />
         <div className="normal-text" style={{ fontWeight: "bold" }}>Investments:</div>
@@ -174,7 +202,9 @@ const OpenScenario = () => {
               <div className="normal-text" style={{ marginLeft: "5%" }}>
                 <div>Description: <span className="value-text">{capitalizeWords(event.description)}</span></div>
                 <div>Type: <span className="value-text">{capitalizeWords(event.type)}</span></div>
-
+                {(scenario.eventSeries[0]?.type === "income" || scenario.eventSeries[0]?.type === "export") && (
+                  <div className="normal-text">Initial Amount</div>
+                )}
                 {/* Start Year */}
                 <div>
                   Start Year Type: <span className="value-text">{event.startYear?.type}</span>
