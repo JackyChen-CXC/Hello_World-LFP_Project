@@ -287,38 +287,82 @@ const CreatePlan = () => {
               : { type: "normal", mean: 90, stdev: 10 },
           ],
   
-      inflationAssumption: (() => {
-        const type = formData.inflationAssumptionType || "fixed";
-        if (type === "fixed") return { type, value: parseFloat(formData.inflationAssumptionFixed || "0") };
-        if (type === "normal") return { type, mean: parseFloat(formData.inflationAssumptionMean || "0"), stdev: parseFloat(formData.inflationAssumptionStdev || "0") };
-        if (type === "uniform") return { type, lower: parseFloat(formData.inflationAssumptionLower || "0"), upper: parseFloat(formData.inflationAssumptionUpper || "0") };
-        return { type: "fixed", value: 0.02 };
-      })(),
+          inflationAssumption: (() => {
+            const firstEvent = formData.lifeEvents?.[0];
+            const changeDist = firstEvent?.changeDistribution || { type: "fixed", value: 0 };
+          
+            const type = changeDist.type || "fixed";
+          
+            if (type === "fixed") {
+              return { type, value: parseFloat(changeDist.value || "0") };
+            }
+            if (type === "normal") {
+              return {
+                type,
+                mean: parseFloat(changeDist.mean || "0"),
+                stdev: parseFloat(changeDist.stdev || "0"),
+              };
+            }
+          
+            return { type: "fixed", value: 0 };
+          })(),
+          
   
-      spendingStrategy: formData.spendingStrategy
-        ? formData.spendingStrategy.split(",").map((id) => id.trim())
-        : [],
-      expenseWithdrawalStrategy: formData.expenseWithdrawalStrategy
-        ? formData.expenseWithdrawalStrategy.split(",").map((id) => id.trim())
-        : [],
-      RMDStrategy: formData.rmdStrategy
-        ? formData.rmdStrategy.split(",").map((id) => id.trim())
-        : [],
-      RothConversionStrategy: formData.rothconversionstrategy
-        ? formData.rothconversionstrategy.split(",").map((id) => id.trim())
-        : [],
+      spendingStrategy: formData.spendingStrategy?.split(",").map((id) => id.trim()) || [],
+      expenseWithdrawalStrategy: formData.expenseWithdrawalStrategy?.split(",").map((id) => id.trim()) || [],
+      RMDStrategy: formData.rmdStrategy?.split(",").map((id) => id.trim()) || [],
+      RothConversionStrategy: formData.rothconversionstrategy?.split(",").map((id) => id.trim()) || [],
   
       financialGoal: parseFloat(formData.financialGoal || "0"),
       RothConversionOpt: formData.rothConversion === "yes",
       RothConversionStart: parseInt(formData.rothStartYear || "0"),
       RothConversionEnd: parseInt(formData.rothEndYear || "0"),
   
-      investments: formData.investments.map((inv) => ({
-        id: inv.id.toString(),
-        investmentType: inv.investmentType || "",
-        value: parseFloat(inv.investmentValue || "0"),
-        taxStatus: inv.accountType || "non-retirement",
-      })),
+      investments: formData.investments.map((inv) => {
+        const returnDistribution = (() => {
+          const type = inv.annualReturnType || "fixed";
+          if (type === "fixed") return { type, value: parseFloat(inv.annualReturnFixed || "0") };
+          if (type === "normal") return {
+            type,
+            mean: parseFloat(inv.annualReturnMean || "0"),
+            stdev: parseFloat(inv.annualReturnStdev || "0"),
+          };
+          if (type === "markov") return {
+            type,
+            mean: parseFloat(inv.annualReturnDrift || "0"),
+            stdev: parseFloat(inv.annualReturnVolatility || "0"),
+          };
+          return { type: "fixed", value: 0 };
+        })();
+  
+        const incomeDistribution = (() => {
+          const type = inv.annualIncomeType || "fixed";
+          if (type === "fixed") return { type, value: parseFloat(inv.annualIncomeFixed || "0") };
+          if (type === "normal") return {
+            type,
+            mean: parseFloat(inv.annualIncomeMean || "0"),
+            stdev: parseFloat(inv.annualIncomeStdev || "0"),
+          };
+          if (type === "markov") return {
+            type,
+            mean: parseFloat(inv.annualIncomeDrift || "0"),
+            stdev: parseFloat(inv.annualIncomeVolatility || "0"),
+          };
+          return { type: "fixed", value: 0 };
+        })();
+  
+        return {
+          id: inv.id.toString(),
+          investmentType: inv.investmentType || "",
+          value: parseFloat(inv.investmentValue || "0"),
+          taxStatus: inv.accountType || "non-retirement",
+          returnAmtOrPct: inv.annualReturnAmtOrPct || "percent",
+          returnDistribution,
+          incomeAmtOrPct: inv.annualIncomeAmtOrPct || "percent",
+          incomeDistribution,
+          taxability: inv.taxability === "taxable",
+        };
+      }),
   
       eventSeries: formData.lifeEvents.map((event) => {
         const isIncome = event.type === "income";
@@ -328,7 +372,7 @@ const CreatePlan = () => {
   
         return {
           id: event.id.toString(),
-          type: event.type || "", 
+          type: event.type || "",
           name: event.eventName || "",
           description: event.eventDescription || "",
   
@@ -336,9 +380,8 @@ const CreatePlan = () => {
             const type = event.startType || "fixed";
             if (type === "fixed" || type === "startingYear") return { type: "fixed", value: parseInt(event.start || "0") };
             if (type === "normal") return { type: "normal", mean: parseFloat(event.startMean || "0"), stdev: parseFloat(event.startStdev || "0") };
-            if (type === "startWith") return { type: "startWith", eventSeries: event.startEvent || "" };
-            if (type === "startEndEvent") return { type: "startEndEvent", eventSeries: event.startEndEvent || "" };
             if (type === "uniform") return { type: "uniform", lower: parseFloat(event.startMin || "0"), upper: parseFloat(event.startMax || "0") };
+            if (type === "startWith" || type === "startEndEvent") return { type, eventSeries: event.startEvent || "" };
             return { type: "fixed", value: 0 };
           })(),
   
@@ -347,32 +390,43 @@ const CreatePlan = () => {
             value: parseInt(event.duration || "0"),
           },
   
-          // Required for income/expense
           ...(isIncome || isExpense
             ? {
                 initialAmount: parseFloat(event.initialAmount || "0"),
                 changeAmtOrPct: event.annualChangeAmtOrPct || "amount",
                 changeDistribution: (() => {
-                  const type = event.annualChangeType || "fixed";
-                  if (type === "fixed") return { type, value: parseFloat(event.annualChangeFixed || "0") };
-                  if (type === "normal") return { type, mean: parseFloat(event.annualChangeMean || "0"), stdev: parseFloat(event.annualChangeStdev || "0") };
-                  if (type === "uniform") return { type, lower: parseFloat(event.annualChangeMin || "0"), upper: parseFloat(event.annualChangeMax || "0") };
+                  const type = event.changeDistribution?.type || "fixed";
+                
+                  if (type === "fixed") {
+                    return { type, value: parseFloat(event.changeDistribution?.value || "0") };
+                  }
+                  if (type === "normal") {
+                    return {
+                      type,
+                      mean: parseFloat(event.changeDistribution?.mean || "0"),
+                      stdev: parseFloat(event.changeDistribution?.stdev || "0"),
+                    };
+                  }
                   return { type: "fixed", value: 0 };
                 })(),
+                
                 inflationAdjusted: true,
                 userFraction: parseFloat(event.userPct || "1"),
                 socialSecurity: isIncome && event.incomeSource === "socialSecurity",
                 discretionary: isExpense && event.expenseSource === "Discretionary",
-        
                 inflationType: event.inflationType || "fixed",
                 inflationAmtOrPct: event.inflationAmtOrPct || "amount",
                 ...(event.inflationType === "fixed"
                   ? { inflationFixed: parseFloat(event.inflationFixed || "0") }
                   : {}),
+                ...(event.inflationType === "normal"
+                  ? {
+                      inflationMean: parseFloat(event.inflationMean || "0"),
+                      inflationStdev: parseFloat(event.inflationStdev || "0"),
+                    }
+                  : {}),
               }
             : {}),
-          
-
   
           ...(isInvest || isRebalance
             ? {
@@ -394,7 +448,7 @@ const CreatePlan = () => {
     };
   };
   
-  
+
   const handleSubmit = async () => {
     const payload = transformFormData(formData);
     try {
@@ -1064,9 +1118,6 @@ const CreatePlan = () => {
               <option value="after-tax">After-Tax Retirement</option>
             </select>
 
-            <button className="page-buttons" style={{ marginLeft: "85%" }}>
-              SAVE
-            </button>
           </>
         )}
       </div>
@@ -1627,122 +1678,6 @@ const CreatePlan = () => {
                 onChange={(e) => handleLifeEventChange(index, e)}
               />
 
-              {/* Annual Change */}
-              <div className="normal-text">
-                What is the expected annual change? (select 1)*
-              </div>
-              <div className="split-container">
-                <div className="left-side">
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualChangeType"
-                      value="fixed"
-                      checked={lifeEvent.annualChangeType === "fixed"}
-                      onChange={(e) => handleLifeEventChange(index, e)}
-                    />
-                    Fixed Amount / Percentage
-                  </label>
-                  <label className="normal-text">
-                    <input
-                      type="radio"
-                      name="annualChangeType"
-                      value="normal"
-                      checked={lifeEvent.annualChangeType === "normal"}
-                      onChange={(e) => handleLifeEventChange(index, e)}
-                    />
-                    Normal Distribution Percentage
-                  </label>
-                </div>
-                <div className="right-side">
-                  {lifeEvent.annualChangeType === "fixed" && (
-                    <>
-                      <div className="checkbox-group">
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="annualChangeAmtOrPct"
-                            value="amount"
-                            checked={lifeEvent.annualChangeAmtOrPct === "amount"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Fixed Amount
-                        </label>
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="annualChangeAmtOrPct"
-                            value="percent"
-                            checked={lifeEvent.annualChangeAmtOrPct === "percent"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Percentage
-                        </label>
-                      </div>
-
-                      {/* Input box */}
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualChangeFixed"
-                        placeholder={`Enter fixed ${lifeEvent.annualChangeAmtOrPct || "amount"}...`}
-                        value={lifeEvent.annualChangeFixed}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
-
-                  {lifeEvent.annualChangeType === "normal" && (
-                    <>
-                      {/* Amount vs Percentage Selector */}
-                      <div className="checkbox-group">
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="annualChangeAmtOrPct"
-                            value="amount"
-                            checked={lifeEvent.annualChangeAmtOrPct === "amount"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Fixed Amount
-                        </label>
-                        <label className="normal-text">
-                          <input
-                            type="radio"
-                            name="annualChangeAmtOrPct"
-                            value="percent"
-                            checked={lifeEvent.annualChangeAmtOrPct === "percent"}
-                            onChange={(e) => handleLifeEventChange(index, e)}
-                          />
-                          Percentage
-                        </label>
-                      </div>
-
-                      {/* Input fields */}
-                      <div className="normal-text">Mean ({lifeEvent.annualChangeAmtOrPct === "percent" ? "%" : "Amount"})</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualChangeMean"
-                        placeholder="Enter mean..."
-                        value={lifeEvent.annualChangeMean}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-
-                      <div className="normal-text">Standard Deviation ({lifeEvent.annualChangeAmtOrPct === "percent" ? "%" : "Amount"})</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="annualChangeStdev"
-                        placeholder="Enter standard deviation..."
-                        value={lifeEvent.annualChangeStdev}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
-
-                </div>
-              </div>
 
               {/* Inflation */}
               <div className="normal-text">
@@ -1810,12 +1745,6 @@ const CreatePlan = () => {
                 </div>
               </div>
 
-
-
-              {/* Save button for each life event*/}
-              <button className="page-buttons" style={{ marginLeft: "85%" }}>
-                SAVE
-              </button>
             </>
           )}
         </div>

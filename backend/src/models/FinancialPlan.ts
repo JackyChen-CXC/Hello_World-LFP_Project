@@ -10,17 +10,33 @@ export interface IInvestment extends Document {
     investmentType: IInvestmentType;
     value: number;
     taxStatus: "non-retirement" | "pre-tax" | "after-tax";
-    id: string
+    id: string;
+    returnAmtOrPct: "amount" | "percent";
+    returnDistribution: IDistribution;
+    incomeAmtOrPct: "amount" | "percent";
+    incomeDistribution: IDistribution;
+    taxability?: boolean; // optional
 }
 
 const InvestmentSchema = new Schema<IInvestment>({
-    investmentType: { type: String, required: true },
-    value: { type: Number, required: true },
-    taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
-    id: { type: String, required: true },
-    },
-    { _id: false }
-);
+investmentType: { type: String, required: true },
+value: { type: Number, required: true },
+taxStatus: {
+    type: String,
+    enum: ["non-retirement", "pre-tax", "after-tax"],
+    required: true,
+},
+id: { type: String, required: true },
+
+returnAmtOrPct: { type: String, enum: ["amount", "percent"], required: true },
+returnDistribution: { type: DistributionSchema, required: true },
+
+incomeAmtOrPct: { type: String, enum: ["amount", "percent"], required: true },
+incomeDistribution: { type: DistributionSchema, required: true },
+
+taxability: { type: Boolean },
+}, { _id: false });
+  
 
 // LifeEvents are also individual to Financial Plans
 // ATTRIBUTES PER TYPE

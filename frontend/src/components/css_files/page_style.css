@@ -48,13 +48,14 @@
     padding:5%;
     align-items: center;
     margin-top: 4%;
-    margin-left: 8%;
+    margin-left: 4%;
 }
 
 .scenario-grid{
     display: flex;
     flex-wrap: wrap;
     gap: 50px;
+    padding-bottom: 5%;
 }
 
 .simulation-container{

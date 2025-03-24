@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import "../css_files/page_style.css";
 
 interface ScenarioData {
@@ -45,6 +45,9 @@ interface ScenarioData {
 const OpenScenario = () => {
   const { id } = useParams();
   const [scenario, setScenario] = useState<ScenarioData | null>(null);
+  const location = useLocation();
+  const dateCreated = (location.state as any)?.dateCreated;
+
 
   useEffect(() => {
     const fetchScenario = async () => {
@@ -63,7 +66,7 @@ const OpenScenario = () => {
 
   const capitalizeWords = (str: any) => {
     if (typeof str !== "string") str = String(str);
-    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+    return str.replace(/\b\w/g, (char: string) => char.toUpperCase());
   };
 
   if (!scenario) return <div className="page-container">Scenario not found</div>;
@@ -72,7 +75,15 @@ const OpenScenario = () => {
     <div className="page-container">
       <div className="header">
         <div>Scenarios</div>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "absolute", right: "40px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            position: "absolute",
+            right: "40px",
+          }}
+        >
           <div>user</div>
           <img src="/images/user.png" height={80} width={90} />
         </div>
@@ -86,18 +97,25 @@ const OpenScenario = () => {
           </div>
           <div className="right-container">
             <div className="normal-text">Plan Type: {capitalizeWords(scenario.maritalStatus)} Plan</div>
-            <div className="normal-text">Date Created: {scenario.createdAt}</div>
+            <div className="normal-text">
+              Date Created: {dateCreated || "N/A"}</div>
+
           </div>
         </div>
 
         <hr />
         <div className="normal-text" style={{ fontWeight: "bold" }}>Basic Information:</div>
-        <div className="normal-text">Birth Year: <span className="value-text">{scenario.birthYears.join(", ")}</span></div>
+        <div className="normal-text">
+          Birth Year:{" "}
+          <span className="value-text">{scenario.birthYears.join(", ")}</span>
+        </div>
         <div className="normal-text">
           Life Expectancy:{" "}
-          {scenario.lifeExpectancy[0]?.type === "fixed"
-            ? <span className="value-text">{scenario.lifeExpectancy[0]?.value} years</span>
-            : <span className="value-text">Sampled from a normal distribution</span>}
+          {scenario.lifeExpectancy[0]?.type === "fixed" ? (
+            <span className="value-text">{scenario.lifeExpectancy[0]?.value} years</span>
+          ) : (
+            <span className="value-text">Sampled from a normal distribution</span>
+          )}
         </div>
         <div className="normal-text">
           Spouse's Birth Year:{" "}
@@ -107,32 +125,10 @@ const OpenScenario = () => {
               : "N/A"}
           </span>
         </div>
-
         <div className="normal-text">
-          Inflation Assumption: <span className="value-text">{capitalizeWords(scenario.inflationAssumption.type)}</span>
+          Residential State:{" "}
+          <span className="value-text">{capitalizeWords(scenario.residenceState) || "N/A"}</span>
         </div>
-        {scenario.inflationAssumption.type === "fixed" ? (
-          <div className="normal-text">
-            Inflation (Fixed):{" "}
-            <span className="value-text">{scenario.inflationFixed}%</span>
-          </div>
-        ) : scenario.inflationAssumption.type === "normal" ? (
-          <>
-            <div className="normal-text">
-              Inflation (Normal - Mean):{" "}
-              <span className="value-text">{scenario.inflationMean}%</span>
-            </div>
-            <div className="normal-text">
-              Inflation (Normal - Std Dev):{" "}
-              <span className="value-text">{scenario.inflationStdev}%</span>
-            </div>
-          </>
-        ) : (
-          <div className="normal-text">
-            Inflation Type:{" "}
-            <span className="value-text">{capitalizeWords(scenario.inflationType)}</span>
-          </div>
-        )}
 
 
         <hr />
@@ -142,48 +138,77 @@ const OpenScenario = () => {
         ) : (
           scenario.investments.map((inv, index) => (
             <div key={inv.id} style={{ marginBottom: "1rem" }}>
-              <div className="normal-text" style={{ fontWeight: "bold" }}>{index + 1}. Investment Name: {capitalizeWords(inv.investmentName)}</div>
+              <div className="normal-text" style={{ fontWeight: "bold" }}>
+                {index + 1}. Investment Name: {capitalizeWords(inv.investmentName)}
+              </div>
               <div className="normal-text" style={{ marginLeft: "5%" }}>
                 {inv.investmentDescription && (
-                  <div>Brief Description: <span className="value-text">{capitalizeWords(inv.investmentDescription)}</span></div>
+                  <div>
+                    Brief Description:{" "}
+                    <span className="value-text">{capitalizeWords(inv.investmentDescription)}</span>
+                  </div>
                 )}
-                <div>Investment Type: <span className="value-text">{capitalizeWords(inv.investmentType)}</span></div>
-                <div>Current Value: <span className="value-text">${inv.value}</span></div>
-                <div>Tax Status: <span className="value-text">{inv.taxStatus}</span></div>
+                <div>
+                  Investment Type:{" "}
+                  <span className="value-text">{capitalizeWords(inv.investmentType)}</span>
+                </div>
+                <div>
+                  Current Value: <span className="value-text">${inv.value}</span>
+                </div>
+                <div>
+                  Tax Status: <span className="value-text">{inv.taxStatus}</span>
+                </div>
 
-                <div style={{ marginTop: "0.5rem" }}>Annual Return Type: <span className="value-text">{capitalizeWords(inv.annualReturnType)}</span></div>
-                {inv.annualReturnType === "fixed" && (
-                  <div>Fixed Return: <span className="value-text">{inv.annualReturnFixed}%</span></div>
-                )}
-                {inv.annualReturnType === "normal" && (
-                  <>
-                    <div>Mean Return: <span className="value-text">{inv.annualReturnMean}%</span></div>
-                    <div>Standard Deviation: <span className="value-text">{inv.annualReturnStdev}%</span></div>
-                  </>
-                )}
-                {inv.annualReturnType === "markov" && (
-                  <>
-                    <div>Drift (μ): <span className="value-text">{inv.annualReturnDrift}</span></div>
-                    <div>Volatility (σ): <span className="value-text">{inv.annualReturnVolatility}</span></div>
-                  </>
+                {/* Return Distribution */}
+                {inv.returnDistribution && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div>
+                      Return Distribution Type:{" "}
+                      <span className="value-text">{capitalizeWords(inv.returnDistribution.type)}</span>
+                    </div>
+                    {inv.returnDistribution.value !== undefined && (
+                      <div>
+                        Value: <span className="value-text">{inv.returnDistribution.value}</span>
+                      </div>
+                    )}
+                    {inv.returnDistribution.mean !== undefined && (
+                      <div>
+                        Mean: <span className="value-text">{inv.returnDistribution.mean}</span>
+                      </div>
+                    )}
+                    {inv.returnDistribution.stdev !== undefined && (
+                      <div>
+                        Std Dev: <span className="value-text">{inv.returnDistribution.stdev}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
 
-                <div style={{ marginTop: "0.5rem" }}>Annual Income Type: <span className="value-text">{capitalizeWords(inv.annualIncomeType)}</span></div>
-                {inv.annualIncomeType === "fixed" && (
-                  <div>Fixed Income: <span className="value-text">{inv.annualIncomeFixed}%</span></div>
+                {/* Income Distribution */}
+                {inv.incomeDistribution && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div>
+                      Income Distribution Type:{" "}
+                      <span className="value-text">{capitalizeWords(inv.incomeDistribution.type)}</span>
+                    </div>
+                    {inv.incomeDistribution.value !== undefined && (
+                      <div>
+                        Value: <span className="value-text">{inv.incomeDistribution.value}</span>
+                      </div>
+                    )}
+                    {inv.incomeDistribution.mean !== undefined && (
+                      <div>
+                        Mean: <span className="value-text">{inv.incomeDistribution.mean}</span>
+                      </div>
+                    )}
+                    {inv.incomeDistribution.stdev !== undefined && (
+                      <div>
+                        Std Dev: <span className="value-text">{inv.incomeDistribution.stdev}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
-                {inv.annualIncomeType === "normal" && (
-                  <>
-                    <div>Mean Income: <span className="value-text">{inv.annualIncomeMean}%</span></div>
-                    <div>Standard Deviation: <span className="value-text">{inv.annualIncomeStdev}%</span></div>
-                  </>
-                )}
-                {inv.annualIncomeType === "markov" && (
-                  <>
-                    <div>Drift (μ): <span className="value-text">{inv.annualIncomeDrift}</span></div>
-                    <div>Volatility (σ): <span className="value-text">{inv.annualIncomeVolatility}</span></div>
-                  </>
-                )}
+
               </div>
             </div>
           ))
@@ -200,51 +225,139 @@ const OpenScenario = () => {
                 {index + 1}. Life Event Name: {capitalizeWords(event.name)}
               </div>
               <div className="normal-text" style={{ marginLeft: "5%" }}>
-                <div>Description: <span className="value-text">{capitalizeWords(event.description)}</span></div>
-                <div>Type: <span className="value-text">{capitalizeWords(event.type)}</span></div>
-                {(scenario.eventSeries[0]?.type === "income" || scenario.eventSeries[0]?.type === "export") && (
-                  <div className="normal-text">Initial Amount</div>
-                )}
-                {/* Start Year */}
+
+                {/* Description */}
                 <div>
+                  Description:{" "}
+                  <span className="value-text">{capitalizeWords(event.description)}</span>
+                </div>
+
+                {/* Type */}
+                <div>
+                  Type: <span className="value-text">{capitalizeWords(event.type)}</span>
+                </div>
+
+                {/* Show Initial Amount if it's an income or export-type event */}
+                {(event.type === "income" || event.type === "export") && (
+                  <div>
+                    Initial Amount:{" "}
+                    <span className="value-text">${event.initialAmount}</span>
+                  </div>
+                )}
+
+                {/* Change Amount/Percentage */}
+                {event.changeAmtOrPct && (
+                  <div>
+                    Change is an:{" "}
+                    <span className="value-text">{capitalizeWords(event.changeAmtOrPct)}</span>
+                  </div>
+                )}
+
+                {/* Start Year */}
+                <div style={{ marginTop: "0.5rem" }}>
                   Start Year Type: <span className="value-text">{event.start?.type}</span>
                   {event.start?.value !== undefined && (
-                    <div>Start Year: <span className="value-text">{event.start.value}</span></div>
+                    <div>
+                      Start Year: <span className="value-text">{event.start.value}</span>
+                    </div>
                   )}
                   {event.start?.mean !== undefined && (
-                    <div>Mean: <span className="value-text">{event.start.mean}</span></div>
+                    <div>
+                      Mean: <span className="value-text">{event.start.mean}</span>
+                    </div>
                   )}
                   {event.start?.stdev !== undefined && (
-                    <div>Stdev: <span className="value-text">{event.start.stdev}</span></div>
+                    <div>
+                      Stdev: <span className="value-text">{event.start.stdev}</span>
+                    </div>
                   )}
                 </div>
 
                 {/* Duration */}
                 {event.duration && (
-                  <div>
+                  <div style={{ marginTop: "0.5rem" }}>
                     Duration Type: <span className="value-text">{event.duration.type}</span>
                     {event.duration.value !== undefined && (
-                      <div>Duration (Years): <span className="value-text">{event.duration.value}</span></div>
+                      <div>
+                        Duration (Years):{" "}
+                        <span className="value-text">{event.duration.value} Years</span>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {/* Change Distribution */}
                 {event.changeDistribution && (
-                  <div>
-                    Change Distribution Type: <span className="value-text">{event.changeDistribution.type}</span>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    Change Distribution Type:{" "}
+                    <span className="value-text">{event.changeDistribution.type}</span>
                     {event.changeDistribution.value !== undefined && (
-                      <div>Value: <span className="value-text">{event.changeDistribution.value}</span></div>
+                      <div>
+                        Value: <span className="value-text">{event.changeDistribution.value}</span>
+                      </div>
                     )}
                   </div>
                 )}
 
-                {/* Inflation */}
+                {/* Inflation Adjusted */}
                 {event.inflationAdjusted !== undefined && (
-                  <div>Inflation Adjusted: <span className="value-text">{event.inflationAdjusted ? "Yes" : "No"}</span></div>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    Inflation Adjusted:{" "}
+                    <span className="value-text">{event.inflationAdjusted ? "Yes" : "No"}</span>
+                  </div>
                 )}
-                {event.maxCash !== undefined && (
-                  <div>Max Cash: <span className="value-text">${event.maxCash}</span></div>
+
+                {/* User Fraction */}
+                {event.userFraction !== undefined && (
+                  <div>
+                    User Fraction: <span className="value-text">{event.userFraction}</span>
+                  </div>
+                )}
+
+                {/* Social Security */}
+                {event.socialSecurity !== undefined && (
+                  <div>
+                    Social Security:{" "}
+                    <span className="value-text">{event.socialSecurity ? "Yes" : "No"}</span>
+                  </div>
+                )}
+
+                {/* Discretionary */}
+                {event.discretionary !== undefined && (
+                  <div>
+                    Discretionary:{" "}
+                    <span className="value-text">{event.discretionary ? "Yes" : "No"}</span>
+                  </div>
+                )}
+
+                {/* Scenario-level inflation assumption info */}
+                <div className="normal-text" style={{ marginTop: "0.5rem" }}>
+                  Inflation Assumption:{" "}
+                  <span className="value-text">
+                    {capitalizeWords(scenario.inflationAssumption.type)}
+                  </span>
+                </div>
+                {scenario.inflationAssumption.type === "fixed" ? (
+                  <div className="normal-text">
+                    Inflation (Fixed):{" "}
+                    <span className="value-text">{scenario.inflationAssumption.value}%</span>
+                  </div>
+                ) : scenario.inflationAssumption.type === "normal" ? (
+                  <>
+                    <div className="normal-text">
+                      Inflation (Normal - Mean):{" "}
+                      <span className="value-text">{scenario.inflationAssumption.mean}%</span>
+                    </div>
+                    <div className="normal-text">
+                      Inflation (Normal - Std Dev):{" "}
+                      <span className="value-text">{scenario.inflationAssumption.stdev}%</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="normal-text">
+                    Inflation Type:{" "}
+                    <span className="value-text">{capitalizeWords(scenario.inflationType)}</span>
+                  </div>
                 )}
               </div>
             </div>
