@@ -13,6 +13,7 @@
     border: none;
     outline: none;
     font-weight: bold;
+    cursor: pointer;
     width: 100%;
 }
 
@@ -34,6 +35,11 @@
     color: #27332B;
     font-weight: bold;
     text-decoration: underline;
+}
+.tab-btn:hover {
+    background-color:#b9d0c069;
+    color: #27332B;
+
 }
 
 

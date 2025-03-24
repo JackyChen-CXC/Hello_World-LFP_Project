@@ -23,7 +23,8 @@ const Login = () => {
       localStorage.setItem("userId", userInfo.sub);        // Google's unique user ID
       localStorage.setItem("username", userInfo.email);    // Optional if using email
       localStorage.setItem("name", userInfo.name);         // Optional for display
-  
+      localStorage.setItem("given_name", userInfo.given_name);  
+      localStorage.setItem("picture", userInfo.picture);  
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to fetch Google user info:", error);
@@ -52,7 +53,7 @@ const Login = () => {
         <p>Please log in with your Google account to continue.</p>
         <div style={{ marginTop: "20px" }}>
           <button onClick={() => login()} className="oval-google-button">
-            Sign in with Google
+          Sign in with Google
           </button>
         </div>
         {/* Guest Login Button */}
