@@ -8,6 +8,7 @@ userRouter.post("/createplan", createPlan);
 userRouter.post("/editplan", editPlan);
 userRouter.post("/deleteplan", deletePlan);
 userRouter.post("/importplan", importPlan);
+        annualIncomeUpper: "", //
 userRouter.post("/export", exportPlan);
 
 

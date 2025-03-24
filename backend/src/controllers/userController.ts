@@ -81,6 +81,14 @@ export const deletePlan = async (req:any, res:any) => {
 export const importPlan = async (req: any, res: any) => {
     try {
         // import from YAML (use the scenario.YAML as ref)
+        const scenarioData = req.body.data;
+
+        // Validate and create a new document
+        const newScenario = new FinancialPlan(scenarioData);
+        console.log(newScenario);
+        // await newScenario.save();
+
+        // res.json({ message: "Scenario saved successfully!", scenario: newScenario });
     }
     catch (error) {
         res.status(200).json({

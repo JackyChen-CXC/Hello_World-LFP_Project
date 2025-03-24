@@ -6,16 +6,28 @@ const CreatePlan = () => {
   const defaultFormData = {
     planName: "",
     planType: "",
-    currentAge: "",
+    currentAge: "", // delete
     birthYear: "",
-    spouseAge: "",
+    spouseAge: "", // delete
     spouseBirthYear: "",
     lifeExpectancyRadio: "",
     lifeExpectancyYears: "",
-  
+    spouselifeExpectancyRadio: "", //
+    spouselifeExpectancyYears: "", //
+    inflationAssumptionType: "", // fixed, normal, uniform
+    inflationAssumptionFixed: "", //
+    inflationAssumptionMean: "", //
+    inflationAssumptionStdev: "", //
+    inflationAssumptionLower: "", //
+    inflationAssumptionUpper: "", //
+    afterTaxContributionLimit: "", //
+    spendingStrategy: "", //
+    expenseWithdrawalStrategy: "", //
+    rmdStrategy: "", //
     rothConversion: "",
     rothStartYear: "",
     rothEndYear: "",
+    rothconversionstrategy: "", //
   
     financialGoal: "",
     investments: [
@@ -26,21 +38,23 @@ const CreatePlan = () => {
         investmentName: "",
         investmentValue:"",
         investmentDescription: "",
-        annualReturnType: "",
+        annualReturnAmtOrPct: "", // "amount" | "percent"
+        annualReturnType: "", // fixed, normal, uniform,
         annualReturnFixed: "",
         annualReturnMean: "",
         annualReturnStdev: "",
-        annualReturnDrift: "",
-        annualReturnVolatility: "",
-        annualIncomeType: "",
+        annualReturnLower: "", //
+        annualReturnUpper: "", //
+        annualIncomeAmtOrPct: "", // "amount" | "percent"
+        annualIncomeType: "", // fixed, normal, uniform
         annualIncomeFixed: "",
         annualIncomeMean: "",
         annualIncomeStdev: "",
-        annualIncomeDrift: "",
-        annualIncomeVolatility: "",
+        annualIncomeLower: "", //
+        annualIncomeUpper: "", //
         taxability: "",
         taxFile: null,
-        accountType: "",
+        accountType: "", // "non-retirement", "pre-tax", or "after-tax"
       },
     ],
     lifeEvents: [
@@ -50,17 +64,30 @@ const CreatePlan = () => {
         lifeEventType: "",
         eventName: "",
         eventDescription: "",
-        startType: "",
+        startType: "", // fixed, normal, uniform, startWith, Endwhen
         startYear: "",
         startMean: "",
         startStdev: "",
+        startLower: "", //
+        startUpper: "", //
         startEvent: "",
         startEndEvent: "",
-        duration: "",
-        annualChangeType: "",
+        durationType: "", // fixed, normal, uniform
+        durationYear: "", //
+        durationMean: "", //
+        durationStdev: "", //
+        durationLower: "", //
+        durationUpper: "", //
+        annualChangeAmtOrPct: "", // "amount" | "percent"
+        annualChangeType: "", // fixed, normal, uniform
         annualChangeFixed: "",
         annualChangeMean: "",
         annualChangeStdev: "",
+        annualChangeLower: "", //
+        annualChangeUpper: "", //
+        inflationAdjusted: "",
+        userFraction: "", //
+        // delete
         inflationType: "",
         inflationFixed: "",
         inflationMean: "",
@@ -110,14 +137,14 @@ const CreatePlan = () => {
           annualReturnFixed: "",
           annualReturnMean: "",
           annualReturnStdev: "",
-          annualReturnDrift: "",
-          annualReturnVolatility: "",
+          annualReturnLower: "", //
+          annualReturnUpper: "", //
           annualIncomeType: "",
           annualIncomeFixed: "",
           annualIncomeMean: "",
           annualIncomeStdev: "",
-          annualIncomeDrift: "",
-          annualIncomeVolatility: "",
+          annualIncomeLower: "", //
+          annualIncomeUpper: "", //
           taxability: "",
           taxFile: null,
           accountType: "",
@@ -177,13 +204,21 @@ const CreatePlan = () => {
           startYear: "",
           startMean: "",
           startStdev: "",
+          startLower: "", //
+          startUpper: "", //
           startEvent: "",
           startEndEvent: "",
           duration: "",
+          annualChangeAmtOrPct: "", // "amount" | "percent"
           annualChangeType: "",
           annualChangeFixed: "",
           annualChangeMean: "",
           annualChangeStdev: "",
+          annualChangeLower: "", //
+          annualChangeUpper: "", //
+          inflationAdjusted: "",
+          userFraction: "", //
+          // delete
           inflationType: "",
           inflationFixed: "",
           inflationMean: "",
@@ -224,21 +259,33 @@ const CreatePlan = () => {
       currentAge: [parseInt(formData.currentAge)],
       spouseAge: isJoint ? parseInt(formData.spouseAge || "0") : undefined,
 
-      birthYears: [parseInt(formData.birthYear)],
+      birthYears: [parseInt(formData.birthYear)], // [user, spouse] or no array and combine after
       spousebirthyear: isJoint
         ? parseInt(formData.spouseBirthYear || "0")
         : undefined,
 
-      lifeExpectancy: [
+      lifeExpectancy: [ // [user, spouse] or no array and combine after
         formData.lifeExpectancyRadio === "yes"
           ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
           : { type: "normal", mean: 90, stdev: 10 },
       ],
 
+      inflationAssumptionType: "", // fixed, normal, uniform
+      inflationAssumptionFixed: "", //
+      inflationAssumptionMean: "", //
+      inflationAssumptionStdev: "", //
+      inflationAssumptionLower: "", //
+      inflationAssumptionUpper: "", //
+      // Not sure how (Error also)
+      // spendingStrategy: "", //
+      // expenseWithdrawalStrategy: "", //
+      // rmdStrategy: "", //
+
       financialGoal: parseFloat(formData.financialGoal || "0"),
       RothConversionOpt: formData.rothConversion === "yes",
       RothConversionStart: parseInt(formData.rothStartYear || "0"),
       RothConversionEnd: parseInt(formData.rothEndYear || "0"),
+      Rothconversionstrategy: "", //
   
       investments: formData.investments.map((inv) => ({
         id: inv.id.toString(),
@@ -246,12 +293,13 @@ const CreatePlan = () => {
         investmentName: inv.investmentName || "",
         investmentValue: inv.investmentValue|| "",
         investmentDescription: inv.investmentDescription || "",
+        annualReturnAmtOrPct: inv.annualReturnAmtOrPct || "", //
         annualReturnType: inv.annualReturnType || "",
         annualReturnFixed: inv.annualReturnFixed ? parseFloat(inv.annualReturnFixed) : undefined,
         annualReturnMean: inv.annualReturnMean ? parseFloat(inv.annualReturnMean) : undefined,
         annualReturnStdev: inv.annualReturnStdev ? parseFloat(inv.annualReturnStdev) : undefined,
-        annualReturnDrift: inv.annualReturnDrift ? parseFloat(inv.annualReturnDrift) : undefined,
-        annualReturnVolatility: inv.annualReturnVolatility ? parseFloat(inv.annualReturnVolatility) : undefined,
+        annualReturnLower: inv.annualReturnLower ? parseFloat(inv.annualReturnLower) : undefined, //
+        annualReturnUpper: inv.annualReturnUpper ? parseFloat(inv.annualReturnUpper) : undefined, //
         annualIncomeType: inv.annualIncomeType || "",
         annualIncomeFixed: inv.annualIncomeFixed ? parseFloat(inv.annualIncomeFixed) : undefined,
         annualIncomeMean: inv.annualIncomeMean ? parseFloat(inv.annualIncomeMean) : undefined,
@@ -860,7 +908,7 @@ const CreatePlan = () => {
                   <select
                     className="collapse-options"
                     name="lifeEventType"
-                    value={lifeEvent.lifeEventType}
+                    value={lifeEvent.type}
                     onChange={(e) => handleLifeEventChange(index, e)}
                   >
                     <option value="">--Select--</option>

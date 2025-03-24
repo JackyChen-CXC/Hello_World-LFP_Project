@@ -6,18 +6,25 @@ import FinancialPlan from "./models/FinancialPlan";
 import { addAnonymousUser } from "./controllers/createUserController";
 import { createFinancialPlan } from "./controllers/modelController";
 import { DistributionSchema } from "./models/Distribution";
+import SimulationResult from "./models/SimulationResult";
 
-const seedDatabase = async () => {
+// Creates a template financial plan, simulation & simulation result to simulate the use of each
+const template = async () => {
     try {
-        const existingUsers = await User.countDocuments();
-        if (existingUsers > 0) {
-            console.log("Database alread initalized/template alr created. Skipping seeding.");
-            return;
-        }
-        // const res = addAnonymousUser(NaN, NaN); // ?
-        // await TemplateModel.insertMany(sampleTemplates);
-        console.log("Database seeded with example templates.");
+        // Financial Plan
+        const financialPlan = new FinancialPlan({
+            
+        });
+        // Simulation
+        const simulation = new Simulation({
+        
+        });
+        // Simulation Result
+        const result = new SimulationResult({
+
+        });
+        console.log("Database seeded with example template.");
     } catch (error) {
-        console.error("Error seeding database:", error);
+        console.error("Error adding template to database:", error);
     }
   };
