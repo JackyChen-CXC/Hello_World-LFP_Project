@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../css_files/page_style.css";
 import yaml from 'js-yaml';
 
+
 // Define the shape of a scenario
 interface ScenarioData {
   id: string;
@@ -152,14 +153,25 @@ const Scenario: FC = () => {
       alert("Please select a valid YAML file.");
     }
   };
-
+  const username = localStorage.getItem("name");
+  const name = localStorage.getItem("given_name");
+  const picture = localStorage.getItem("picture")
   return (
     <div className="page-container">
       <div className="header">
         <div>Scenarios</div>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "absolute", right: "40px" }}>
-          <div>user</div>
-          <img src="/images/user.png" height={80} width={90} />
+        {username ? (
+            <>
+              <div style={{ margin: 20 }}>{username}</div>
+              <img src={picture} height={60} width={60} alt="User" 
+              style={{ cursor: "pointer",borderRadius: "50%" }} 
+              className="transparent-hover"
+              onClick={() => navigate("/profile")} />
+            </>
+          ) : (
+            <div>Guest</div>
+          )}
         </div>
       </div>
       <button

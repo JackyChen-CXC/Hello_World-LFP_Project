@@ -1,8 +1,10 @@
 // Here's the entire final code (CreatePlan.jsx). It includes the full UI from your original snippet plus the fixed code for strategies.
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../css_files/collapsible.css";
 import "../css_files/page_style.css";
+
 
 const CreatePlan = () => {
   const defaultFormData = {
@@ -411,6 +413,11 @@ const CreatePlan = () => {
       alert("There was an error. Check the console for details.");
     }
   };
+  const username = localStorage.getItem("name");
+  const name = localStorage.getItem("given_name");
+  const picture = localStorage.getItem("picture")
+  const navigate = useNavigate()
+
   const handleAssetAllocationChange = (index, e, fieldName) => {
     const { value } = e.target;
   
@@ -447,7 +454,7 @@ const CreatePlan = () => {
       return updated;
     });
   };
-
+  
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
   return (
     <div className="page-container">
@@ -455,8 +462,17 @@ const CreatePlan = () => {
       <div className="header">
         <div>Create Plan</div>
         <div style={{display:"flex", justifyContent:"center", alignItems:"center" ,position: "absolute", right: "40px"}}>
-          <div>user</div>
-          <img src="/images/user.png" height={80} width={90} alt="user"/>
+        {username ? (
+            <>
+              <div style={{ margin: 20 }}>{username}</div>
+              <img src={picture} height={60} width={60} alt="User" 
+              style={{ cursor: "pointer",borderRadius: "50%" }} 
+              className="transparent-hover"
+              onClick={() => navigate("/profile")} />
+            </>
+          ) : (
+            <div>Guest</div>
+          )}
         </div>
       </div>
 

@@ -4,15 +4,26 @@ import "../css_files/page_style.css";
 
 const Help = () => {
   const navigate = useNavigate();
-
+  const username = localStorage.getItem("name");
+  const name = localStorage.getItem("given_name");
+  const picture = localStorage.getItem("picture")
   return (
     <div className="page-container">
       {/* ------------------ Header ------------------ */}
       <div className="header" style={{ marginBottom: "5%" }}>
         <div>Help</div>
         <div style={{display:"flex", justifyContent:"center", alignItems:"center",position: "absolute", right: "40px"}}>
-          <div>user</div>
-          <img src="/images/user.png" height={80} width={90} />
+        {username ? (
+            <>
+              <div style={{ margin: 20 }}>{username}</div>
+              <img src={picture} height={60} width={60} alt="User" 
+              style={{ cursor: "pointer",borderRadius: "50%" }} 
+              className="transparent-hover"
+              onClick={() => navigate("/profile")} />
+            </>
+          ) : (
+            <div>Guest</div>
+          )}
         </div>
       </div>
       <div className="help-container">
