@@ -71,36 +71,18 @@ const Simulation = () => {
         economic fluctuations, to estimate your financial future.
       </p>
 
-      {/* Select Plan Button */}
-      <button
-        className="page-buttons"
-        style={{ width: "200px" }}
-        onClick={() => setShowPlans(!showPlans)}
-      >
-        Select a Plan
-      </button>
-
-      {/* Simple Plan List */}
-      {showPlans && (
-        <div style={{ marginTop: "20px" }}>
-          <div className="normal-text" style={{ fontWeight: "bold" }}>Your Plans:</div>
-          {scenarios.length === 0 ? (
-            <div className="normal-text">No plans found.</div>
-          ) : (
-            scenarios.map((plan) => (
-              <div key={plan.id} className="normal-text">• {plan.title}</div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Simulation Section */}
-      <div className="simulation-container">
-        <div className="questions">
-          <div className="normal-text">How many simulations do you want to run?</div>
-          <button className="page-buttons" style={{ width: "200px", marginLeft: "40%" }}>Run Simulation</button>
-        </div>
+      <div style={{ marginTop: "20px" }}>
+        <div className="normal-text" style={{ fontWeight: "bold" }}>Your Recent Simulations:</div>
+        {scenarios.length === 0 ? (
+          <div className="normal-text">No plans found.</div>
+        ) : (
+          scenarios.map((plan) => (
+            <div key={plan.id} className="normal-text">{plan.title}</div>
+          ))
+        )}
       </div>
+
+      
     </div>
   );
 };
