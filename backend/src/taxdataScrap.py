@@ -379,7 +379,9 @@ def scrape_captial_gain():
 
     saveCaptialGain(single,married)
                 
-
+def database_exists(db_name):
+    db_list = client.list_database_names()
+    return db_name in db_list
                     
 
 #scrape_federal_tax()
@@ -388,10 +390,12 @@ def scrape_captial_gain():
 #scrape_captial_gain()
 
 if __name__ == "__main__":
-    scrape_federal_tax()
-    scrape_state_tax()
-    scrape_standard_deduction()
-    scrape_captial_gain()
+    if not database_exists("federal_tax"):
+        scrape_federal_tax()
+    if not database_exists("standard_deduction"):
+        scrape_standard_deduction()
+    if not database_exists("captial_gain_tax"):
+        scrape_captial_gain()
     print("Scrape completed")
 
 

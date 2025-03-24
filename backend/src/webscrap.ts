@@ -1,6 +1,6 @@
 import { exec } from "child_process";
 
-console.log("Running Python script after npm install...");
+console.log("Running Webscraping after npm install...");
 
 const command = process.platform === "win32"
     ? `"venv\\Scripts\\python" src/taxdataScrap.py`
