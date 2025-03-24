@@ -1,6 +1,7 @@
 import React, { FC, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../css_files/page_style.css";
+import yaml from 'js-yaml';
 
 // Define the shape of a scenario
 interface ScenarioData {
@@ -108,11 +109,45 @@ const Scenario: FC = () => {
 
   // Handle the file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      console.warn("No userId found in localStorage");
+      return;
+    }
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === "application/x-yaml") {
+    const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+    if (fileExtension === 'yaml' || fileExtension === 'yml') {
       setFile(selectedFile);
       // You can parse and process the YAML file here
-      console.log("Selected YAML file:", selectedFile);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const yamlContent = event.target?.result as string;
+          const parsedYaml = yaml.load(yamlContent) as { [key: string]: any };
+          
+          console.log("Selected YAML file:", parsedYaml);
+
+          const response = await fetch("http://localhost:5000/api/importplan", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ userId: userId, data : parsedYaml }),
+          });
+          if (!response.ok) {
+            throw new Error("Failed to upload YAML data.");
+          }
+          const responseData = await response.json();
+          console.log("Response from server:", responseData);
+  
+        } catch (error) {
+          console.error("Error parsing YAML:", error);
+          alert("Error parsing the YAML file, something is wrong with the file.");
+        }
+      };
+
+      reader.readAsText(selectedFile);
+
     } else {
       alert("Please select a valid YAML file.");
     }
@@ -139,7 +174,7 @@ const Scenario: FC = () => {
       <input
         id="file-input"
         type="file"
-        accept=".yaml,.yml"
+        accept=".yaml, .yml"
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
