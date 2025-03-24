@@ -56,7 +56,7 @@ const LifeEventSchema = new Schema<ILifeEvent>({
     initialAmount: { type: Number, 
         required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
     }},
-    changeAmtOrPct: { type: { type: String, required: true, enum: ["amount", "percent"] }, 
+    changeAmtOrPct: { type: String, enum: ["amount", "percent"],
         required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
     }},
     changeDistribution: { type: DistributionSchema, 

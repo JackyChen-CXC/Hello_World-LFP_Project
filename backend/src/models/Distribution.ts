@@ -4,20 +4,17 @@ import { Schema } from "mongoose";
 # {type: fixed, value: <number>}
 # {type: normal, mean: <number>, stdev: <number>}
 # {type: uniform, lower: <number>, upper: <number>}
-# {type: GBM, mu: <number>, sigma: <number>}
 # {type: startWith, eventSeries: <string>}
 # percentages are represented by their decimal value, e.g., 4% is represented as 0.04.
 */
 
 export interface IDistribution {
-    type: "fixed" | "normal" | "uniform" | "GBM" | "startWith";
+    type: "fixed" | "normal" | "uniform" | "startWith" | "endWhen";
     value?: number;
     mean?: number;
     stdev?: number;
     lower?: number;
     upper?: number;
-    mu?: number;
-    sigma?: number;
     eventSeries?: string;
 }
 
@@ -41,16 +38,9 @@ export const DistributionSchema = new Schema<IDistribution>({
     upper: { type: Number,
         required: function (this: IDistribution) { return this.type === "uniform";
     }},
-    // GBM
-    mu: { type: Number,
-        required: function (this: IDistribution) { return this.type === "GBM";
-    }},
-    sigma: { type: Number, min: 0,
-        required: function (this: IDistribution) { return this.type === "GBM";
-    }},
-    // startWith
+    // startWith + endWhen
     eventSeries: { type: String,
-        required: function (this: IDistribution) { return this.type === "startWith";
+        required: function (this: IDistribution) { return this.type === "startWith" || this.type === "endWhen";
     }}},
     { _id: false }
 );
