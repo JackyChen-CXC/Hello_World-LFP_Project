@@ -61,13 +61,15 @@ const CreatePlan = () => {
       {
         id: 1,
         isExpanded: false,
-        lifeEventType: "",
+        type: "",
         eventName: "",
         eventDescription: "",
         startType: "", // fixed, normal, uniform, startWith, Endwhen
         startYear: "",
         startMean: "",
         startStdev: "",
+        startMax: "",
+        startMin: "",
         startLower: "",
         startUpper: "",
         startEvent: "",
@@ -97,6 +99,8 @@ const CreatePlan = () => {
   };
 
   const [formData, setFormData] = useState(defaultFormData);
+  const [lifeEvents, setLifeEvents] = useState([]);
+
 
   // -----------------------------------------------------BASIC INFO STUFF   -----------------------------------------------------//
   const handleChange = (e) => {
@@ -196,13 +200,15 @@ const CreatePlan = () => {
         {
           id: prevData.lifeEvents.length + 1,
           isExpanded: false,
-          lifeEventType: "",
+          type: "",
           eventName: "",
           eventDescription: "",
           startType: "",
           startYear: "",
           startMean: "",
           startStdev: "",
+          startMax: "",
+          startMin: "",
           startLower: "",
           startUpper: "",
           startEvent: "",
@@ -235,18 +241,20 @@ const CreatePlan = () => {
     }));
   };
 
-  // Update fields within a life event
   const handleLifeEventChange = (index, e) => {
     const { name, value } = e.target;
+  
     setFormData((prevData) => {
       const newLifeEvents = [...prevData.lifeEvents];
       newLifeEvents[index][name] = value;
+  
       return {
         ...prevData,
         lifeEvents: newLifeEvents,
       };
     });
   };
+  
 
   const transformFormData = (formData) => {
     const isJoint = formData.planType === "joint";
@@ -306,54 +314,70 @@ const CreatePlan = () => {
         taxStatus: inv.accountType || "non-retirement",
       })),
   
-      eventSeries: formData.lifeEvents.map((event) => ({
-        id: event.id.toString(),
-        type: event.lifeEventType || "", // this must be one of: income, expense, invest, rebalance
-        name: event.eventName || "",
-        description: event.eventDescription || "",
+      eventSeries: formData.lifeEvents.map((event) => {
+        const isIncome = event.type === "income";
+        const isExpense = event.type === "expense";
+        const isInvest = event.type === "invest";
+        const isRebalance = event.type === "rebalance";
   
-        startYear: (() => {
-          const type = event.startType || "fixed";
-          if (type === "fixed") return { type: "fixed", value: parseInt(event.startYear || "0") };
-          if (type === "normal") return { type: "normal", mean: parseFloat(event.startMean || "0"), stdev: parseFloat(event.startStdev || "0") };
-          if (type === "startWith") return { type: "startWith", eventSeries: event.startEvent || "" };
-          return { type: "fixed", value: 0 };
-        })(),
+        return {
+          id: event.id.toString(),
+          type: event.type || "", 
+          name: event.eventName || "",
+          description: event.eventDescription || "",
   
-        durationYears: {
-          type: "fixed",
-          value: parseInt(event.duration || "0"),
-        },
+          startYear: (() => {
+            const type = event.startType || "fixed";
+            if (type === "fixed" || type === "startingYear") return { type: "fixed", value: parseInt(event.startYear || "0") };
+            if (type === "normal") return { type: "normal", mean: parseFloat(event.startMean || "0"), stdev: parseFloat(event.startStdev || "0") };
+            if (type === "startWith") return { type: "startWith", eventSeries: event.startEvent || "" };
+            if (type === "startEndEvent") return { type: "startEndEvent", eventSeries: event.startEndEvent || "" };
+            if (type === "uniform") return { type: "uniform", lower: parseFloat(event.startMin || "0"), upper: parseFloat(event.startMax || "0") };
+            return { type: "fixed", value: 0 };
+          })(),
   
-        initialAmount: ["income", "expense"].includes(event.lifeEventType)
-          ? parseFloat(event.initialAmount || "0")
-          : undefined,
+          durationYears: {
+            type: "fixed",
+            value: parseInt(event.duration || "0"),
+          },
   
-        changeAmtOrPct: ["income", "expense"].includes(event.lifeEventType)
-          ? event.annualChangeAmtOrPct || "amount"
-          : undefined,
+          // Required for income/expense
+          ...(isIncome || isExpense
+            ? {
+                initialAmount: parseFloat(event.initialAmount || "0"),
+                changeAmtOrPct: event.annualChangeAmtOrPct || "amount",
+                changeDistribution: (() => {
+                  const type = event.annualChangeType || "fixed";
+                  if (type === "fixed") return { type, value: parseFloat(event.annualChangeFixed || "0") };
+                  if (type === "normal") return { type, mean: parseFloat(event.annualChangeMean || "0"), stdev: parseFloat(event.annualChangeStdev || "0") };
+                  if (type === "uniform") return { type, lower: parseFloat(event.annualChangeMin || "0"), upper: parseFloat(event.annualChangeMax || "0") };
+                  return { type: "fixed", value: 0 };
+                })(),
+                inflationAdjusted: true,
+                userFraction: parseFloat(event.userPct || "1"),
+                socialSecurity: isIncome && event.incomeSource === "socialSecurity",
+                discretionary: isExpense && event.expenseSource === "Discretionary",
+
+                inflationType: event.inflationType || "fixed",
+                inflationAmtOrPct: event.inflationAmtOrPct || "amount",
+                inflationFixed:
+                  event.inflationType === "fixed"
+                    ? parseFloat(event.inflationFixed || "0")
+                    : undefined,
+              }
+            : {}),
+
   
-        changeDistribution: ["income", "expense"].includes(event.lifeEventType)
-          ? (() => {
-              const type = event.annualChangeType || "fixed";
-              if (type === "fixed") return { type, value: parseFloat(event.annualChangeFixed || "0") };
-              if (type === "normal") return { type, mean: parseFloat(event.annualChangeMean || "0"), stdev: parseFloat(event.annualChangeStdev || "0") };
-              return { type: "fixed", value: 0 };
-            })()
-          : undefined,
-  
-        inflationAdjusted: ["income", "expense"].includes(event.lifeEventType) ? true : undefined,
-        userFraction: ["income", "expense"].includes(event.lifeEventType) ? 1 : undefined,
-        socialSecurity: event.lifeEventType === "income" ? false : undefined,
-        discretionary: event.lifeEventType === "expense" ? false : undefined,
-  
-        assetAllocation: ["invest", "rebalance"].includes(event.lifeEventType)
-          ? { sampleAsset: 100 }
-          : undefined,
-        glidePath: event.lifeEventType === "invest" ? true : undefined,
-        assetAllocation2: event.lifeEventType === "invest" ? { sampleAsset: 100 } : undefined,
-        maxCash: event.lifeEventType === "invest" ? 10000 : undefined,
-      })),
+          ...(isInvest || isRebalance
+            ? {
+                assetAllocation: event.assetAllocation || { stocks: 100 },
+                glidePath: isInvest ? event.glidePath || false : undefined,
+                assetAllocation2: isInvest ? event.assetAllocation2 || { bonds: 100 } : undefined,
+                maxCash: isInvest ? parseFloat(event.maxCash || "0") : undefined,
+              }
+            : {}),
+        };
+      }),
   
       investmentTypes: [],
       afterTaxContributionLimit: 6500,
@@ -363,6 +387,7 @@ const CreatePlan = () => {
       version: 1,
     };
   };
+  
   
   const handleSubmit = async () => {
     const payload = transformFormData(formData);
@@ -385,6 +410,42 @@ const CreatePlan = () => {
       console.error("Error submitting plan:", error);
       alert("There was an error. Check the console for details.");
     }
+  };
+  const handleAssetAllocationChange = (index, e, fieldName) => {
+    const { value } = e.target;
+  
+    let parsedValue;
+    try {
+      parsedValue = JSON.parse(value); // Expecting something like {"Stocks": 60, "Bonds": 40}
+    } catch (error) {
+      console.error("Invalid JSON format for asset allocation");
+      return;
+    }
+  
+    setLifeEvents((prevLifeEvents) => {
+      const updatedLifeEvents = [...prevLifeEvents];
+      updatedLifeEvents[index] = {
+        ...updatedLifeEvents[index],
+        [fieldName]: parsedValue,
+      };
+      return updatedLifeEvents;
+    });
+  };
+
+  const handleAssetAllocationInputChange = (index, e, field) => {
+    const { name, value } = e.target;
+  
+    setLifeEvents((prev) => {
+      const updated = [...prev];
+      const currentEvent = { ...updated[index] };
+      const allocation = { ...(currentEvent[field] || {}) };
+  
+      allocation[name] = Number(value);
+      currentEvent[field] = allocation;
+      updated[index] = currentEvent;
+  
+      return updated;
+    });
   };
 
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
@@ -546,7 +607,7 @@ const CreatePlan = () => {
           
         )}
 
-        <div className="normal-text">What state are you in?*</div>
+        <div className="normal-text ">What state are you in?*</div>
         <input
           className="input-boxes"
           type="text"
@@ -1044,10 +1105,11 @@ const CreatePlan = () => {
             <>
               <div className="split-container">
                 <div className="left-side">
+                  {/* Common Select Field */}
                   <div className="normal-text">Select Life Event Type*</div>
                   <select
                     className="collapse-options"
-                    name="lifeEventType"
+                    name="type"
                     value={lifeEvent.type}
                     onChange={(e) => handleLifeEventChange(index, e)}
                   >
@@ -1057,6 +1119,149 @@ const CreatePlan = () => {
                     <option value="invest">Invest</option>
                     <option value="rebalance">Rebalance</option>
                   </select>
+
+                  {/* Type-Specific Inputs */}
+                  {lifeEvent.type === "income" && (
+                  <>
+                    <label>
+                      Income Source:
+                      <select
+                        name="incomeSource"
+                        value={lifeEvent.incomeSource || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
+                      >
+                        <option value="">--Select--</option>
+                        <option value="socialSecurity">Social Security</option>
+                        <option value="wages">Wages</option>
+                      </select>
+                    </label>
+                  </>
+                )}
+
+                  {lifeEvent.type === "expense" && (
+                    <>
+                      <>
+                        <label>
+                          Type of Expense:
+                          <select
+                            name="expenseSource"
+                            value={lifeEvent.expenseSource || ""}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          >
+                            <option value="">--Select--</option>
+                            <option value="Discretionary">Discretionary</option>
+                            <option value="nonDiscretionary">Non-Discretionary</option>
+                          </select>
+                        </label>
+                      </>
+                    </>
+                  )}
+
+                  {lifeEvent.type === "invest" && (
+                    <>
+                      {/* Asset Allocation */}
+                      <div className="normal-text">Asset Allocation:</div>
+                      <label>
+                        Stocks:
+                        <input
+                          type="number"
+                          name="Stocks"
+                          value={lifeEvent.assetAllocation?.Stocks || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                        />
+                      </label>
+                      <label>
+                        Bonds:
+                        <input
+                          type="number"
+                          name="Bonds"
+                          value={lifeEvent.assetAllocation?.Bonds || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                        />
+                      </label>
+
+                      {/* Glide Path */}
+                      <label>
+                        Glide Path:
+                        <input
+                          type="checkbox"
+                          name="glidePath"
+                          checked={lifeEvent.glidePath || false}
+                          onChange={(e) =>
+                            handleLifeEventChange(index, {
+                              target: { name: "glidePath", value: e.target.checked }
+                            })
+                          }
+                        />
+                      </label>
+
+                      {/* Asset Allocation 2 */}
+                      <div className="normal-text">Asset Allocation 2:</div>
+                      <label>
+                        Stocks:
+                        <input
+                          type="number"
+                          name="Stocks"
+                          value={lifeEvent.assetAllocation2?.Stocks || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
+                        />
+                      </label>
+                      <label>
+                        Bonds:
+                        <input
+                          type="number"
+                          name="Bonds"
+                          value={lifeEvent.assetAllocation2?.Bonds || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
+                        />
+                      </label>
+
+                      {/* Max Cash */}
+                      <label>
+                        Max Cash:
+                        <input
+                          type="number"
+                          name="maxCash"
+                          value={lifeEvent.maxCash || ""}
+                          onChange={(e) => handleLifeEventChange(index, e)}
+                        />
+                      </label>
+                    </>
+                  )}
+
+                  {lifeEvent.type === "rebalance" && (
+                    <>
+                      <div className="normal-text">Asset Allocation:</div>
+                      <label>
+                        Stocks:
+                        <input
+                          type="number"
+                          name="Stocks"
+                          value={lifeEvent.assetAllocation?.Stocks || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                        />
+                      </label>
+                      <label>
+                        Bonds:
+                        <input
+                          type="number"
+                          name="Bonds"
+                          value={lifeEvent.assetAllocation?.Bonds || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                        />
+                      </label>
+                      <label>
+                        Cash:
+                        <input
+                          type="number"
+                          name="Cash"
+                          value={lifeEvent.assetAllocation?.Cash || ""}
+                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                        />
+                      </label>
+                    </>
+                  )}
+
                 </div>
                 <div className="right-side">
                   <div className="normal-text">Name of Life Event*</div>
@@ -1077,6 +1282,169 @@ const CreatePlan = () => {
                   ></textarea>
                 </div>
               </div>
+
+              {(lifeEvent.type === "income" || lifeEvent.type === "expense") && (
+              <>
+                {/* Initial Amount */}
+                <div className="normal-text">What is the initial amount for this event?*</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="initialAmount"
+                  placeholder="Enter initial amount..."
+                  value={lifeEvent.initialAmount || ""}
+                  onChange={(e) => handleLifeEventChange(index, e)}
+                />
+
+                {/* Expected Annual Change */}
+                <div className="normal-text">How should the annual change be expressed?*</div>
+                <div className="split-container">
+                  <div className="left-side">
+                    <label className="normal-text">
+                      <input
+                        type="radio"
+                        name="annualChangeType"
+                        value="fixed"
+                        checked={lifeEvent.annualChangeType === "fixed"}
+                        onChange={(e) => handleLifeEventChange(index, {
+                          target: { name: "annualChangeType", value: e.target.value }
+                        })}
+                      />
+                      Fixed Amount / Percentage
+                    </label>
+                    <label className="normal-text">
+                      <input
+                        type="radio"
+                        name="annualChangeType"
+                        value="normal"
+                        checked={lifeEvent.annualChangeType === "normal"}
+                        onChange={(e) => handleLifeEventChange(index, {
+                          target: { name: "annualChangeType", value: e.target.value }
+                        })}
+                      />
+                      Normal Distribution
+                    </label>
+                    <label className="normal-text">
+                      <input
+                        type="radio"
+                        name="annualChangeType"
+                        value="uniform"
+                        checked={lifeEvent.annualChangeType === "uniform"}
+                        onChange={(e) => handleLifeEventChange(index, {
+                          target: { name: "annualChangeType", value: e.target.value }
+                        })}
+                      />
+                      Uniform Distribution
+                    </label>
+                  </div>
+
+                  <div className="right-side">
+                    {/* Fixed Amount or Percentage */}
+                    {lifeEvent.annualChangeType === "fixed" && (
+                      <>
+                        <div className="checkbox-group">
+                          <label className="normal-text">
+                            <input
+                              type="radio"
+                              name={`annualChangeAmtOrPct-${index}`}
+                              value="amount"
+                              checked={lifeEvent.annualChangeAmtOrPct === "amount"}
+                              onChange={(e) => handleLifeEventChange(index, {
+                                target: { name: "annualChangeAmtOrPct", value: e.target.value }
+                              })}
+                            />
+                            Fixed Amount
+                          </label>
+                          <label className="normal-text">
+                            <input
+                              type="radio"
+                              name={`annualChangeAmtOrPct-${index}`}
+                              value="percent"
+                              checked={lifeEvent.annualChangeAmtOrPct === "percent"}
+                              onChange={(e) => handleLifeEventChange(index, {
+                                target: { name: "annualChangeAmtOrPct", value: e.target.value }
+                              })}
+                            />
+                            Percentage
+                          </label>
+                        </div>
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualChangeFixed"
+                          placeholder="Enter fixed change amount or %"
+                          value={lifeEvent.annualChangeFixed || ""}
+                          onChange={(e) => handleLifeEventChange(index, e)}
+                        />
+                      </>
+                    )}
+
+                    {/* Normal Distribution */}
+                    {lifeEvent.annualChangeType === "normal" && (
+                      <>
+                        <div className="normal-text">Mean</div>
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualChangeMean"
+                          placeholder="Enter mean..."
+                          value={lifeEvent.annualChangeMean || ""}
+                          onChange={(e) => handleLifeEventChange(index, e)}
+                        />
+                        <div className="normal-text">Standard Deviation</div>
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualChangeStdev"
+                          placeholder="Enter standard deviation..."
+                          value={lifeEvent.annualChangeStdev || ""}
+                          onChange={(e) => handleLifeEventChange(index, e)}
+                        />
+                      </>
+                    )}
+
+                    {/* Uniform Distribution */}
+                    {lifeEvent.annualChangeType === "uniform" && (
+                      <>
+                        <div className="normal-text">Min</div>
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualChangeMin"
+                          placeholder="Enter minimum value..."
+                          value={lifeEvent.annualChangeMin || ""}
+                          onChange={(e) => handleLifeEventChange(index, e)}
+                        />
+                        <div className="normal-text">Max</div>
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualChangeMax"
+                          placeholder="Enter maximum value..."
+                          value={lifeEvent.annualChangeMax || ""}
+                          onChange={(e) => handleLifeEventChange(index, e)}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Spousal Percentage */}
+                {formData.planType === "joint" && (
+                  <>
+                    <div className="normal-text">Percentage Applied to User</div>
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="userPct"
+                      placeholder="e.g. 50"
+                      value={lifeEvent.userPct || ""}
+                      onChange={(e) => handleLifeEventChange(index, e)}
+                    />
+                  </>
+                )}
+              </>
+            )}
 
               {/* Start Date */}
               <div className="normal-text">
@@ -1103,6 +1471,16 @@ const CreatePlan = () => {
                       onChange={(e) => handleLifeEventChange(index, e)}
                     />
                     Normal Distribution Percentage
+                  </label>
+                  <label className="normal-text">
+                    <input
+                      type="radio"
+                      name="startType"
+                      value="uniform"
+                      checked={lifeEvent.startType === "uniform"}
+                      onChange={(e) => handleLifeEventChange(index, e)}
+                    />
+                    Uniform Distribution Percentage
                   </label>
                   <label className="normal-text">
                     <input
@@ -1171,7 +1549,7 @@ const CreatePlan = () => {
                   {/* If "normal" */}
                   {lifeEvent.startType === "normal" && (
                     <>
-                      <div>Mean (%)</div>
+                      <div className="normal-text">Mean (%)</div>
                       <input
                         className="input-boxes"
                         type="text"
@@ -1180,13 +1558,36 @@ const CreatePlan = () => {
                         value={lifeEvent.startMean}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
-                      <div>Standard Deviation (%)</div>
+                      <div className="normal-text">Standard Deviation (%)</div>
                       <input
                         className="input-boxes"
                         type="text"
                         name="startStdev"
                         placeholder="Enter standard deviation..."
                         value={lifeEvent.startStdev}
+                        onChange={(e) => handleLifeEventChange(index, e)}
+                      />
+                    </>
+                  )}
+                  {/* If "uniform" */}
+                  {lifeEvent.startType === "uniform" && (
+                    <>
+                      <div className="normal-text">Max Value</div>
+                      <input
+                        className="input-boxes"
+                        type="text"
+                        name="startMax"
+                        placeholder="Enter maximum  value..."
+                        value={lifeEvent.startMax}
+                        onChange={(e) => handleLifeEventChange(index, e)}
+                      />
+                      <div className="normal-text">Min</div>
+                      <input
+                        className="input-boxes"
+                        type="text"
+                        name="startMin"
+                        placeholder="Enter minimum value..."
+                        value={lifeEvent.startMin}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>

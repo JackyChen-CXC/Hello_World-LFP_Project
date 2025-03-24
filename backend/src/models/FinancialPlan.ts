@@ -1,4 +1,4 @@
-import mongoose, { Document, ObjectId, Schema } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 import { IUser } from "./User";
 // import Investment, { IInvestment } from "./Investment";
 // import LifeEvent, { ILifeEvent } from "./LifeEvent";
@@ -38,6 +38,9 @@ export interface ILifeEvent extends Document {
     changeAmtOrPct?: "amount" | "percent";
     changeDistribution?: IDistribution;
     inflationAdjusted?: boolean;
+    inflationType?: "fixed" | "normal";
+    inflationAmtOrPct?: "amount" | "percent";
+    inflationFixed?: number;
     userFraction?: number;
     socialSecurity?: boolean;
     discretionary?: boolean;
@@ -85,8 +88,13 @@ const LifeEventSchema = new Schema<ILifeEvent>({
     }},
     maxCash: { type: Number, 
         required: function (this: ILifeEvent) { return this.type === "invest";
-    }}},
+    }},
+    inflationType: { type: String, enum: ["fixed", "normal"], default: "fixed" },
+    inflationAmtOrPct: { type: String, enum: ["amount", "percent"], default: "percent" },
+    inflationFixed: { type: Number, default: 0 },
+    },
     { _id: false }
+    
 );
 
 // FROM CHATGPT, AS A ALTERNATIVE TO INDIVIDUAL REQUIRED FUNCTIONS
