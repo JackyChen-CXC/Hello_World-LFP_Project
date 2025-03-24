@@ -58,13 +58,16 @@
 }
 
 .simulation-container{
-    margin-top: 2%;
-    border-radius: 10%;
-    background-color: #B9D0C0;
-    width: 80%;
-    padding: 3%;
-    justify-content: center;
+  display: flex;
+  border-radius: 2%;
+  background-color: #B9D0C0;
+  width: 80%;
+  padding: 2%;
+  justify-content: center;
+  align-items: center;
+  gap: 60%;
 }
+
 
 /*----------------------------------------Questions and inputs-------------------------------*/
 /* 2 questions on a line*/

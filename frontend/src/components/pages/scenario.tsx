@@ -130,7 +130,7 @@ const Scenario: FC = () => {
       <button
         className="page-buttons"
         style={{ marginTop: "5%", marginLeft: "70%", width: "200px" }}
-        onClick={() => document.getElementById("file-input")?.click()} // Trigger the file input
+        onClick={() => document.getElementById("file-input")?.click()}
       >
         Import Plan
       </button>

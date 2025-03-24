@@ -1,16 +1,17 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"; 
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import './components/css_files/App.css';
 import CreatePlan from "./components/pages/create_plan.tsx";
-import SidePanel from "./components/pages/side_panel.tsx";
-import Dashboard from "./components/pages/dashboard.tsx"; 
-import Scenario from "./components/pages/scenario.tsx";
-import Simulation from "./components/pages/simulation.tsx";
-import Help from "./components/pages/help.tsx";
+import Dashboard from "./components/pages/dashboard.tsx";
 import Footer from "./components/pages/Footer.tsx";
+import Help from "./components/pages/help.tsx";
 import Login from "./components/pages/Login.tsx";
 import OpenScenario from "./components/pages/open_scenario.tsx";
+import OpenSimulation from "./components/pages/open_simulation.tsx";
+import Scenario from "./components/pages/scenario.tsx";
+import SidePanel from "./components/pages/side_panel.tsx";
+import Simulation from "./components/pages/simulation.tsx";
 
 function App() {
   const [message, setMessage] = useState("");
@@ -34,9 +35,10 @@ function App() {
             <Route path="/scenario" element={<Scenario />} />
             <Route path="/scenario/:id" element={<OpenScenario />} />
             <Route path="/simulate" element={<Simulation />} />
+            <Route path="/simulation/:id" element={<OpenSimulation />} />
             <Route path="/help" element={<Help />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Dashboard />} /> {/* Default page */}
+            <Route path="/" element={<Dashboard />} /> 
           </Routes>
         </div>
       </div>

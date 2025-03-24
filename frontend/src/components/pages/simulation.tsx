@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import '../css_files/page_style.css';
 
 interface ScenarioData {
@@ -8,6 +9,16 @@ interface ScenarioData {
   financialGoal: string;
   dateCreated: string;
 }
+const SimulationItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void }> = ({ scenario, onDelete }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="simulation-container" onClick={() => navigate(`/simulation/${scenario.id}`)}>
+      <div className="normal-text">{scenario.title}</div>
+      <div className="normal-text">Date Created: {scenario.dateCreated}</div>
+    </div>
+  );
+};
 
 const Simulation = () => {
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
@@ -71,18 +82,12 @@ const Simulation = () => {
         economic fluctuations, to estimate your financial future.
       </p>
 
-      <div style={{ marginTop: "20px" }}>
-        <div className="normal-text" style={{ fontWeight: "bold" }}>Your Recent Simulations:</div>
-        {scenarios.length === 0 ? (
-          <div className="normal-text">No plans found.</div>
-        ) : (
-          scenarios.map((plan) => (
-            <div key={plan.id} className="normal-text">{plan.title}</div>
-          ))
-        )}
+      <div >
+        {scenarios.map((scenario) => (
+          <SimulationItem key={scenario.id} scenario={scenario}/>
+        ))}
       </div>
 
-      
     </div>
   );
 };
