@@ -82,10 +82,10 @@ export const deletePlan = async (req:any, res:any) => {
 export const importPlan = async (req: any, res: any) => {
     try {
         // import from YAML (use the scenario.YAML as ref)
-        const username = req.body.username;
+        const userId = req.body.userId;
         const scenarioData = req.body.data;
 
-        console.log(username);
+        // console.log(userId);
         // console.log(scenarioData);
         // Add InvestmentTypes
         const importedInvestmentTypes = scenarioData.investmentTypes;
@@ -99,7 +99,7 @@ export const importPlan = async (req: any, res: any) => {
 
         // Validate and create a new document
         const newScenario = new FinancialPlan(scenarioData);
-        newScenario.userId = username; // for now use username while User is not stored in mongoDB
+        newScenario.userId = userId; // for now use username while User is not stored in mongoDB
         const savedPlan = await newScenario.save();
         // console.log(newScenario);
 
@@ -119,6 +119,7 @@ export const importPlan = async (req: any, res: any) => {
 export const exportPlan = async (req: any, res: any) => {
     try {
         // export from YAML (use the scenario.YAML as ref)
+        
     }
     catch (error) {
         return res.status(200).json({
