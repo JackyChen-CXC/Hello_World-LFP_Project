@@ -20,7 +20,7 @@ export interface IDistribution {
 }
 
 export const DistributionSchema = new Schema<IDistribution>({
-    type: { type: String, enum: ["fixed", "normal", "uniform", "GBM", "startWith"], required: true },
+    type: { type: String, enum: ["fixed", "normal", "uniform", "startWith", "endWhen"], required: true },
     // fixed
     value: { type: Number,
         required: function (this: IDistribution) { return this.type === "fixed";

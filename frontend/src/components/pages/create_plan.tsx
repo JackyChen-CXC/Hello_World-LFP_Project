@@ -67,7 +67,7 @@ const CreatePlan = () => {
         eventName: "",
         eventDescription: "",
         startType: "", // fixed, normal, uniform, startWith, Endwhen
-        startYear: "",
+        start: "",
         startMean: "",
         startStdev: "",
         startMax: "",
@@ -206,7 +206,7 @@ const CreatePlan = () => {
           eventName: "",
           eventDescription: "",
           startType: "",
-          startYear: "",
+          start: "",
           startMean: "",
           startStdev: "",
           startMax: "",
@@ -328,9 +328,9 @@ const CreatePlan = () => {
           name: event.eventName || "",
           description: event.eventDescription || "",
   
-          startYear: (() => {
+          start: (() => {
             const type = event.startType || "fixed";
-            if (type === "fixed" || type === "startingYear") return { type: "fixed", value: parseInt(event.startYear || "0") };
+            if (type === "fixed" || type === "startingYear") return { type: "fixed", value: parseInt(event.start || "0") };
             if (type === "normal") return { type: "normal", mean: parseFloat(event.startMean || "0"), stdev: parseFloat(event.startStdev || "0") };
             if (type === "startWith") return { type: "startWith", eventSeries: event.startEvent || "" };
             if (type === "startEndEvent") return { type: "startEndEvent", eventSeries: event.startEndEvent || "" };
@@ -338,7 +338,7 @@ const CreatePlan = () => {
             return { type: "fixed", value: 0 };
           })(),
   
-          durationYears: {
+          duration: {
             type: "fixed",
             value: parseInt(event.duration || "0"),
           },
@@ -1527,9 +1527,9 @@ const CreatePlan = () => {
                       <input
                         className="input-boxes"
                         type="text"
-                        name="startYear"
+                        name="start"
                         placeholder="Enter Starting Year"
-                        value={lifeEvent.startYear}
+                        value={lifeEvent.start}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>

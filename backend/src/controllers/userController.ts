@@ -1,4 +1,5 @@
 import FinancialPlan from "../models/FinancialPlan";
+import InvestmentType from "../models/InvestmentType";
 
 export const createPlan = async (req: any, res: any) => {
 	try {
@@ -81,18 +82,29 @@ export const deletePlan = async (req:any, res:any) => {
 export const importPlan = async (req: any, res: any) => {
     try {
         // import from YAML (use the scenario.YAML as ref)
-        const userId = req.body.userId;
+        const username = req.body.username;
         const scenarioData = req.body.data;
 
-        console.log(userId);
-        console.log(scenarioData);
+        console.log(username);
+        // console.log(scenarioData);
+        // Add InvestmentTypes
+        const importedInvestmentTypes = scenarioData.investmentTypes;
+        // console.log(importedInvestmentTypes);
+        // Change InvestmentTypes to name attribute (String)
+        const savedInvestmentTypes = await InvestmentType.insertMany(importedInvestmentTypes);
+        scenarioData.investmentTypes = savedInvestmentTypes.map(type => type.name);
+
+        // eventSeries
+        // console.log(scenarioData.eventSeries)
+
         // Validate and create a new document
         const newScenario = new FinancialPlan(scenarioData);
-        newScenario.userId = userId;
+        newScenario.userId = username; // for now use username while User is not stored in mongoDB
         const savedPlan = await newScenario.save();
-        console.log(newScenario);
+        // console.log(newScenario);
 
-        return res.json({ message: "Scenario saved successfully!" });
+        return res.json({ message: "Scenario saved successfully!", data: savedPlan });
+        // return res.json({ message: "Scenario saved successfully!" });
     }
     catch (error) {
         return res.status(200).json({
@@ -109,7 +121,7 @@ export const exportPlan = async (req: any, res: any) => {
         // export from YAML (use the scenario.YAML as ref)
     }
     catch (error) {
-        res.status(200).json({
+        return res.status(200).json({
             status: "ERROR",
             error: true,
             message: "Exporting Plan failed.",

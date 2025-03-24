@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import InvestmentType from '../src/models/InvestmentType';
-import FinancialPlan from '../src/models/FinancialPlan';
-import Simulation from '../src/models/Simulation';
-import SimulationResult from '../src/models/SimulationResult';
+import InvestmentType from './models/InvestmentType';
+import FinancialPlan from './models/FinancialPlan';
+import Simulation from './models/Simulation';
+import SimulationResult from './models/SimulationResult';
 
 
 /**
@@ -130,11 +130,11 @@ export const getSampleData = async (req: Request, res: Response): Promise<void> 
         {
           name: "Salary Income",
           description: "Annual income from employment",
-          startYear: {
+          start: {
             type: "fixed",
             value: 2025
           },
-          durationYears: {
+          duration: {
             type: "fixed",
             value: 15
           },
@@ -152,11 +152,11 @@ export const getSampleData = async (req: Request, res: Response): Promise<void> 
         {
           name: "Social Security",
           description: "Social security benefits",
-          startYear: {
+          start: {
             type: "fixed",
             value: 2040
           },
-          durationYears: {
+          duration: {
             type: "fixed",
             value: 20
           },
@@ -174,11 +174,11 @@ export const getSampleData = async (req: Request, res: Response): Promise<void> 
         {
           name: "Living Expenses",
           description: "Basic living expenses",
-          startYear: {
+          start: {
             type: "fixed",
             value: 2025
           },
-          durationYears: {
+          duration: {
             type: "fixed",
             value: 20
           },
@@ -196,11 +196,11 @@ export const getSampleData = async (req: Request, res: Response): Promise<void> 
         {
           name: "Travel Expenses",
           description: "Annual travel budget",
-          startYear: {
+          start: {
             type: "fixed",
             value: 2040
           },
-          durationYears: {
+          duration: {
             type: "fixed",
             value: 20
           },
@@ -218,11 +218,11 @@ export const getSampleData = async (req: Request, res: Response): Promise<void> 
         {
           name: "Initial Investment Allocation",
           description: "Asset allocation strategy",
-          startYear: {
+          start: {
             type: "fixed",
             value: 2025
           },
-          durationYears: {
+          duration: {
             type: "fixed",
             value: 15
           },
@@ -243,11 +243,11 @@ export const getSampleData = async (req: Request, res: Response): Promise<void> 
         {
           name: "Annual Rebalance",
           description: "Yearly portfolio rebalancing",
-          startYear: {
+          start: {
             type: "fixed",
             value: 2025
           },
-          durationYears: {
+          duration: {
             type: "fixed",
             value: 20
           },
