@@ -2,7 +2,13 @@ import { exec } from "child_process";
 
 console.log("Running Python script after npm install...");
 
-exec("python3 src/taxdataScrap.py", (error, stdout, stderr) => {
+const command = process.platform === "win32"
+    ? `"venv\\Scripts\\python" src/taxdataScrap.py`
+    : `"venv/bin/python3" src/taxdataScrap.py`;
+
+// const command = "src/taxdataScrap.py";
+
+exec(command, (error, stdout, stderr) => {
     if (error) {
         console.error(`Error executing Python script: ${error.message}`);
         process.exit(1); // Exit with an error code
