@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Label,
   Legend,
   Line,
   LineChart,
@@ -45,13 +46,23 @@ const stackedBarData = [
 
 const LineChartGraph = () => (
   <LineChart width={600} height={300} data={probabilityData}>
-    <XAxis dataKey="year" />
-    <YAxis />
-    <Tooltip />
     <CartesianGrid stroke="#ccc" />
-    <Line type="monotone" dataKey="success" stroke="#8884d8" />
+    <XAxis dataKey="year">
+      <Label value="Year" offset={-5} position="insideBottom" />
+    </XAxis>
+    <YAxis>
+      <Label
+        value="Probability of Success (%)"
+        angle={-90}
+        position="insideLeft"
+        style={{ textAnchor: "middle" }}
+      />
+    </YAxis>
+    <Tooltip />
+    <Line type="monotone" dataKey="success" stroke="#8884d8" strokeWidth={3} />
   </LineChart>
 );
+
 
 const ShadedLineChart = () => (
   <AreaChart width={600} height={300} data={shadedData}>
@@ -61,9 +72,18 @@ const ShadedLineChart = () => (
         <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
       </linearGradient>
     </defs>
-    <XAxis dataKey="year" />
-    <YAxis />
     <CartesianGrid strokeDasharray="3 3" />
+    <XAxis dataKey="year">
+      <Label value="Year" offset={-5} position="insideBottom" />
+    </XAxis>
+    <YAxis>
+      <Label
+        value="Probability Range (%)"
+        angle={-90}
+        position="insideLeft"
+        style={{ textAnchor: "middle" }}
+      />
+    </YAxis>
     <Tooltip />
     <Area type="monotone" dataKey="mid" stroke="#82ca9d" fillOpacity={1} fill="url(#colorMid)" />
   </AreaChart>
@@ -71,15 +91,25 @@ const ShadedLineChart = () => (
 
 const StackedBarChart = () => (
   <BarChart width={600} height={300} data={stackedBarData}>
-    <XAxis dataKey="year" />
-    <YAxis />
+    <CartesianGrid strokeDasharray="3 3" />
+    <XAxis dataKey="year">
+      <Label value="Year" offset={-5} position="insideBottom" />
+    </XAxis>
+    <YAxis>
+      <Label
+        value="Portfolio Value ($ Thousands)"
+        angle={-90}
+        position="insideLeft"
+        style={{ textAnchor: "middle" }}
+      />
+    </YAxis>
     <Tooltip />
     <Legend />
-    <CartesianGrid strokeDasharray="3 3" />
     <Bar dataKey="principal" stackId="a" fill="#8884d8" />
     <Bar dataKey="interest" stackId="a" fill="#82ca9d" />
   </BarChart>
 );
+
 
 const OpenSimulation = () => {
   const [graph, setGraph] = useState("line");
