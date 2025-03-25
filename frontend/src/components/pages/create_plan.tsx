@@ -407,11 +407,7 @@ const CreatePlan = () => {
             mean: parseFloat(inv.annualReturnMean || "0"),
             stdev: parseFloat(inv.annualReturnStdev || "0"),
           };
-          if (type === "markov") return {
-            type,
-            mean: parseFloat(inv.annualReturnDrift || "0"),
-            stdev: parseFloat(inv.annualReturnVolatility || "0"),
-          };
+
           return { type: "fixed", value: 0 };
         })();
   
@@ -423,11 +419,7 @@ const CreatePlan = () => {
             mean: parseFloat(inv.annualIncomeMean || "0"),
             stdev: parseFloat(inv.annualIncomeStdev || "0"),
           };
-          if (type === "markov") return {
-            type,
-            mean: parseFloat(inv.annualIncomeDrift || "0"),
-            stdev: parseFloat(inv.annualIncomeVolatility || "0"),
-          };
+          
           return { type: "fixed", value: 0 };
         })();
   
@@ -897,16 +889,6 @@ const CreatePlan = () => {
                   />
                   Normal Distribution Percentage
                 </label>
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name={`annualReturnType-${index}`}
-                    value="markov"
-                    checked={investment.annualReturnType === "markov"}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  Markov Process (GBM)
-                </label>
               </div>
               <div className="right-side">
                 {/* Fixed Return */}
@@ -990,29 +972,6 @@ const CreatePlan = () => {
                     />
                   </>
                 )}
-
-
-                {/* Markov Return */}
-                {investment.annualReturnType === "markov" && (
-                  <>
-                    <div>Drift (μ)</div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualReturnDrift"
-                      value={investment.annualReturnDrift || ""}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    <div>Volatility (σ)</div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualReturnVolatility"
-                      value={investment.annualReturnVolatility || ""}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                  </>
-                )}
               </div>
             </div>
 
@@ -1040,16 +999,6 @@ const CreatePlan = () => {
                     onChange={(e) => handleInvestmentChange(index, e)}
                   />
                   Normal Distribution Percentage
-                </label>
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name={`annualIncomeType-${index}`}
-                    value="markov"
-                    checked={investment.annualIncomeType === "markov"}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  Markov Process (GBM)
                 </label>
               </div>
               <div className="right-side">
@@ -1137,29 +1086,6 @@ const CreatePlan = () => {
                   />
                 </>
               )}
-
-
-                {/* Markov Income */}
-                {investment.annualIncomeType === "markov" && (
-                  <>
-                    <div>Drift (μ)</div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualIncomeDrift"
-                      value={investment.annualIncomeDrift || ""}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    <div>Volatility (σ)</div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualIncomeVolatility"
-                      value={investment.annualIncomeVolatility || ""}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                  </>
-                )}
               </div>
             </div>
 
