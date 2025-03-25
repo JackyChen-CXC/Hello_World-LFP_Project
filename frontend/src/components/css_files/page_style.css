@@ -70,7 +70,16 @@
   margin-bottom: 5%;
 }
 
-
+.open-simulation{
+  display: flex;
+  background-color: #B9D0C0;
+  padding: 2%;
+  border-radius: 2%;
+  width: 80%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 /*----------------------------------------Questions and inputs-------------------------------*/
 /* 2 questions on a line*/
 .split-container {
