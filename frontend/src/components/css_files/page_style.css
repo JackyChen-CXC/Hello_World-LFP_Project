@@ -105,6 +105,15 @@
     font-size: 16px;
     box-sizing: border-box; 
 }
+.small-input-boxes {
+  height: 30px; 
+  width:200x;
+  border-radius: 20px;
+  margin-top: 2%;
+  padding:10px; 
+  font-size: 12px;
+  box-sizing: border-box; 
+}
 
 .textarea-box{
     height: 120px;

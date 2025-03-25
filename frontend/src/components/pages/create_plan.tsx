@@ -91,7 +91,11 @@ const CreatePlan = () => {
         annualChangeUpper: "",
         inflationAdjusted: "",
         userFraction: "",
-        changeDistribution: { type: "", value: "", mean: "", stdev: "" }
+        changeDistribution: { type: "", value: "", mean: "", stdev: "" },
+        assetAllocation: { Stocks: "", Bonds: "", Cash: "" },
+        assetAllocation2: { Stocks: "", Bonds: "" },
+        glidePath: false,
+        maxCash: ""
 
         // delete
       },
@@ -99,7 +103,6 @@ const CreatePlan = () => {
   };
 
   const [formData, setFormData] = useState(defaultFormData);
-  const [lifeEvents, setLifeEvents] = useState([]);
 
 
   // -----------------------------------------------------BASIC INFO STUFF   -----------------------------------------------------//
@@ -294,6 +297,10 @@ const CreatePlan = () => {
           annualChangeUpper: "",
           inflationAdjusted: "",
           userFraction: "",
+          assetAllocation: { Stocks: "", Bonds: "", Cash: "" },
+          assetAllocation2: { Stocks: "", Bonds: "" },
+          glidePath: false,
+          maxCash: ""
           // delete
         },
       ],
@@ -583,43 +590,28 @@ const CreatePlan = () => {
   const picture = localStorage.getItem("picture")
   const navigate = useNavigate()
 
-  const handleAssetAllocationChange = (index, e, fieldName) => {
-    const { value } = e.target;
+  const handleAssetAllocationInputChange = (index, e, key) => {
+    const { name, value } = e.target;
+    const cleanName = name.includes(".") ? name.split(".")[1] : name;
   
-    let parsedValue;
-    try {
-      parsedValue = JSON.parse(value); // Expecting something like {"Stocks": 60, "Bonds": 40}
-    } catch (error) {
-      console.error("Invalid JSON format for asset allocation");
-      return;
-    }
-  
-    setLifeEvents((prevLifeEvents) => {
-      const updatedLifeEvents = [...prevLifeEvents];
+    setFormData(prev => {
+      const updatedLifeEvents = [...prev.lifeEvents];
       updatedLifeEvents[index] = {
         ...updatedLifeEvents[index],
-        [fieldName]: parsedValue,
+        [key]: {
+          ...updatedLifeEvents[index][key],
+          [cleanName]: value
+        }
       };
-      return updatedLifeEvents;
+  
+      return {
+        ...prev,
+        lifeEvents: updatedLifeEvents
+      };
     });
   };
-
-  const handleAssetAllocationInputChange = (index, e, field) => {
-    const { name, value } = e.target;
   
-    setLifeEvents((prev) => {
-      const updated = [...prev];
-      const currentEvent = { ...updated[index] };
-      const allocation = { ...(currentEvent[field] || {}) };
   
-      allocation[name] = Number(value);
-      currentEvent[field] = allocation;
-      updated[index] = currentEvent;
-  
-      return updated;
-    });
-  };
-
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
   return (
     <div className="page-container">
@@ -818,7 +810,7 @@ const CreatePlan = () => {
         key={investment.id}
         className={`collapse-container ${investment.isExpanded ? "expanded" : ""}`}
       >
-        {/* Collapsible Header */}
+        {/* Used ChatGPT to help create dynampic Collapsible Header */}
         <div className="collapse-heading">
           <div className="collapsed-text">Investment {investment.id}</div>
           <button className="collapse-button" onClick={() => toggleInvestment(index)}>
@@ -880,7 +872,7 @@ const CreatePlan = () => {
               value={investment.investmentValue}
               onChange={(e) => handleInvestmentChange(index, e)}
             />
-
+            {/**Used ChatGPT to figure out how to dynamically create question forms based on other question form responses */}
             {/* Annual Return Section */}
             <div className="normal-text">How would you like to express the investment's annual return?*</div>
             <div className="split-container">
@@ -1267,7 +1259,7 @@ const CreatePlan = () => {
           key={lifeEvent.id}
           className={`collapse-container ${lifeEvent.isExpanded ? "expanded" : ""}`}
         >
-          {/* Collapsible Header */}
+          {/* Used ChatGPT to help create dynampic Collapsible Header */}
           <div className="collapse-heading">
             <div className="collapsed-text">Life Event {lifeEvent.id}</div>
             <button className="collapse-button" onClick={() => toggleLifeEvents(index)}>
@@ -1318,7 +1310,7 @@ const CreatePlan = () => {
                     </label>
                   </>
                 )}
-
+                  {/**Used ChatGPT to help with the styling and html aesthetics of the expenses part */}
                   {lifeEvent.type === "expense" && (
                     <>
                       <>
@@ -1341,107 +1333,115 @@ const CreatePlan = () => {
                   {lifeEvent.type === "invest" && (
                     <>
                       {/* Asset Allocation */}
-                      <div className="normal-text">Asset Allocation:</div>
-                      <label>
-                        Stocks:
-                        <input
-                          type="number"
-                          name="Stocks"
-                          value={lifeEvent.assetAllocation?.Stocks || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                        />
-                      </label>
-                      <label>
-                        Bonds:
-                        <input
-                          type="number"
-                          name="Bonds"
-                          value={lifeEvent.assetAllocation?.Bonds || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                        />
-                      </label>
+                      <div >Asset Allocation:</div>
+                      <div className="split-container">
+                        <div className="left-side">
+                          <label >Stocks:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Stocks"
+                            value={lifeEvent.assetAllocation?.Stocks || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                          />
+                          <label >Bonds:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Bonds"
+                            value={lifeEvent.assetAllocation?.Bonds || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                          />
+                        </div>
 
-                      {/* Glide Path */}
-                      <label>
-                        Glide Path:
-                        <input
-                          type="checkbox"
-                          name="glidePath"
-                          checked={lifeEvent.glidePath || false}
-                          onChange={(e) =>
-                            handleLifeEventChange(index, {
-                              target: { name: "glidePath", value: e.target.checked }
-                            })
-                          }
-                        />
-                      </label>
+                        {/* Glide Path */}
+                        <div className="right-side">
+                          <label>Glide Path:</label>
+                          <input
+                            type="checkbox"
+                            name="glidePath"
+                            checked={lifeEvent.glidePath || false}
+                            onChange={(e) =>
+                              handleLifeEventChange(index, {
+                                target: { name: "glidePath", value: e.target.checked },
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
 
                       {/* Asset Allocation 2 */}
-                      <div className="normal-text">Asset Allocation 2:</div>
-                      <label>
-                        Stocks:
-                        <input
-                          type="number"
-                          name="Stocks"
-                          value={lifeEvent.assetAllocation2?.Stocks || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
-                        />
-                      </label>
-                      <label>
-                        Bonds:
-                        <input
-                          type="number"
-                          name="Bonds"
-                          value={lifeEvent.assetAllocation2?.Bonds || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
-                        />
-                      </label>
+                      <div  style={{ marginTop: "15px" }}>Asset Allocation 2:</div>
+                      <div className="split-container">
+                        <div className="left-side">
+                          <label >Stocks:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Stocks"
+                            value={lifeEvent.assetAllocation2?.Stocks || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
+                          />
+                          <label >Bonds:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Bonds"
+                            value={lifeEvent.assetAllocation2?.Bonds || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
+                          />
+                        </div>
 
-                      {/* Max Cash */}
-                      <label>
-                        Max Cash:
-                        <input
-                          type="number"
-                          name="maxCash"
-                          value={lifeEvent.maxCash || ""}
-                          onChange={(e) => handleLifeEventChange(index, e)}
-                        />
-                      </label>
+                        <div className="right-side">
+                          <label >Max Cash:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="maxCash"
+                            value={lifeEvent.maxCash || ""}
+                            onChange={(e) => handleLifeEventChange(index, e)}
+                          />
+                        </div>
+                      </div>
                     </>
                   )}
 
                   {lifeEvent.type === "rebalance" && (
                     <>
-                      <div className="normal-text">Asset Allocation:</div>
-                      <label>
-                        Stocks:
-                        <input
-                          type="number"
-                          name="Stocks"
-                          value={lifeEvent.assetAllocation?.Stocks || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                        />
-                      </label>
-                      <label>
-                        Bonds:
-                        <input
-                          type="number"
-                          name="Bonds"
-                          value={lifeEvent.assetAllocation?.Bonds || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                        />
-                      </label>
-                      <label>
-                        Cash:
-                        <input
-                          type="number"
-                          name="Cash"
-                          value={lifeEvent.assetAllocation?.Cash || ""}
-                          onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                        />
-                      </label>
+                      <div >Asset Allocation:</div>
+                      <div className="split-container">
+                        <div className="left-side">
+                          <label >Stocks:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Stocks"
+                            value={lifeEvent.assetAllocation?.Stocks || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                          />
+
+                          <label className="normal-text">Bonds:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Bonds"
+                            value={lifeEvent.assetAllocation?.Bonds || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                          />
+
+                          <label className="normal-text">Cash:</label>
+                          <input
+                            className="small-input-boxes"
+                            type="number"
+                            name="Cash"
+                            value={lifeEvent.assetAllocation?.Cash || ""}
+                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
+                          />
+                        </div>
+                      </div>
                     </>
                   )}
+
 
                 </div>
                 <div className="right-side">

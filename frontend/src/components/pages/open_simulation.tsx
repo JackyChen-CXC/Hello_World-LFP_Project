@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import "../css_files/page_style.css";
 
+//used ChatGPT to help generate some graphs with recharts
 // Simulated probability of retirement success over years
 const probabilityData = [
   { year: 2025, success: 85 },

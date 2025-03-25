@@ -82,6 +82,7 @@ const OpenScenario = () => {
     fetchScenario();
   }, [id]);
 
+  //used ChatGPT to help fetch investment lists
   useEffect(() => {
     const fetchInvestmentDetails = async () => {
       if (!scenario || !scenario.investmentTypes?.length) return;
