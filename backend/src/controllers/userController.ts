@@ -104,7 +104,6 @@ export const importPlan = async (req: any, res: any) => {
         // console.log(newScenario);
 
         return res.json({ message: "Scenario saved successfully!", data: savedPlan });
-        // return res.json({ message: "Scenario saved successfully!" });
     }
     catch (error) {
         return res.status(200).json({

@@ -1,12 +1,12 @@
 import React from "react";
 import '../css_files/footer_style.css';
 import { Routes, Route, Link } from "react-router-dom";
-import CreatePlan from "./create_plan.tsx";
-import Dashboard from "./dashboard.tsx";
-import Scenario from "./scenario.tsx";
-import Simulation from "./simulation.tsx";
-import Help from "./help.tsx";
-import Login from "./Login.tsx";
+// import CreatePlan from "./create_plan.tsx";
+// import Dashboard from "./dashboard.tsx";
+// import Scenario from "./scenario.tsx";
+// import Simulation from "./simulation.tsx";
+// import Help from "./help.tsx";
+// import Login from "./Login.tsx";
 const Footer = () => {
   return (
     <div className="footer-container">

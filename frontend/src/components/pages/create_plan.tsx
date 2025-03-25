@@ -450,7 +450,7 @@ const CreatePlan = () => {
           name: event.eventName || "",
           description: event.eventDescription || "",
   
-          startYear: (() => {
+          start: (() => {
             const type = event.startType || "fixed";
             if (type === "fixed" || type === "startingYear") return { type: "fixed", value: parseInt(event.start || "0") };
             if (type === "normal") return { type: "normal", mean: parseFloat(event.startMean || "0"), stdev: parseFloat(event.startStdev || "0") };
@@ -459,7 +459,7 @@ const CreatePlan = () => {
             return { type: "fixed", value: 0 };
           })(),
   
-          durationYears: {
+          duration: {
             type: "fixed",
             value: parseInt(event.duration || "0"),
           },
