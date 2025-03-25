@@ -118,35 +118,101 @@ export const importPlan = async (req: any, res: any) => {
 
 export const exportPlan = async (req: any, res: any) => {
     try {
-        // export from YAML (use the scenario.YAML as ref)
+        const userId = req.body.userId;
+        const scenarioData = req.body.data;
         
-    }
-    catch (error) {
+        const planId = scenarioData.id;
+        const scenario = await FinancialPlan.findById(planId);
+
+        // take off lifeEvent.description
+        // delete scenario?.eventSeries
+
+        if (scenario) {
+            // Fetch full investment type details
+            const investmentTypeNames = scenario.investmentTypes || [];
+            const investmentTypes = await Promise.all(
+                investmentTypeNames.map(async (investmentTypeName: string) => {
+                    const investmentType = await InvestmentType.findOne({ name: investmentTypeName });
+                    return investmentType ? {
+                        name: investmentType.name,
+                        description: investmentType.description,
+                        returnAmtOrPct: investmentType.returnAmtOrPct,
+                        returnDistribution: investmentType.returnDistribution,
+                        expenseRatio: investmentType.expenseRatio,
+                        incomeAmtOrPct: investmentType.incomeAmtOrPct,
+                        incomeDistribution: investmentType.incomeDistribution,
+                        taxability: investmentType.taxability
+                    } : null;
+                })
+            ).then(types => types.filter(type => type !== null));
+            
+            // Prepare the result object
+
+            const result = {
+                name: scenario.name,
+                maritalStatus: scenario.maritalStatus,
+                birthYears: scenario.birthYears,
+                lifeExpectancy: scenario.lifeExpectancy,
+                
+                investmentTypes: investmentTypes,
+                
+                investments: scenario.investments ? 
+                    scenario.investments.map(inv => ({
+                        investmentType: inv.investmentType,
+                        value: inv.value,
+                        taxStatus: inv.taxStatus,
+                        id: inv.id
+                    })) : [],
+                
+                eventSeries: scenario.eventSeries,
+                
+                inflationAssumption: scenario.inflationAssumption,
+                afterTaxContributionLimit: scenario.afterTaxContributionLimit,
+                spendingStrategy: scenario.spendingStrategy,
+                expenseWithdrawalStrategy: scenario.expenseWithdrawalStrategy,
+                RMDStrategy: scenario.RMDStrategy,
+                
+                RothConversionOpt: scenario.RothConversionOpt,
+                RothConversionStart: scenario.RothConversionStart,
+                RothConversionEnd: scenario.RothConversionEnd,
+                RothConversionStrategy: scenario.RothConversionStrategy,
+                
+                financialGoal: scenario.financialGoal,
+                residenceState: scenario.residenceState
+            };            
+            
+            const clonedResult = JSON.parse(JSON.stringify(result));
+            // console.log(clonedResult);
+            // Convert to YAML file
+            const yaml = require('js-yaml');
+            const yamlString = yaml.dump(clonedResult, {
+                skipInvalid: true,
+                noRefs: true,
+                keepBooleans: true,
+                sortKeys: false,
+                lineWidth: -1
+            });
+            console.log(yamlString);
+            // Return YAML file
+            return res.status(200).json({
+                status: "SUCCESS",
+                data: yamlString,
+            });
+        }
+        
         return res.status(200).json({
             status: "ERROR",
             error: true,
             message: "Exporting Plan failed.",
         });
     }
+    catch (error) {
+        console.log(error);
+        return res.status(200).json({
+            status: "ERROR",
+            error: true,
+            message: "Plan does not exist in database.",
+            err: error
+        });
+    }
 };
-
-// For import/export YAML
-// export const postVideo = async (req: any, res: any) => {
-// 	const form = formidable({
-// 		// maxFileSize: 100 * 1024 * 1024,
-// 		uploadDir: './processing_queue',
-// 		keepExtensions: true
-// 	});
-
-// 	form.parse(req, async (err, fields, files) => {
-// 		// console.log("Uploading video");
-// 		if (err) {
-// 			console.error("Error parsing the form:", err);
-// 			return res.status(200).json({
-// 				status: 'ERROR',
-// 				error: true,
-// 				message: 'Failed to parse form data.'
-// 			});
-// 		}
-//     }
-// }
