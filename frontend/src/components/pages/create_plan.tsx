@@ -214,6 +214,47 @@ const CreatePlan = () => {
   
   
 
+  //upload state tax file to backend
+  const upload_state_tax_file = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+  
+    // Validate file type
+    const allowedTypes = ['.yaml', '.yml'];
+    const fileExt = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (!allowedTypes.includes(fileExt)) {
+      alert('Only YAML files are allowed');
+      return;
+    }
+  
+    const formData = new FormData();
+    formData.append("taxFile", file);
+  
+    try {
+      const response = await fetch("/api/upload-state-tax", {
+        method: "POST",
+        body: formData,
+      });
+  
+      const result = await response.json();
+      
+      if (response.ok) {
+        console.log("File uploaded successfully", result);
+      } else {
+        console.error("Upload failed:", result.error);
+        alert(`Upload failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Error uploading file");
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   // ----------------------------------------------------- LIFE EVENT STUFF -----------------------------------------------------//
   const toggleLifeEvents = (index) => {
     setFormData((prevData) => {
@@ -1174,7 +1215,10 @@ const CreatePlan = () => {
                   style={{ margin: "1%", fontSize: "16px" }}
                   type="file"
                   name="taxFile"
-                  onChange={(e) => handleInvestmentChange(index, e)}
+                  //call the function to upload the state tax
+                  onChange={(e) => {
+                    handleInvestmentChange(index, e);
+                    upload_state_tax_file(e); }}
                 />
                 {investment.taxFile && <p>Selected File: {investment.taxFile.name}</p>}
               </div>
