@@ -26,8 +26,8 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
       <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
       <div className="normal-text">Date Created: {scenario.dateCreated}</div>
       <div style={{ display: "flex", marginLeft: "250px", marginTop: "100px" }}>
-        <img src="/images/edit.png" height={50} width={50} />
-        <img src="/images/share.png" height={50} width={50} />
+        <img src="/images/edit.png" height={50} width={50} alt="Edit" />
+        <img src="/images/share.png" height={50} width={50} alt="Share" />
         <img
           src="/images/trash.png"
           height={50}
@@ -40,8 +40,56 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
             }
           }}
           style={{ cursor: "pointer" }}
+          alt="Trash"
         />
-        <img src="/images/export.png" height={50} width={50} />
+        <img 
+          src="/images/export.png" 
+          height={50} 
+          width={50} 
+          onClick={ async (e) => {
+            e.stopPropagation(); // Prevent navigating to scenario details
+            try {
+              const userId = localStorage.getItem("userId") || "";
+              const response = await fetch(`http://localhost:5000/api/export`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: userId,
+                  data: scenario,
+                }),
+              });
+              const data = await response.json();
+              
+              if (data.status === "SUCCESS") {
+                // Create a Blob with the YAML content
+                const blob = new Blob([data.data], { type: 'text/yaml' });
+                
+                // Create a link element and trigger download
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${scenario.id || 'scenario'}.yaml`;
+                
+                // Append to body, click, and remove
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up the URL object
+                URL.revokeObjectURL(link.href);
+              } else {
+                // Handle export error
+                alert('Failed to export scenario: ' + data.message);
+              }
+            } catch (error) {
+              console.error('Error exporting Financial Plan:', error);
+              alert('An error occurred while exporting the scenario');
+            }
+          }}
+          style={{ cursor: "pointer" }}
+          alt="Export"
+        />
       </div>
     </div>
   );
@@ -111,7 +159,7 @@ const Scenario: FC = () => {
     }
   };
 
-  // Handle the file selection
+  // Handle the file selection (Import)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const userId = localStorage.getItem("userId") || "";
     const selectedFile = e.target.files?.[0];
