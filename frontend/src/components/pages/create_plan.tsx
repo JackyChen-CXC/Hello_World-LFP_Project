@@ -169,41 +169,36 @@ const CreatePlan = () => {
   const handleInvestmentChange = (index, e) => {
     const { name, value, type, files } = e.target;
   
-    // Special handling for selecting investment type (fetch default values)
     if (name === "investmentType") {
+      // Immediate state update so the dropdown reflects the user's selection
+      const newInvestments = [...formData.investments];
+      newInvestments[index] = {
+        ...newInvestments[index],
+        investmentType: value,
+      };
+      setFormData((prevData) => ({
+        ...prevData,
+        investments: newInvestments,
+      }));
+    
+      // Optional: fetch additional data about the investment type
       fetch(`http://localhost:5000/api/investment-types/${value}`)
         .then((res) => res.json())
         .then((data) => {
-          const newInvestments = [...formData.investments];
-          newInvestments[index] = {
-            ...newInvestments[index],
-            investmentType: value,
-            // Return fields
-            annualReturnType: data.returnDistribution?.type || "fixed",
-            annualReturnMean: data.returnDistribution?.mean?.toString() || "",
-            annualReturnStdev: data.returnDistribution?.stdev?.toString() || "",
-            annualReturnFixed: data.returnDistribution?.value?.toString() || "",
-            annualReturnAmtOrPct: data.returnAmtOrPct || "percent",
-            // Income fields
-            annualIncomeType: data.incomeDistribution?.type || "fixed",
-            annualIncomeMean: data.incomeDistribution?.mean?.toString() || "",
-            annualIncomeStdev: data.incomeDistribution?.stdev?.toString() || "",
-            annualIncomeFixed: data.incomeDistribution?.value?.toString() || "",
-            annualIncomeAmtOrPct: data.incomeAmtOrPct || "percent"
-          };
-          setFormData((prevData) => ({
-            ...prevData,
-            investments: newInvestments
-          }));
+          console.log("Fetched investment type data:", data);
+          // You could populate more fields here if needed
         })
         .catch((err) => {
           console.error("Failed to fetch investment type data:", err);
         });
-      return; // Exit early
+    
+      return;
     }
+    
+  
   
     const newInvestments = [...formData.investments];
-    const nameWithoutIndex = name.replace(/-\d+$/, ""); // Remove "-0", "-1", etc.
+    const nameWithoutIndex = name.replace(/-\d+$/, ""); 
     newInvestments[index][nameWithoutIndex] = type === "file" ? files[0] : value;
   
     setFormData((prevData) => ({
@@ -431,6 +426,8 @@ const CreatePlan = () => {
   
         return {
           id: inv.id.toString(),
+          investmentName: inv.investmentName || "",
+          investmentDescription: inv.investmentDescription || "", 
           investmentType: inv.investmentType || "",
           value: parseFloat(inv.investmentValue || "0"),
           taxStatus: inv.accountType || "non-retirement",
@@ -531,7 +528,6 @@ const CreatePlan = () => {
     const payload = transformFormData(formData);
   
     try {
-      // 1) CREATE THE PLAN
       const planRes = await fetch("http://localhost:5000/api/plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -540,23 +536,18 @@ const CreatePlan = () => {
       if (!planRes.ok) {
         throw new Error("Failed to save plan");
       }
-      const createdPlan = await planRes.json();  // The newly created plan doc
+      const createdPlan = await planRes.json(); 
   
-      // 2) CREATE AN INVESTMENT TYPE FOR EACH INVESTMENT
       for (const inv of payload.investments) {
-        // Convert "taxable"/"tax-exempt" to a boolean:
-        // If your plan data uses a boolean already, skip this logic and directly use inv.taxability
         const isTaxable = (inv.taxability === "taxable");
   
         const invTypePayload = {
-          planId: createdPlan._id, // associate with the newly created plan
+          planId: createdPlan._id, 
   
-          // Required fields per your schema:
-          name: inv.investmentName || inv.investmentType || "Untitled", // always set something
-          taxability: isTaxable,  // must be boolean
-          expenseRatio: 0,        // or a user-provided number
+          name: inv.investmentName || inv.investmentType || "Untitled", 
+          taxability: isTaxable,  
+          expenseRatio: 0,       
   
-          // The rest of your fields:
           returnAmtOrPct: inv.returnAmtOrPct,
           returnDistribution: inv.returnDistribution,
           incomeAmtOrPct: inv.incomeAmtOrPct,

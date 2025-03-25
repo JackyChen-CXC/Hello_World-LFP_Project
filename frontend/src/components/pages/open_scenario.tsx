@@ -169,17 +169,17 @@ const OpenScenario = () => {
           <div className="normal-text">No detailed investment data available.</div>
         ) : (
           investmentDetails.map((inv, index) => {
-            const meta = scenario.investments[index]; // 👈 get name/type/value/tax from original scenario
+            const meta = scenario.investments[index];
             return (
               <div key={inv._id} style={{ marginBottom: "1rem" }}>
                 <div className="normal-text" style={{ fontWeight: "bold" }}>
-                  {index + 1}. Investment Name: {capitalizeWords(meta?.investmentName || "Unnamed")}
+                  {index + 1}. Investment Name: {capitalizeWords(inv.name || "Unnamed")}
                 </div>
                 <div className="normal-text" style={{ marginLeft: "5%" }}>
-                  {meta?.investmentDescription && (
+                  {inv.description && (
                     <div>
                       Brief Description:{" "}
-                      <span className="value-text">{capitalizeWords(meta.investmentDescription)}</span>
+                      <span className="value-text">{capitalizeWords(inv.description)}</span>
                     </div>
                   )}
                   <div>
@@ -240,8 +240,6 @@ const OpenScenario = () => {
             );
           })
         )}
-
-
         <hr />
         <div className="normal-text" style={{ fontWeight: "bold" }}>Life Events:</div>
         {scenario.eventSeries.length === 0 ? (
