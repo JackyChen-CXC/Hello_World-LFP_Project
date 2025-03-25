@@ -41,10 +41,28 @@ interface ScenarioData {
   sharedUserPerms: any[];
   createdAt?: string;
 }
+interface Distribution {
+  type: string;
+  value?: number;
+  mean?: number;
+  stdev?: number;
+}
+interface InvestmentTypeData {
+  _id: string;
+  name: string;
+  description: string;
+  returnAmtOrPct: string;
+  returnDistribution: Distribution;
+  incomeAmtOrPct: string;
+  incomeDistribution: Distribution;
+  expenseRatio: number;
+  taxability: boolean;
+}
 
 const OpenScenario = () => {
   const { id } = useParams();
   const [scenario, setScenario] = useState<ScenarioData | null>(null);
+  const [investmentDetails, setInvestmentDetails] = useState<InvestmentTypeData[]>([]);
   const location = useLocation();
   const dateCreated = (location.state as any)?.dateCreated;
 
@@ -63,6 +81,24 @@ const OpenScenario = () => {
     };
     fetchScenario();
   }, [id]);
+
+  //used ChatGPT to help fetch investment lists
+  useEffect(() => {
+    const fetchInvestmentDetails = async () => {
+      if (!scenario || !scenario.investmentTypes?.length) return;
+      try {
+        const promises = scenario.investmentTypes.map((typeId) =>
+          fetch(`http://localhost:5000/api/investment-types/${typeId}`).then((res) => res.json())
+        );
+        const results = await Promise.all(promises);
+        setInvestmentDetails(results);
+      } catch (error) {
+        console.error("Failed to load investment types:", error);
+      }
+    };
+    fetchInvestmentDetails();
+  }, [scenario]);
+
 
   const capitalizeWords = (str: any) => {
     if (typeof str !== "string") str = String(str);
@@ -117,103 +153,94 @@ const OpenScenario = () => {
             <span className="value-text">Sampled from a normal distribution</span>
           )}
         </div>
+        {scenario.maritalStatus === "couple" && scenario.birthYears[1] && (
         <div className="normal-text">
           Spouse's Birth Year:{" "}
-          <span className="value-text">
-            {Array.isArray(scenario.spousebirthyear)
-              ? scenario.spousebirthyear.join(", ")
-              : "N/A"}
-          </span>
+          <span className="value-text">{scenario.birthYears[1]}</span>
         </div>
+        )}
+
         <div className="normal-text">
           Residential State:{" "}
           <span className="value-text">{capitalizeWords(scenario.residenceState) || "N/A"}</span>
         </div>
-
-
-        <hr />
+        <hr/>
         <div className="normal-text" style={{ fontWeight: "bold" }}>Investments:</div>
-        {scenario.investments.length === 0 ? (
-          <div className="normal-text">No investments added</div>
+        {investmentDetails.length === 0 ? (
+          <div className="normal-text">No detailed investment data available.</div>
         ) : (
-          scenario.investments.map((inv, index) => (
-            <div key={inv.id} style={{ marginBottom: "1rem" }}>
-              <div className="normal-text" style={{ fontWeight: "bold" }}>
-                {index + 1}. Investment Name: {capitalizeWords(inv.investmentName)}
-              </div>
-              <div className="normal-text" style={{ marginLeft: "5%" }}>
-                {inv.investmentDescription && (
+          investmentDetails.map((inv, index) => {
+            const meta = scenario.investments[index];
+            return (
+              <div key={inv._id} style={{ marginBottom: "1rem" }}>
+                <div className="normal-text" style={{ fontWeight: "bold" }}>
+                  {index + 1}. Investment Name: {capitalizeWords(inv.name || "Unnamed")}
+                </div>
+                <div className="normal-text" style={{ marginLeft: "5%" }}>
+                  {inv.description && (
+                    <div>
+                      Brief Description:{" "}
+                      <span className="value-text">{capitalizeWords(inv.description)}</span>
+                    </div>
+                  )}
                   <div>
-                    Brief Description:{" "}
-                    <span className="value-text">{capitalizeWords(inv.investmentDescription)}</span>
+                    Investment Type:{" "}
+                    <span className="value-text">{capitalizeWords(meta?.investmentType || "N/A")}</span>
                   </div>
-                )}
-                <div>
-                  Investment Type:{" "}
-                  <span className="value-text">{capitalizeWords(inv.investmentType)}</span>
-                </div>
-                <div>
-                  Current Value: <span className="value-text">${inv.value}</span>
-                </div>
-                <div>
-                  Tax Status: <span className="value-text">{inv.taxStatus}</span>
-                </div>
+                  <div>
+                    Current Value:{" "}
+                    <span className="value-text">${meta?.value || 0}</span>
+                  </div>
+                  <div>
+                    Tax Status:{" "}
+                    <span className="value-text">{capitalizeWords(meta?.taxStatus || "N/A")}</span>
+                  </div>
 
-                {/* Return Distribution */}
-                {inv.returnDistribution && (
-                  <div style={{ marginTop: "0.5rem" }}>
+                  {/* Return & Income Distribution */}
+                  <div style={{ marginTop: "1rem" }}>
                     <div>
-                      Return Distribution Type:{" "}
-                      <span className="value-text">{capitalizeWords(inv.returnDistribution.type)}</span>
+                      Annual Return Type: <span className="value-text">{inv.returnDistribution?.type}</span>
                     </div>
-                    {inv.returnDistribution.value !== undefined && (
+                    {inv.returnDistribution?.value !== undefined && (
                       <div>
-                        Value: <span className="value-text">{inv.returnDistribution.value}</span>
+                        Annual Return Value: <span className="value-text">{inv.returnDistribution.value}</span>
                       </div>
                     )}
-                    {inv.returnDistribution.mean !== undefined && (
+                    {inv.returnDistribution?.mean !== undefined && (
                       <div>
-                        Mean: <span className="value-text">{inv.returnDistribution.mean}</span>
+                        Annual Return Mean: <span className="value-text">{inv.returnDistribution.mean}</span>
                       </div>
                     )}
-                    {inv.returnDistribution.stdev !== undefined && (
+                    {inv.returnDistribution?.stdev !== undefined && (
                       <div>
-                        Std Dev: <span className="value-text">{inv.returnDistribution.stdev}</span>
+                        Annual Return Stdev: <span className="value-text">{inv.returnDistribution.stdev}</span>
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: "0.5rem" }}>
+                      Annual Income Type: <span className="value-text">{inv.incomeDistribution?.type}</span>
+                    </div>
+                    {inv.incomeDistribution?.value !== undefined && (
+                      <div>
+                        Annual Income Value: <span className="value-text">{inv.incomeDistribution.value}</span>
+                      </div>
+                    )}
+                    {inv.incomeDistribution?.mean !== undefined && (
+                      <div>
+                        Annual Income Mean: <span className="value-text">{inv.incomeDistribution.mean}</span>
+                      </div>
+                    )}
+                    {inv.incomeDistribution?.stdev !== undefined && (
+                      <div>
+                        Annual Income Stdev: <span className="value-text">{inv.incomeDistribution.stdev}</span>
                       </div>
                     )}
                   </div>
-                )}
-
-                {/* Income Distribution */}
-                {inv.incomeDistribution && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div>
-                      Income Distribution Type:{" "}
-                      <span className="value-text">{capitalizeWords(inv.incomeDistribution.type)}</span>
-                    </div>
-                    {inv.incomeDistribution.value !== undefined && (
-                      <div>
-                        Value: <span className="value-text">{inv.incomeDistribution.value}</span>
-                      </div>
-                    )}
-                    {inv.incomeDistribution.mean !== undefined && (
-                      <div>
-                        Mean: <span className="value-text">{inv.incomeDistribution.mean}</span>
-                      </div>
-                    )}
-                    {inv.incomeDistribution.stdev !== undefined && (
-                      <div>
-                        Std Dev: <span className="value-text">{inv.incomeDistribution.stdev}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
-
         <hr />
         <div className="normal-text" style={{ fontWeight: "bold" }}>Life Events:</div>
         {scenario.eventSeries.length === 0 ? (

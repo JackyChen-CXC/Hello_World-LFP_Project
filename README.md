@@ -14,6 +14,9 @@ To end - CTRL+C / kill terminal
 
 ### Backend
 
+#### .env
+1. Use .env.example to setup .env
+
 #### Database
 To setup - 
 1. Download MongoDB Community Edition from offical site - https://www.mongodb.com/try/download/community

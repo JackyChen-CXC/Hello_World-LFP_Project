@@ -10,33 +10,17 @@ export interface IInvestment extends Document {
     investmentType: IInvestmentType;
     value: number;
     taxStatus: "non-retirement" | "pre-tax" | "after-tax";
-    id: string;
-    returnAmtOrPct: "amount" | "percent";
-    returnDistribution: IDistribution;
-    incomeAmtOrPct: "amount" | "percent";
-    incomeDistribution: IDistribution;
-    taxability?: boolean; // optional
+    id: string
 }
 
 const InvestmentSchema = new Schema<IInvestment>({
-investmentType: { type: String, required: true },
-value: { type: Number, required: true },
-taxStatus: {
-    type: String,
-    enum: ["non-retirement", "pre-tax", "after-tax"],
-    required: true,
-},
-id: { type: String, required: true },
-
-returnAmtOrPct: { type: String, enum: ["amount", "percent"], required: true },
-returnDistribution: { type: DistributionSchema, required: true },
-
-incomeAmtOrPct: { type: String, enum: ["amount", "percent"], required: true },
-incomeDistribution: { type: DistributionSchema, required: true },
-
-taxability: { type: Boolean },
-}, { _id: false });
-  
+    investmentType: { type: String, required: true },
+    value: { type: Number, required: true },
+    taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
+    id: { type: String, required: true },
+    },
+    { _id: false }
+);
 
 // LifeEvents are also individual to Financial Plans
 // ATTRIBUTES PER TYPE
@@ -47,13 +31,16 @@ taxability: { type: Boolean },
 export interface ILifeEvent extends Document {
     name: string;
     description: string;
-    start: IDistribution;
-    duration: IDistribution;
+    startYear: IDistribution;
+    durationYears: IDistribution;
     type: "income" | "expense" | "invest" | "rebalance";
     initialAmount?: number;
     changeAmtOrPct?: "amount" | "percent";
     changeDistribution?: IDistribution;
     inflationAdjusted?: boolean;
+    inflationType?: "fixed" | "normal";
+    inflationAmtOrPct?: "amount" | "percent";
+    inflationFixed?: number;
     userFraction?: number;
     socialSecurity?: boolean;
     discretionary?: boolean;
@@ -65,9 +52,9 @@ export interface ILifeEvent extends Document {
 
 const LifeEventSchema = new Schema<ILifeEvent>({
     name: { type: String, required: true, default: "" },
-    description: { type: String, default: "" },
-    start: { type: DistributionSchema, required: true },
-    duration: { type: DistributionSchema, required: true },
+    description: { type: String, required: true, default: "" },
+    startYear: { type: DistributionSchema, required: true },
+    durationYears: { type: DistributionSchema, required: true },
     type: { type: String, required: true, enum: ["income", "expense", "invest", "rebalance"] },
     initialAmount: { type: Number, 
         required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
@@ -102,6 +89,9 @@ const LifeEventSchema = new Schema<ILifeEvent>({
     maxCash: { type: Number, 
         required: function (this: ILifeEvent) { return this.type === "invest";
     }},
+    inflationType: { type: String, enum: ["fixed", "normal"], default: "fixed" },
+    inflationAmtOrPct: { type: String, enum: ["amount", "percent"], default: "percent" },
+    inflationFixed: { type: Number, default: 0 },
     },
     { _id: false }
     
