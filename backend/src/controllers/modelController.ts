@@ -206,3 +206,22 @@ export const scrapeDoc = async (req: any, res: any) => {
 		});
 	}
 };
+
+export const updateFinancialPlan = async (req: any, res: any) => {
+	try {
+	const { id } = req.params;
+	const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, req.body, {
+		new: true,
+		runValidators: true,
+	});
+
+	if (!updatedPlan) {
+		return res.status(404).json({ error: "Plan not found" });
+	}
+
+	return res.status(200).json({ message: "Plan updated", data: updatedPlan });
+	} catch (err) {
+	console.error("Error updating plan:", err);
+	return res.status(500).json({ error: "Failed to update plan" });
+	}
+};

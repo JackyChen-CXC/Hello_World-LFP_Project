@@ -26,7 +26,20 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
       <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
       <div className="normal-text">Date Created: {scenario.dateCreated}</div>
       <div style={{ display: "flex", marginLeft: "250px", marginTop: "100px" }}>
-        <img src="/images/edit.png" height={50} width={50} alt="Edit" />
+      <img
+          src="/images/edit.png"
+          height={50}
+          width={50}
+          alt="Edit"
+          style={{ cursor: "pointer" }}
+          onClick={(e) => {
+            e.stopPropagation(); 
+            navigate(`/scenario/edit/${scenario.id}`, {
+              state: { dateCreated: scenario.dateCreated }
+            });
+          }}
+        />
+
         <img src="/images/share.png" height={50} width={50} alt="Share" />
         <img
           src="/images/trash.png"

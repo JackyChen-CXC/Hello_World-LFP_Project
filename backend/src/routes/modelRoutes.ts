@@ -7,6 +7,7 @@ import {
   getInvestmentTypesByPlanId,
   getSpecificFinancialPlan,
   scrapeDoc,
+  updateFinancialPlan,
   webscrape
 } from "../controllers/modelController";
 
@@ -22,4 +23,5 @@ modelRouter.post("/plans/all", getAllFinancialPlans);
 modelRouter.get("/investment-types/:id", getInvestmentTypeById);
 modelRouter.post("/investment-types", createInvestmentType);
 modelRouter.get("/investment-types/plan/:planId", getInvestmentTypesByPlanId);
+modelRouter.put("/plans/:id", updateFinancialPlan);
 export default modelRouter;
