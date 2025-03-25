@@ -7,7 +7,7 @@ import authUserRouter from "./routes/authUserRoutes";
 import userRouter from "./routes/userRoutes";
 import modelRouter from "./routes/modelRoutes";
 import testingRouter from "./routes/testingRoutes";
-import stateTaxRouter from "./routes/StateTaxUploadRoutes";
+import stateTaxRouter from "./routes/stateTaxUploadRoutes";
 
 dotenv.config();
 const mongoose = require('mongoose');
