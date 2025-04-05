@@ -87,12 +87,12 @@ export const importPlan = async (req: any, res: any) => {
 
         // console.log(userId);
         // console.log(scenarioData);
+
         // Add InvestmentTypes
-        const importedInvestmentTypes = scenarioData.investmentTypes;
-        // console.log(importedInvestmentTypes);
         // Change InvestmentTypes to name attribute (String)
+        const importedInvestmentTypes = scenarioData.investmentTypes;
         const savedInvestmentTypes = await InvestmentType.insertMany(importedInvestmentTypes);
-        scenarioData.investmentTypes = savedInvestmentTypes.map(type => type.name);
+        scenarioData.investmentTypes = savedInvestmentTypes;
 
         // eventSeries
         // console.log(scenarioData.eventSeries)
@@ -123,27 +123,26 @@ export const exportPlan = async (req: any, res: any) => {
         const planId = scenarioData.id;
         const scenario = await FinancialPlan.findById(planId);
 
-        // take off lifeEvent.description
         // delete scenario?.eventSeries
 
         if (scenario) {
-            // Fetch full investment type details
-            const investmentTypeNames = scenario.investmentTypes || [];
-            const investmentTypes = await Promise.all(
-                investmentTypeNames.map(async (investmentTypeName: string) => {
-                    const investmentType = await InvestmentType.findOne({ name: investmentTypeName });
-                    return investmentType ? {
-                        name: investmentType.name,
-                        description: investmentType.description,
-                        returnAmtOrPct: investmentType.returnAmtOrPct,
-                        returnDistribution: investmentType.returnDistribution,
-                        expenseRatio: investmentType.expenseRatio,
-                        incomeAmtOrPct: investmentType.incomeAmtOrPct,
-                        incomeDistribution: investmentType.incomeDistribution,
-                        taxability: investmentType.taxability
-                    } : null;
-                })
-            ).then(types => types.filter(type => type !== null));
+        //     // Fetch full investment type details -> Id (Unused after Schema Change)
+        //     const investmentTypeNames = scenario.investmentTypes || [];
+        //     const investmentTypes = await Promise.all(
+        //         investmentTypeNames.map(async (investmentTypeName: string) => {
+        //             const investmentType = await InvestmentType.findOne({ name: investmentTypeName });
+        //             return investmentType ? {
+        //                 name: investmentType.name,
+        //                 description: investmentType.description,
+        //                 returnAmtOrPct: investmentType.returnAmtOrPct,
+        //                 returnDistribution: investmentType.returnDistribution,
+        //                 expenseRatio: investmentType.expenseRatio,
+        //                 incomeAmtOrPct: investmentType.incomeAmtOrPct,
+        //                 incomeDistribution: investmentType.incomeDistribution,
+        //                 taxability: investmentType.taxability
+        //             } : null;
+        //         })
+        //     ).then(types => types.filter(type => type !== null));
             
             // Prepare the result object
 
@@ -153,7 +152,7 @@ export const exportPlan = async (req: any, res: any) => {
                 birthYears: scenario.birthYears,
                 lifeExpectancy: scenario.lifeExpectancy,
                 
-                investmentTypes: investmentTypes,
+                investmentTypes: scenario.investmentTypes,
                 
                 investments: scenario.investments ? 
                     scenario.investments.map(inv => ({

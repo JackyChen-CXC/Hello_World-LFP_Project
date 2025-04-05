@@ -3,7 +3,7 @@ import { IUser } from "./User";
 // import Investment, { IInvestment } from "./Investment";
 // import LifeEvent, { ILifeEvent } from "./LifeEvent";
 import { DistributionSchema, IDistribution } from "./Distribution";
-import { IInvestmentType } from "./InvestmentType";
+import { IInvestmentType, investmentTypeSchema } from "./InvestmentType";
 
 // Investments individual to Financial Plan (Unlike InvestmentType)
 export interface IInvestment extends Document {
@@ -121,7 +121,7 @@ export interface IFinancialPlan extends Document {
     maritalStatus: "couple" | "individual"
     birthYears: number[];
     lifeExpectancy: IDistribution[];
-    investmentTypes: string[];
+    investmentTypes: IInvestmentType[];
     investments: IInvestment[];
     eventSeries: ILifeEvent[];
     inflationAssumption: IDistribution;
@@ -148,7 +148,7 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     maritalStatus : { type: String, enum: ["couple", "individual"] },
     birthYears: { type: [Number], required: true, default: [] },
     lifeExpectancy: { type: [DistributionSchema], required: true, default: [] },
-    investmentTypes: { type: [String], required: true, default: [] },
+    investmentTypes: { type: [investmentTypeSchema], required: true, default: [] },
     investments: { type: [InvestmentSchema], required: true, default: [] },
     eventSeries: { type: [LifeEventSchema], required: true, default: [] },
     inflationAssumption: { type: DistributionSchema, required: true},

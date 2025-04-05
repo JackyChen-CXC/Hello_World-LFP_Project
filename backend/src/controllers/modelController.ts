@@ -1,41 +1,41 @@
 import { exec } from "child_process";
 import FinancialPlan from "../models/FinancialPlan";
-import InvestmentType from "../models/InvestmentType";
+import InvestmentType, { IInvestmentType } from "../models/InvestmentType";
 
 export const createInvestmentType = async (req: any, res: any) => {
 	try {
-	const {
-		planId,
-		name,
-		description,
-		returnAmtOrPct,
-		returnDistribution,
-		incomeAmtOrPct,
-		incomeDistribution,
-		taxability,
-		expenseRatio
-	} = req.body;
+		const {
+			planId,
+			name,
+			description,
+			returnAmtOrPct,
+			returnDistribution,
+			incomeAmtOrPct,
+			incomeDistribution,
+			taxability,
+			expenseRatio
+		} = req.body;
 
-	const plan = await FinancialPlan.findById(planId);
-	if (!plan) {
-		return res
-		.status(404)
-		.json({ error: "No FinancialPlan found with that planId" });
-	}
-	const newInvestmentType = new InvestmentType({
-		planId,
-		name,
-		description,
-		returnAmtOrPct,        
-		returnDistribution,   
-		incomeAmtOrPct,        
-		incomeDistribution,
-		taxability,
-		expenseRatio   
-	});
+		const plan = await FinancialPlan.findById(planId);
+		if (!plan) {
+			return res
+			.status(404)
+			.json({ error: "No FinancialPlan found with that planId" });
+		}
+		const newInvestmentType = new InvestmentType({
+			planId,
+			name,
+			description,
+			returnAmtOrPct,        
+			returnDistribution,   
+			incomeAmtOrPct,        
+			incomeDistribution,
+			taxability,
+			expenseRatio   
+		});
 
-	await newInvestmentType.save();
-	return res.status(201).json(newInvestmentType);
+		await newInvestmentType.save();
+		return res.status(201).json(newInvestmentType);
 	} catch (error) {
 	console.error("Error creating investment type:", error);
 	return res.status(500).json({ error: "Failed to create investment type" });
@@ -116,30 +116,28 @@ export const createFinancialPlan = async (req:any, res:any) => {
 
 		const newPlan = new FinancialPlan(req.body);
 		const investments = req.body.investments || [];
-		const investmentTypeIds: string[] = [];
+		const investmentTypes: IInvestmentType[] = [];
 
 		for (const inv of investments) {
-		// Create and save your InvestmentType
-		const newInvType = new InvestmentType({
-			name: inv.investmentName || inv.investmentType || "Untitled",
-			description: "",
-			returnAmtOrPct: inv.returnAmtOrPct || "percent",
-			returnDistribution: inv.returnDistribution || { type: "fixed", value: 0 },
-			expenseRatio: 0,
-			incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
-			incomeDistribution: inv.incomeDistribution || { type: "fixed", value: 0 },
-			taxability: inv.taxability === "taxable",
-		});
+			// Create and save your InvestmentType
+			const newInvType = new InvestmentType({
+				name: inv.investmentName || inv.investmentType || "Untitled",
+				description: "",
+				returnAmtOrPct: inv.returnAmtOrPct || "percent",
+				returnDistribution: inv.returnDistribution || { type: "fixed", value: 0 },
+				expenseRatio: 0,
+				incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
+				incomeDistribution: inv.incomeDistribution || { type: "fixed", value: 0 },
+				taxability: inv.taxability === "taxable",
+			});
 
-		const savedInvType = await newInvType.save();
-		
-		// Convert the ObjectId to a string
-		const invTypeId = String(savedInvType._id); 
-	investmentTypeIds.push(invTypeId);
+			const savedInvType = await newInvType.save();
+			
+			investmentTypes.push(savedInvType);
 		}
 
-		// Now investmentTypeIds is a string[] and can be assigned to newPlan.investmentTypes
-		newPlan.investmentTypes = investmentTypeIds;
+		// Now investmentTypes is a IInvestmentType[] and can be assigned to newPlan.investmentTypes
+		newPlan.investmentTypes = investmentTypes;
 		await newPlan.save();
 
 
@@ -193,35 +191,21 @@ export const webscrape = async (req: any, res: any) => {
     });
 };
 
-
-export const scrapeDoc = async (req: any, res: any) => {
-	try {
-		// use app.py from ..\microservices\webscraping
-        // await axios.post('http://localhost:5001/api/flask/videos'
-	} catch (error) {
-		res.status(200).json({
-			status: "ERROR",
-			error: true,
-			message: "Login failed.",
-		});
-	}
-};
-
 export const updateFinancialPlan = async (req: any, res: any) => {
 	try {
-	const { id } = req.params;
-	const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, req.body, {
-		new: true,
-		runValidators: true,
-	});
+		const { id } = req.params;
+		const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, req.body, {
+			new: true,
+			runValidators: true,
+		});
 
-	if (!updatedPlan) {
-		return res.status(404).json({ error: "Plan not found" });
-	}
+		if (!updatedPlan) {
+			return res.status(404).json({ error: "Plan not found" });
+		}
 
-	return res.status(200).json({ message: "Plan updated", data: updatedPlan });
+		return res.status(200).json({ message: "Plan updated", data: updatedPlan });
 	} catch (err) {
-	console.error("Error updating plan:", err);
-	return res.status(500).json({ error: "Failed to update plan" });
+		console.error("Error updating plan:", err);
+		return res.status(500).json({ error: "Failed to update plan" });
 	}
 };

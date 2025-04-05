@@ -1,7 +1,7 @@
 import User from "../models/User";
 import { v4 as uuidv4 } from "uuid";
 
-// uses addUser when login detects Google Login without a account
+// backend addUser when login detects Google Login without a account
 export const addUser = async (req: any, res: any) => {
     try {
         
