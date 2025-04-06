@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import '../css_files/page_style.css';
 
@@ -9,13 +9,19 @@ interface ScenarioData {
   financialGoal: string;
   dateCreated: string;
 }
+
+const capitalizeWords = (str: any) => {
+  if (typeof str !== "string") str = String(str);
+  return str.replace(/\b\w/g, (char: string) => char.toUpperCase());
+};
+
 const SimulationItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void }> = ({ scenario, onDelete }) => {
   const navigate = useNavigate();
 
   return (
     <div className="simulation-container" onClick={() => navigate(`/simulation/${scenario.id}`)}>
-      <div className="normal-text">{scenario.title}</div>
-      <div className="normal-text">Date Created: {scenario.dateCreated}</div>
+      <div>{capitalizeWords(scenario.title)}</div>
+      <div >Date Created: {scenario.dateCreated}</div>
     </div>
   );
 };
@@ -87,7 +93,7 @@ const Simulation = () => {
       </div>
 
       <div className="subheading" style={{ marginBottom: "-50px" }}>Monte Carlo Simulation:</div>
-      <p className="normal-text" style={{ width: "70%" }}>
+      <p className="normal-text" style={{ width: "70%" ,marginTop:"2%" }}>
         A Monte Carlo Simulation is a statistical method used to model uncertainty and
         predict possible future outcomes. It runs thousands of simulations using different
         randomized market conditions, such as investment returns, inflation rates, and

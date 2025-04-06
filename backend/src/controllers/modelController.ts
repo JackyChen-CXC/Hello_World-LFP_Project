@@ -1,46 +1,39 @@
 import { exec } from "child_process";
 import FinancialPlan from "../models/FinancialPlan";
-import InvestmentType, { IInvestmentType } from "../models/InvestmentType";
+import InvestmentType from "../models/InvestmentType";
 
 export const createInvestmentType = async (req: any, res: any) => {
 	try {
-		const {
-			planId,
-			name,
-			description,
-			returnAmtOrPct,
-			returnDistribution,
-			incomeAmtOrPct,
-			incomeDistribution,
-			taxability,
-			expenseRatio
-		} = req.body;
+	const {
+		name,
+		description,
+		returnAmtOrPct,
+		returnDistribution,
+		incomeAmtOrPct,
+		incomeDistribution,
+		taxability,
+		expenseRatio
+	} = req.body;
 
-		const plan = await FinancialPlan.findById(planId);
-		if (!plan) {
-			return res
-			.status(404)
-			.json({ error: "No FinancialPlan found with that planId" });
-		}
-		const newInvestmentType = new InvestmentType({
-			planId,
-			name,
-			description,
-			returnAmtOrPct,        
-			returnDistribution,   
-			incomeAmtOrPct,        
-			incomeDistribution,
-			taxability,
-			expenseRatio   
-		});
+	const newInvestmentType = new InvestmentType({
+		name,
+		description,
+		returnAmtOrPct,
+		returnDistribution,
+		incomeAmtOrPct,
+		incomeDistribution,
+		taxability,
+		expenseRatio,
+	});
 
-		await newInvestmentType.save();
-		return res.status(201).json(newInvestmentType);
+	await newInvestmentType.save();
+	return res.status(201).json(newInvestmentType);
 	} catch (error) {
 	console.error("Error creating investment type:", error);
 	return res.status(500).json({ error: "Failed to create investment type" });
 	}
 };
+
 
 export const getInvestmentTypeById = async (req: any, res: any) => {
 	try {
@@ -76,6 +69,55 @@ export const getInvestmentTypesByPlanId = async (req: any, res: any) => {
 	}
 };
 
+export const getInvestmentTypeByName = async (req: any, res: any) => {
+	try {
+		const { name } = req.params;
+		const investmentType = await InvestmentType.findOne({ name });
+	
+		if (!investmentType) {
+			return res.status(404).json({ error: "Investment type not found" });
+		}
+	
+		return res.status(200).json(investmentType);
+		} catch (error) {
+		console.error("Error fetching investment type by name:", error);
+		return res.status(500).json({ error: "Server error" });
+	}
+};
+export const findInvestmentType = async (req: any, res: any) => {
+	try {
+		const {
+			name,
+			returnAmtOrPct,
+			returnDistribution = {},
+			incomeAmtOrPct,
+			incomeDistribution = {},
+			taxability
+		} = req.body;
+		
+		if (!name || !returnAmtOrPct || !incomeAmtOrPct || returnDistribution.type === undefined || incomeDistribution.type === undefined) {
+		return res.status(400).json({ error: "Missing required fields for lookup" });
+		}
+		
+		const investmentType = await InvestmentType.findOne({
+		name,
+		returnAmtOrPct,
+		"returnDistribution.type": returnDistribution.type,
+		"returnDistribution.value": returnDistribution.value,
+		incomeAmtOrPct,
+		"incomeDistribution.type": incomeDistribution.type,
+		"incomeDistribution.value": incomeDistribution.value,
+		taxability,
+		});
+		
+  
+	  return res.status(200).json(investmentType || null);
+	} catch (err) {
+	  console.error("Error finding investment type:", err);
+	  res.status(500).json({ error: "Failed to find investment type" });
+	}
+  };
+  
 
 
 export const getAllFinancialPlans = async (req: any, res: any) => {
@@ -111,42 +153,18 @@ export const getAllFinancialPlans = async (req: any, res: any) => {
   
 
 
-export const createFinancialPlan = async (req:any, res:any) => {
-	try {
-
-		const newPlan = new FinancialPlan(req.body);
-		const investments = req.body.investments || [];
-		const investmentTypes: IInvestmentType[] = [];
-
-		for (const inv of investments) {
-			// Create and save your InvestmentType
-			const newInvType = new InvestmentType({
-				name: inv.investmentName || inv.investmentType || "Untitled",
-				description: "",
-				returnAmtOrPct: inv.returnAmtOrPct || "percent",
-				returnDistribution: inv.returnDistribution || { type: "fixed", value: 0 },
-				expenseRatio: 0,
-				incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
-				incomeDistribution: inv.incomeDistribution || { type: "fixed", value: 0 },
-				taxability: inv.taxability === "taxable",
-			});
-
-			const savedInvType = await newInvType.save();
-			
-			investmentTypes.push(savedInvType);
+	export const createFinancialPlan = async (req: any, res: any) => {
+		try {
+			const newPlan = new FinancialPlan(req.body);
+	
+			await newPlan.save();
+			res.status(201).json(newPlan);
+		} catch (err) {
+			console.error("Error creating plan:", err);
+			res.status(500).json({ error: "Failed to create financial plan" });
 		}
-
-		// Now investmentTypes is a IInvestmentType[] and can be assigned to newPlan.investmentTypes
-		newPlan.investmentTypes = investmentTypes;
-		await newPlan.save();
-
-
-		res.status(201).json(newPlan);
-	} catch (err) {
-		console.error("Error creating plan:", err);
-		res.status(500).json({ error: "Failed to create financial plan" });
-	}
-};
+	};
+	
   
 
 

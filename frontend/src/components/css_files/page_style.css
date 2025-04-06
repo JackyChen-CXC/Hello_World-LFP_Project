@@ -7,6 +7,47 @@
     height: 100%;
 }
 
+.scenario-container{
+  background-color: white;
+  width: 300px;
+  height: 130px;
+  border-radius: 10%;
+  padding:5%;
+  align-items: center;
+  margin-top: 4%;
+  margin-left: 4%;
+}
+
+.scenario-grid{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 60px;
+  padding-bottom: 5%;
+}
+
+.simulation-container{
+display: flex;
+background-color: #B9D0C0;
+width: 80%;
+border-radius: 2%;
+padding: 2%;
+justify-content:space-between;
+align-items: center;
+margin-bottom: 2%;
+font-size: 16px;
+}
+
+.open-simulation{
+display: flex;
+background-color: #B9D0C0;
+padding: 2%;
+border-radius: 2%;
+width: 80%;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+}
+
 /* container for the questions on each page*/
 .question{
     padding: 2%
@@ -29,57 +70,14 @@
     justify-content: center;
 }
 
-.help-button{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 300px;
-    height: 300px;
-    background-color: white;
-    border-radius: 20%;
-    padding: 30px;
-    font-size: 20px;
-}
-.scenario-container{
-    background-color: white;
-    width: 400px;
-    height: 150px;
-    border-radius: 10%;
-    padding:5%;
-    align-items: center;
-    margin-top: 4%;
-    margin-left: 4%;
-}
-
-.scenario-grid{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 50px;
-    padding-bottom: 5%;
-}
-
-.simulation-container{
+.scenario-info-container{
   display: flex;
-  border-radius: 2%;
-  background-color: #B9D0C0;
-  width: 80%;
-  padding: 2%;
-  justify-content: center;
-  align-items: center;
-  gap: 50%;
-  margin-bottom: 5%;
+  justify-content: space-between;
+  font-size: 18px;
+  margin-top: 1%;
 }
 
-.open-simulation{
-  display: flex;
-  background-color: #B9D0C0;
-  padding: 2%;
-  border-radius: 2%;
-  width: 80%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
+
 /*----------------------------------------Questions and inputs-------------------------------*/
 /* 2 questions on a line*/
 .split-container {
@@ -123,22 +121,18 @@
 
 .checkbox-group {
     display: flex;
+    flex-direction: column;
     gap: 10%;
-    align-items: center;
+    
 }
 
-/*----------------------------------------text formats-------------------------------*/
+/*----------------------------------------text and buttons-------------------------------*/
 /* font style for normal text*/
 .normal-text{
     padding-top: 2%;
-    font-size: 20px;
+    font-size: 18px;
 }
-.value-text{
-  font-size: 17px;
-  display: flex;
-  flex-direction: row;
-  justify-content: end;
-}
+
 /* font style for subheading*/
 .subheading{
     text-decoration: underline;
@@ -157,7 +151,17 @@
     font-weight: bold;
     font-size: 24px;
 }
-
+.help-button{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 300px;
+  height: 300px;
+  background-color: white;
+  border-radius: 20%;
+  padding: 30px;
+  font-size: 20px;
+}
 
 /*----------------------------------------Login out-------------------------------*/
 .transparent-hover {

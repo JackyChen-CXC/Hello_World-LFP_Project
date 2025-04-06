@@ -1,5 +1,3 @@
-// Here's the entire final code (CreatePlan.jsx). It includes the full UI from your original snippet plus the fixed code for strategies.
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../css_files/collapsible.css";
@@ -15,8 +13,12 @@ const CreatePlan = () => {
     spouseBirthYear: "",
     lifeExpectancyRadio: "",
     lifeExpectancyYears: "",
+    lifeExpectancyMean: "",
+    lifeExpectancyStd: "",
     spouselifeExpectancyRadio: "",
     spouselifeExpectancyYears: "",
+    spouselifeExpectancyMean: "",
+    spouselifeExpectancyStd: "",
     inflationAssumptionType: "", // fixed, normal, uniform
     inflationAssumptionFixed: "",
     inflationAssumptionMean: "",
@@ -32,6 +34,7 @@ const CreatePlan = () => {
     rothEndYear: "",
     rothconversionstrategy: "",
     financialGoal: "",
+    
     investments: [
       {
         id: 1,
@@ -40,15 +43,15 @@ const CreatePlan = () => {
         investmentName: "",
         investmentValue:"",
         investmentDescription: "",
-        annualReturnAmtOrPct: "", // "amount" | "percent"
-        annualReturnType: "", // fixed, normal, uniform,
+        returnAmtOrPct: "", // "amount" | "percent"
+        returnDistribution: "", // fixed, normal, uniform,
         annualReturnFixed: "",
         annualReturnMean: "",
         annualReturnStdev: "",
         annualReturnLower: "",
         annualReturnUpper: "",
-        annualIncomeAmtOrPct: "", // "amount" | "percent"
-        annualIncomeType: "", // fixed, normal, uniform
+        incomeAmtOrPct: "", // "amount" | "percent"
+        incomeDistribution: "", // fixed, normal, uniform
         annualIncomeFixed: "",
         annualIncomeMean: "",
         annualIncomeStdev: "",
@@ -140,13 +143,13 @@ const CreatePlan = () => {
           investmentName: "",
           investmentValue:"",
           investmentDescription: "",
-          annualReturnType: "",
+          returnDistribution: "",
           annualReturnFixed: "",
           annualReturnMean: "",
           annualReturnStdev: "",
           annualReturnLower: "",
           annualReturnUpper: "",
-          annualIncomeType: "",
+          incomeDistribution: "",
           annualIncomeFixed: "",
           annualIncomeMean: "",
           annualIncomeStdev: "",
@@ -173,7 +176,6 @@ const CreatePlan = () => {
     const { name, value, type, files } = e.target;
   
     if (name === "investmentType") {
-      // Immediate state update so the dropdown reflects the user's selection
       const newInvestments = [...formData.investments];
       newInvestments[index] = {
         ...newInvestments[index],
@@ -184,19 +186,25 @@ const CreatePlan = () => {
         investments: newInvestments,
       }));
     
-      // Optional: fetch additional data about the investment type
-      fetch(`http://localhost:5000/api/investment-types/${value}`)
-        .then((res) => res.json())
+      fetch(`http://localhost:5000/api/investment-types/name/${value}`)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Investment type not found");
+          }
+          return res.json();
+        })
         .then((data) => {
           console.log("Fetched investment type data:", data);
-          // You could populate more fields here if needed
         })
         .catch((err) => {
           console.error("Failed to fetch investment type data:", err);
         });
+
     
       return;
     }
+
+
     
   
   
@@ -301,7 +309,6 @@ const CreatePlan = () => {
           assetAllocation2: { Stocks: "", Bonds: "" },
           glidePath: false,
           maxCash: ""
-          // delete
         },
       ],
     }));
@@ -317,21 +324,16 @@ const CreatePlan = () => {
 
   const handleLifeEventChange = (index, e) => {
     const { name, value, type, checked } = e.target;
-  
     const newLifeEvents = [...formData.lifeEvents];
-  
-    // Remove the "-0", "-1", etc. suffix from names like "changeDistribution.type-0"
     const cleanName = name.replace(/-\d+$/, "");
     const [parentKey, childKey] = cleanName.split(".");
   
     if (childKey) {
-      // It's a nested field like "changeDistribution.type"
       newLifeEvents[index][parentKey] = {
         ...(newLifeEvents[index][parentKey] || {}),
         [childKey]: value,
       };
     } else {
-      // Simple top-level field (e.g. "annualChangeType")
       newLifeEvents[index][cleanName] = type === "checkbox" ? checked : value;
     }
   
@@ -343,240 +345,300 @@ const CreatePlan = () => {
   
   
   const transformFormData = (formData) => {
-    const isJoint = formData.planType === "joint";
-  
-    return {
-      userId: localStorage.getItem("userId") || "",
-      name: formData.planName,
-      maritalStatus: isJoint ? "couple" : "individual",
-      birthYears: isJoint
-        ? [parseInt(formData.birthYear), parseInt(formData.spouseBirthYear || "0")]
-        : [parseInt(formData.birthYear)],
-      lifeExpectancy: isJoint
-        ? [
-            formData.lifeExpectancyRadio === "yes"
-              ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
-              : { type: "normal", mean: 90, stdev: 10 },
-            formData.spouseLifeExpectancyRadio === "yes"
-              ? { type: "fixed", value: parseInt(formData.spouseLifeExpectancyYears) }
-              : { type: "normal", mean: 90, stdev: 10 },
-          ]
-        : [
-            formData.lifeExpectancyRadio === "yes"
-              ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
-              : { type: "normal", mean: 90, stdev: 10 },
-          ],
-  
-          inflationAssumption: (() => {
-            const firstEvent = formData.lifeEvents?.[0];
-            const changeDist = firstEvent?.changeDistribution || { type: "fixed", value: 0 };
-          
-            const type = changeDist.type || "fixed";
-          
-            if (type === "fixed") {
-              return { type, value: parseFloat(changeDist.value || "0") };
-            }
-            if (type === "normal") {
-              return {
-                type,
-                mean: parseFloat(changeDist.mean || "0"),
-                stdev: parseFloat(changeDist.stdev || "0"),
-              };
-            }
-          
-            return { type: "fixed", value: 0 };
-          })(),
-          
-  
-      spendingStrategy: formData.spendingStrategy?.split(",").map((id) => id.trim()) || [],
-      expenseWithdrawalStrategy: formData.expenseWithdrawalStrategy?.split(",").map((id) => id.trim()) || [],
-      RMDStrategy: formData.rmdStrategy?.split(",").map((id) => id.trim()) || [],
-      RothConversionStrategy: formData.rothconversionstrategy?.split(",").map((id) => id.trim()) || [],
-  
-      financialGoal: parseFloat(formData.financialGoal || "0"),
-      RothConversionOpt: formData.rothConversion === "yes",
-      RothConversionStart: parseInt(formData.rothStartYear || "0"),
-      RothConversionEnd: parseInt(formData.rothEndYear || "0"),
-  
-      investments: formData.investments.map((inv) => {
-        const returnDistribution = (() => {
-          const type = inv.annualReturnType || "fixed";
-          if (type === "fixed") return { type, value: parseFloat(inv.annualReturnFixed || "0") };
-          if (type === "normal") return {
-            type,
+  const isJoint = formData.planType === "joint";
+
+  return {
+    userId: localStorage.getItem("userId") || "",
+    name: formData.planName,
+    maritalStatus: isJoint ? "couple" : "individual",
+    birthYears: isJoint
+      ? [parseInt(formData.birthYear), parseInt(formData.spouseBirthYear || "0")]
+      : [parseInt(formData.birthYear)],
+
+    // -- Life Expectancy Array
+    lifeExpectancy: isJoint
+      ? [
+          // USER
+          formData.lifeExpectancyRadio === "yes"
+            ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
+            : { type: "normal", mean: parseInt(formData.lifeExpectancyMean), stdev: parseInt(formData.lifeExpectancyStd) },
+
+          // SPOUSE
+          formData.spouseLifeExpectancyRadio === "yes"
+            ? { type: "fixed", value: parseInt(formData.spouseLifeExpectancyYears) }
+            : { type: "normal", mean: parseInt(formData.spouseLifeExpectancyMean), stdev: parseInt(formData.spouseLifeExpectancyStd) },
+        ]
+      : [
+          // SINGLE PLAN
+          formData.lifeExpectancyRadio === "yes"
+            ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
+            : { type: "normal", mean: parseInt(formData.lifeExpectancyMean), stdev: parseInt(formData.lifeExpectancyStd) },
+        ],
+
+    // -- Example inflation assumption
+    inflationAssumption: (() => {
+      const firstEvent = formData.lifeEvents?.[0];
+      // If user never sets it, default to { type: "fixed", value: 0 }
+      const changeDist = firstEvent?.changeDistribution || { type: "fixed", value: 0 };
+
+      if (changeDist.type === "normal") {
+        return {
+          type: "normal",
+          mean: parseFloat(changeDist.mean || "0"),
+          stdev: parseFloat(changeDist.stdev || "0"),
+        };
+      }
+      // default "fixed"
+      return { type: "fixed", value: parseFloat(changeDist.value || "0") };
+    })(),
+
+    spendingStrategy: formData.spendingStrategy?.split(",").map(s => s.trim()) || [],
+    expenseWithdrawalStrategy: formData.expenseWithdrawalStrategy?.split(",").map(s => s.trim()) || [],
+    RMDStrategy: formData.rmdStrategy?.split(",").map(s => s.trim()) || [],
+    RothConversionStrategy: formData.rothconversionstrategy?.split(",").map(s => s.trim()) || [],
+
+    financialGoal: parseFloat(formData.financialGoal || "0"),
+    RothConversionOpt: formData.rothConversion === "yes",
+    RothConversionStart: parseInt(formData.rothStartYear || "0"),
+    RothConversionEnd: parseInt(formData.rothEndYear || "0"),
+
+    // ---------- INVESTMENTS ----------
+    investments: formData.investments.map((inv) => {
+      // Build the subdocument for returnDistribution
+      const returnDistribution = (() => {
+        const type = inv.returnDistribution || "fixed";
+        if (type === "normal") {
+          return {
+            type: "normal",
             mean: parseFloat(inv.annualReturnMean || "0"),
             stdev: parseFloat(inv.annualReturnStdev || "0"),
           };
+        }
+        // default "fixed"
+        return {
+          type: "fixed",
+          value: parseFloat(inv.annualReturnFixed || "0"),
+        };
+      })();
 
-          return { type: "fixed", value: 0 };
-        })();
-  
-        const incomeDistribution = (() => {
-          const type = inv.annualIncomeType || "fixed";
-          if (type === "fixed") return { type, value: parseFloat(inv.annualIncomeFixed || "0") };
-          if (type === "normal") return {
-            type,
+      // Build the subdocument for incomeDistribution
+      const incomeDistribution = (() => {
+        const type = inv.incomeDistribution || "fixed";
+        if (type === "normal") {
+          return {
+            type: "normal",
             mean: parseFloat(inv.annualIncomeMean || "0"),
             stdev: parseFloat(inv.annualIncomeStdev || "0"),
           };
-          
-          return { type: "fixed", value: 0 };
-        })();
-  
+        }
+        // default "fixed"
         return {
-          id: inv.id.toString(),
-          investmentName: inv.investmentName || "",
-          investmentDescription: inv.investmentDescription || "", 
-          investmentType: inv.investmentType || "",
-          value: parseFloat(inv.investmentValue || "0"),
-          taxStatus: inv.accountType || "non-retirement",
-          returnAmtOrPct: inv.annualReturnAmtOrPct || "percent",
-          returnDistribution,
-          incomeAmtOrPct: inv.annualIncomeAmtOrPct || "percent",
-          incomeDistribution,
-          taxability: inv.taxability === "taxable",
+          type: "fixed",
+          value: parseFloat(inv.annualIncomeFixed || "0"),
         };
-      }),
-  
-      eventSeries: formData.lifeEvents.map((event) => {
-        const isIncome = event.type === "income";
-        const isExpense = event.type === "expense";
-        const isInvest = event.type === "invest";
-        const isRebalance = event.type === "rebalance";
-  
-        return {
-          id: event.id.toString(),
-          type: event.type || "",
-          name: event.eventName || "",
-          description: event.eventDescription || "",
-  
-          start: (() => {
-            const type = event.startType || "fixed";
-            if (type === "fixed" || type === "startingYear") return { type: "fixed", value: parseInt(event.start || "0") };
-            if (type === "normal") return { type: "normal", mean: parseFloat(event.startMean || "0"), stdev: parseFloat(event.startStdev || "0") };
-            if (type === "uniform") return { type: "uniform", lower: parseFloat(event.startMin || "0"), upper: parseFloat(event.startMax || "0") };
-            if (type === "startWith" || type === "startEndEvent") return { type, eventSeries: event.startEvent || "" };
-            return { type: "fixed", value: 0 };
-          })(),
-  
-          duration: {
-            type: "fixed",
-            value: parseInt(event.duration || "0"),
-          },
-  
-          ...(isIncome || isExpense
-            ? {
-                initialAmount: parseFloat(event.initialAmount || "0"),
-                changeAmtOrPct: event.annualChangeAmtOrPct || "amount",
-                changeDistribution: (() => {
-                  const type = event.changeDistribution?.type || "fixed";
-                
-                  if (type === "fixed") {
-                    return { type, value: parseFloat(event.changeDistribution?.value || "0") };
-                  }
-                  if (type === "normal") {
-                    return {
-                      type,
-                      mean: parseFloat(event.changeDistribution?.mean || "0"),
-                      stdev: parseFloat(event.changeDistribution?.stdev || "0"),
-                    };
-                  }
-                  return { type: "fixed", value: 0 };
-                })(),
-                
-                inflationAdjusted: true,
-                userFraction: parseFloat(event.userPct || "1"),
-                socialSecurity: isIncome && event.incomeSource === "socialSecurity",
-                discretionary: isExpense && event.expenseSource === "Discretionary",
-                inflationType: event.inflationType || "fixed",
-                inflationAmtOrPct: event.inflationAmtOrPct || "amount",
-                ...(event.inflationType === "fixed"
-                  ? { inflationFixed: parseFloat(event.inflationFixed || "0") }
-                  : {}),
-                ...(event.inflationType === "normal"
-                  ? {
-                      inflationMean: parseFloat(event.inflationMean || "0"),
-                      inflationStdev: parseFloat(event.inflationStdev || "0"),
-                    }
-                  : {}),
-              }
-            : {}),
-  
-          ...(isInvest || isRebalance
-            ? {
-                assetAllocation: event.assetAllocation || { stocks: 100 },
-                glidePath: isInvest ? event.glidePath || false : undefined,
-                assetAllocation2: isInvest ? event.assetAllocation2 || { bonds: 100 } : undefined,
-                maxCash: isInvest ? parseFloat(event.maxCash || "0") : undefined,
-              }
-            : {}),
-        };
-      }),
-  
-      investmentTypes: [],
-      afterTaxContributionLimit: 6500,
-      residenceState: "NY",
-      sharedUsersId: [],
-      sharedUserPerms: [],
-      version: 1,
-    };
-  };
-  
+      })();
 
-  const handleSubmit = async () => {
-    const payload = transformFormData(formData);
+      return {
+        id: inv.investmentName || "", 
+        investmentName: inv.investmentName || "",
+        investmentDescription: inv.investmentDescription || "",
+        investmentType: inv.investmentType || "",
+        value: parseFloat(inv.investmentValue || "0"),
+
+        // e.g. "non-retirement" | "pre-tax" | "after-tax"
+        taxStatus: inv.accountType || "non-retirement",
+
+        // "amount" | "percent" for returns
+        returnAmtOrPct: inv.returnAmtOrPct || "percent",
+        returnDistribution,
+
+        // "amount" | "percent" for income
+        incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
+        incomeDistribution,
+
+        // e.g. "taxable" | "tax-exempt"
+        taxability: inv.taxability === "taxable",
+      };
+    }),
+
+    // ---------- LIFE EVENTS ----------
+    eventSeries: formData.lifeEvents.map((event) => {
+      const isIncome = event.type === "income";
+      const isExpense = event.type === "expense";
+      const isInvest = event.type === "invest";
+      const isRebalance = event.type === "rebalance";
+
+      return {
+        id: event.id.toString(),
+        type: event.type || "",
+        name: event.eventName || "",
+        description: event.eventDescription || "",
+
+        // Start subdocument
+        start: (() => {
+          const t = event.startType || "fixed";
+          if (t === "normal") {
+            return {
+              type: "normal",
+              mean: parseFloat(event.startMean || "0"),
+              stdev: parseFloat(event.startStdev || "0"),
+            };
+          }
+          if (t === "uniform") {
+            return {
+              type: "uniform",
+              lower: parseFloat(event.startMin || "0"),
+              upper: parseFloat(event.startMax || "0"),
+            };
+          }
+          if (t === "startWith" || t === "startEndEvent") {
+            return { type: t, eventSeries: event.startEvent || "" };
+          }
+          // default "fixed"
+          return { type: "fixed", value: parseInt(event.start || "0") };
+        })(),
+
+        // Duration subdocument
+        duration: {
+          type: "fixed",
+          value: parseInt(event.duration || "0"),
+        },
+
+        //  If it's an income or expense event...
+        ...(isIncome || isExpense
+          ? {
+              initialAmount: parseFloat(event.initialAmount || "0"),
+              changeAmtOrPct: event.annualChangeAmtOrPct || "amount",
+              changeDistribution: (() => {
+                const t = event.changeDistribution?.type || "fixed";
+                if (t === "normal") {
+                  return {
+                    type: "normal",
+                    mean: parseFloat(event.changeDistribution?.mean || "0"),
+                    stdev: parseFloat(event.changeDistribution?.stdev || "0"),
+                  };
+                }
+                // default "fixed"
+                return {
+                  type: "fixed",
+                  value: parseFloat(event.changeDistribution?.value || "0"),
+                };
+              })(),
+              inflationAdjusted: true,
+              userFraction: parseFloat(event.userPct || "1"),
+              socialSecurity: isIncome && event.incomeSource === "socialSecurity",
+              discretionary: isExpense && event.expenseSource === "Discretionary",
+              inflationType: event.inflationType || "fixed",
+              inflationAmtOrPct: event.inflationAmtOrPct || "amount",
+              ...(event.inflationType === "fixed"
+                ? { inflationFixed: parseFloat(event.inflationFixed || "0") }
+                : {}),
+              ...(event.inflationType === "normal"
+                ? {
+                    inflationMean: parseFloat(event.inflationMean || "0"),
+                    inflationStdev: parseFloat(event.inflationStdev || "0"),
+                  }
+                : {}),
+            }
+          : {}),
+
+        // If it's an invest or rebalance event...
+        ...(isInvest || isRebalance
+          ? {
+              assetAllocation: event.assetAllocation || { stocks: 100 },
+              glidePath: isInvest ? event.glidePath || false : undefined,
+              assetAllocation2: isInvest ? event.assetAllocation2 || { bonds: 100 } : undefined,
+              maxCash: isInvest ? parseFloat(event.maxCash || "0") : undefined,
+            }
+          : {}),
+      };
+    }),
+
+    // Additional fields
+    investmentTypes: [],
+    afterTaxContributionLimit: 6500,
+    residenceState: "NY",
+    sharedUsersId: [],
+    sharedUserPerms: [],
+    version: 1,
+  };
+};
   
-    try {
-      const planRes = await fetch("http://localhost:5000/api/plans", {
+const handleSubmit = async () => {
+  try {
+    const transformedData = transformFormData(formData);
+    const updatedInvestments = [];
+    const investmentTypesArray = [];
+
+    for (const inv of transformedData.investments) {
+      const invTypePayload = {
+        name: inv.investmentName || inv.investmentType || "Untitled",
+        description: inv.investmentDescription || "",
+        taxability: inv.taxability,
+        expenseRatio: 0,
+        returnAmtOrPct: inv.returnAmtOrPct,
+        returnDistribution: inv.returnDistribution,
+        incomeAmtOrPct: inv.incomeAmtOrPct,
+        incomeDistribution: inv.incomeDistribution,
+      };
+
+      let investmentType = null;
+
+      const findRes = await fetch("http://localhost:5000/api/investment-types/find", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(invTypePayload),
       });
-      if (!planRes.ok) {
-        throw new Error("Failed to save plan");
-      }
-      const createdPlan = await planRes.json(); 
-  
-      for (const inv of payload.investments) {
-        const isTaxable = (inv.taxability === "taxable");
-  
-        const invTypePayload = {
-          planId: createdPlan._id, 
-  
-          name: inv.investmentName || inv.investmentType || "Untitled", 
-          taxability: isTaxable,  
-          expenseRatio: 0,       
-  
-          returnAmtOrPct: inv.returnAmtOrPct,
-          returnDistribution: inv.returnDistribution,
-          incomeAmtOrPct: inv.incomeAmtOrPct,
-          incomeDistribution: inv.incomeDistribution,
-        };
-  
-        const invTypeRes = await fetch("http://localhost:5000/api/investment-types", {
+
+      const found = await findRes.json();
+      if (findRes.ok && found?._id) {
+        investmentType = found;
+      } else {
+        const createRes = await fetch("http://localhost:5000/api/investment-types", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(invTypePayload),
         });
-        if (!invTypeRes.ok) {
-          console.error("Failed to create investment type for:", invTypePayload);
-        } else {
-          const newInvType = await invTypeRes.json();
-          console.log("Created investment type:", newInvType);
-        }
+        if (!createRes.ok) throw new Error("Failed to create investment type");
+        investmentType = await createRes.json();
       }
-  
-      // 3) Show success
-      alert("Plan + InvestmentTypes created successfully!");
-      setFormData(JSON.parse(JSON.stringify(defaultFormData)));
-  
-    } catch (error) {
-      console.error("Error submitting plan:", error);
-      alert("There was an error. Check the console for details.");
-    }
-  };
-  
 
+      // ✅ Use the full object in investmentTypes array
+      investmentTypesArray.push(investmentType);
+
+      // ✅ Use just the ID for referencing in the investments array
+      updatedInvestments.push({
+        id: inv.investmentName || inv.id || "Unnamed",
+        investmentType: investmentType._id, // ref
+        value: inv.value,
+        taxStatus: inv.taxStatus,
+      });
+    }
+
+
+    const finalPayload = {
+      ...transformedData,
+      investments: updatedInvestments,
+      investmentTypes: investmentTypesArray,
+    };    
+
+    const planRes = await fetch("http://localhost:5000/api/plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(finalPayload),
+    });
+
+    if (!planRes.ok) throw new Error("Failed to save plan");
+
+    alert("Plan created successfully!");
+    setFormData(JSON.parse(JSON.stringify(defaultFormData)));
+
+  } catch (error) {
+    console.error("Error submitting plan:", error);
+    alert("There was an error. Check the console for details.");
+  }
+};
+  
   const username = localStorage.getItem("name");
   const name = localStorage.getItem("given_name");
   const picture = localStorage.getItem("picture")
@@ -602,6 +664,32 @@ const CreatePlan = () => {
       };
     });
   };
+  
+  type RadioGroupProps = {
+    label?: string;
+    name: string;
+    selectedValue: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    options: { label: string; value: string }[];
+  };
+  
+  const RadioGroup: React.FC<RadioGroupProps> = ({ label, name, selectedValue, onChange, options }) => (
+    <div className="checkbox-group normal-text">
+      {label && <div className="normal-text">{label}</div>}
+      {options.map((option) => (
+        <label className="normal-text" key={option.value}>
+          <input
+            type="radio"
+            name={name}
+            value={option.value}
+            checked={selectedValue === option.value}
+            onChange={onChange}
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+  );
   
   
   // ----------------------------------------------------- HTML STUFF -----------------------------------------------------//
@@ -640,28 +728,15 @@ const CreatePlan = () => {
 
         {/* Plan Type */}
         <div className="normal-text">Plan Type*</div>
-        <div className="checkbox-group normal-text">
-          <label>
-            <input
-              type="radio"
-              name="planType"
-              value="individual"
-              checked={formData.planType === "individual"}
-              onChange={handleChange}
-            />
-            Individual Plan
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="planType"
-              value="joint"
-              checked={formData.planType === "joint"}
-              onChange={handleChange}
-            />
-            Joint Plan
-          </label>
-        </div>
+        <RadioGroup
+          name="planType"
+          selectedValue={formData.planType}
+          onChange={handleChange}
+          options={[
+            { label: "Individual Plan", value: "individual" },
+            { label: "Joint Plan", value: "joint" },
+          ]}
+        />
 
         {/* Current Age & Birth Year */}
         <div className="normal-text">What Year Were You Born*</div>
@@ -679,27 +754,17 @@ const CreatePlan = () => {
         </div>
         <div className="split-container">
           <div className="left-side">
-            <label className="normal-text">
-              <input
-                type="radio"
-                name="lifeExpectancyRadio"
-                value="yes"
-                checked={formData.lifeExpectancyRadio === "yes"}
-                onChange={handleChange}
-              />
-              Yes
-            </label>
-            <label className="normal-text">
-              <input
-                type="radio"
-                name="lifeExpectancyRadio"
-                value="no"
-                checked={formData.lifeExpectancyRadio === "no"}
-                onChange={handleChange}
-              />
-              No, Use a Sample
-            </label>
+            <RadioGroup
+              name="lifeExpectancyRadio"
+              selectedValue={formData.lifeExpectancyRadio}
+              onChange={handleChange}
+              options={[
+                { label: "Yes", value: "yes" },
+                { label: "No, Use a Sample", value: "no" },
+              ]}
+            />
           </div>
+
           {/* If yes, show numeric input */}
           <div className="right-side">
             {formData.lifeExpectancyRadio === "yes" && (
@@ -711,6 +776,28 @@ const CreatePlan = () => {
                 value={formData.lifeExpectancyYears}
                 onChange={handleChange}
               />
+            )}
+            {formData.lifeExpectancyRadio === "no" && (
+              <>
+              <div className="normal-text">Mean</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="annualReturnMean"
+                  placeholder="Enter mean..."
+                  value={formData.lifeExpectancyMean}
+                  onChange={handleChange}
+                />
+                <div className="normal-text">Standard Deviation</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="annualReturnStdev"
+                  placeholder="Enter standard deviation..."
+                  value={formData.lifeExpectancyStd}
+                  onChange={handleChange}
+                />
+              </>
             )}
           </div>
         </div>
@@ -732,26 +819,15 @@ const CreatePlan = () => {
             </div>
             <div className="split-container">
               <div className="left-side">
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name="spouseLifeExpectancyRadio"
-                    value="yes"
-                    checked={formData.spouseLifeExpectancyRadio === "yes"}
-                    onChange={handleChange}
-                  />
-                  Yes
-                </label>
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name="spouseLifeExpectancyRadio"
-                    value="no"
-                    checked={formData.spouseLifeExpectancyRadio === "no"}
-                    onChange={handleChange}
-                  />
-                  No, Use a Sample
-                </label>
+                <RadioGroup
+                  name="spouseLifeExpectancyRadio"
+                  selectedValue={formData.spouseLifeExpectancyRadio}
+                  onChange={handleChange}
+                  options={[
+                    { label: "Yes", value: "yes" },
+                    { label: "No, Use a Sample", value: "no" },
+                  ]}
+                />
               </div>
               {/* If yes, show numeric input */}
               <div className="right-side">
@@ -765,6 +841,28 @@ const CreatePlan = () => {
                   onChange={handleChange}
                 />
               )}
+              {formData.lifeExpectancyRadio === "no" && (
+              <>
+              <div className="normal-text">Mean</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="annualReturnMean"
+                  placeholder="Enter mean..."
+                  value={formData.spouselifeExpectancyMean}
+                  onChange={handleChange}
+                />
+                <div className="normal-text">Standard Deviation</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="annualReturnStdev"
+                  placeholder="Enter standard deviation..."
+                  value={formData.spouselifeExpectancyStd}
+                  onChange={handleChange}
+                />
+              </>
+            )}
 
               </div>
             </div>
@@ -781,8 +879,6 @@ const CreatePlan = () => {
           placeholder="Enter 2 Letter State Acronym"
           onChange={handleChange}
         />
-
-        
       </div>
 
     {/* ------------------------------------------Investments & Savings------------------------------------------ */}
@@ -869,51 +965,32 @@ const CreatePlan = () => {
             <div className="normal-text">How would you like to express the investment's annual return?*</div>
             <div className="split-container">
               <div className="left-side">
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name={`annualReturnType-${index}`}
-                    value="fixed"
-                    checked={investment.annualReturnType === "fixed"}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  Fixed Amount / Percentage
-                </label>
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name={`annualReturnType-${index}`}
-                    value="normal"
-                    checked={investment.annualReturnType === "normal"}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  Normal Distribution Percentage
-                </label>
+                <RadioGroup
+                  name={`returnDistribution-${index}`}
+                  selectedValue={investment.returnDistribution}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                  options={[
+                    { label: "Fixed Amount / Percentage", value: "fixed" },
+                    { label: "Normal Distribution Percentage", value: "normal" },
+                  ]}
+                />
+
               </div>
               <div className="right-side">
                 {/* Fixed Return */}
-                {investment.annualReturnType === "fixed" && (
+                {investment.returnDistribution === "fixed" && (
                   <>
                     <div className="checkbox-group">
                       <label className="normal-text">
-                        <input
-                          type="radio"
-                          name={`annualReturnAmtOrPct-${index}`}
-                          value="amount"
-                          checked={investment.annualReturnAmtOrPct === "amount"}
+                        <RadioGroup
+                          name={`returnAmtOrPct-${index}`}
+                          selectedValue={investment.returnAmtOrPct}
                           onChange={(e) => handleInvestmentChange(index, e)}
+                          options={[
+                            { label: "Fixed Amount", value: "amount" },
+                            { label: "Percentage", value: "percent" },
+                          ]}
                         />
-                        Fixed Amount
-                      </label>
-                      <label className="normal-text">
-                        <input
-                          type="radio"
-                          name={`annualReturnAmtOrPct-${index}`}
-                          value="percent"
-                          checked={investment.annualReturnAmtOrPct === "percent"}
-                          onChange={(e) => handleInvestmentChange(index, e)}
-                        />
-                        Percentage
                       </label>
                     </div>
                     <input
@@ -928,28 +1005,19 @@ const CreatePlan = () => {
                 )}
 
                 {/* Normal Return */}
-                {investment.annualReturnType === "normal" && (
+                {investment.returnDistribution === "normal" && (
                   <>
                     <div className="checkbox-group">
                       <label className="normal-text">
-                        <input
-                          type="radio"
-                          name={`annualReturnAmtOrPct-${index}`}
-                          value="amount"
-                          checked={investment.annualReturnAmtOrPct === "amount"}
+                        <RadioGroup
+                          name={`returnAmtOrPct-${index}`}
+                          selectedValue={investment.returnAmtOrPct}
                           onChange={(e) => handleInvestmentChange(index, e)}
+                          options={[
+                            { label: "Fixed Amount", value: "amount" },
+                            { label: "Percentage", value: "percent" },
+                          ]}
                         />
-                        Fixed Amount
-                      </label>
-                      <label className="normal-text">
-                        <input
-                          type="radio"
-                          name={`annualReturnAmtOrPct-${index}`}
-                          value="percent"
-                          checked={investment.annualReturnAmtOrPct === "percent"}
-                          onChange={(e) => handleInvestmentChange(index, e)}
-                        />
-                        Percentage
                       </label>
                     </div>
                     <div className="normal-text">Mean</div>
@@ -981,51 +1049,34 @@ const CreatePlan = () => {
             <div className="split-container">
               <div className="left-side">
                 <label className="normal-text">
-                  <input
-                    type="radio"
-                    name={`annualIncomeType-${index}`}
-                    value="fixed"
-                    checked={investment.annualIncomeType === "fixed"}
+                  <RadioGroup
+                    name={`incomeDistribution-${index}`}
+                    selectedValue={investment.incomeDistribution}
                     onChange={(e) => handleInvestmentChange(index, e)}
+                    options={[
+                      { label: "Fixed Amount / Percentage", value: "fixed" },
+                      { label: "Normal Distribution Percentage", value: "normal" },
+                    ]}
                   />
-                  Fixed Amount / Percentage
-                </label>
-                <label className="normal-text">
-                  <input
-                    type="radio"
-                    name={`annualIncomeType-${index}`}
-                    value="normal"
-                    checked={investment.annualIncomeType === "normal"}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  Normal Distribution Percentage
+
                 </label>
               </div>
               <div className="right-side">
                 {/* Fixed Income */}
                 <div className="right-side">
-                {investment.annualIncomeType === "fixed" && (
+                {investment.incomeDistribution === "fixed" && (
                   <>
                     <div className="checkbox-group">
                       <label className="normal-text">
-                        <input
-                          type="radio"
-                          name={`annualIncomeAmtOrPct-${index}`}
-                          value="amount"
-                          checked={investment.annualIncomeAmtOrPct === "amount"}
-                          onChange={(e) => handleInvestmentChange(index, e)}
-                        />
-                        Fixed Amount
-                      </label>
-                      <label className="normal-text">
-                        <input
-                          type="radio"
-                          name={`annualIncomeAmtOrPct-${index}`}
-                          value="percent"
-                          checked={investment.annualIncomeAmtOrPct === "percent"}
-                          onChange={(e) => handleInvestmentChange(index, e)}
-                        />
-                        Percentage
+                      <RadioGroup
+                        name={`incomeAmtOrPct-${index}`}
+                        selectedValue={investment.incomeAmtOrPct}
+                        onChange={(e) => handleInvestmentChange(index, e)}
+                        options={[
+                          { label: "Fixed Amount", value: "amount" },
+                          { label: "Percentage", value: "percent" },
+                        ]}
+                      />
                       </label>
                     </div>
                     <input
@@ -1042,28 +1093,19 @@ const CreatePlan = () => {
 
 
               {/* Normal Income */}
-              {investment.annualIncomeType === "normal" && (
+              {investment.incomeDistribution === "normal" && (
                 <>
                   <div className="checkbox-group">
                     <label className="normal-text">
-                      <input
-                        type="radio"
-                        name={`annualIncomeAmtOrPct-${index}`}
-                        value="amount"
-                        checked={investment.annualIncomeAmtOrPct === "amount"}
+                      <RadioGroup
+                        name={`incomeAmtOrPct-${index}`}
+                        selectedValue={investment.incomeAmtOrPct}
                         onChange={(e) => handleInvestmentChange(index, e)}
+                        options={[
+                          { label: "Fixed Amount", value: "amount" },
+                          { label: "Percentage", value: "percent" },
+                        ]}
                       />
-                      Fixed Amount
-                    </label>
-                    <label className="normal-text">
-                      <input
-                        type="radio"
-                        name={`annualIncomeAmtOrPct-${index}`}
-                        value="percent"
-                        checked={investment.annualIncomeAmtOrPct === "percent"}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                      />
-                      Percentage
                     </label>
                   </div>
                   <div className="normal-text">Mean</div>
@@ -1093,24 +1135,15 @@ const CreatePlan = () => {
             <div className="normal-text">Is this investment taxable?*</div>
             <div className="checkbox-group">
               <label className="normal-text">
-                <input
-                  type="radio"
-                  name={`taxability-${index}`}
-                  value="taxable"
-                  checked={investment.taxability === "taxable"}
-                  onChange={(e) => handleInvestmentChange(index, e)}
-                />
-                Taxable
-              </label>
-              <label className="normal-text">
-                <input
-                  type="radio"
-                  name={`taxability-${index}`}
-                  value="tax-exempt"
-                  checked={investment.taxability === "tax-exempt"}
-                  onChange={(e) => handleInvestmentChange(index, e)}
-                />
-                Tax-Exempt
+              <RadioGroup
+                name={`taxability-${index}`}
+                selectedValue={investment.taxability}
+                onChange={(e) => handleInvestmentChange(index, e)}
+                options={[
+                  { label: "Taxable", value: "taxable" },
+                  { label: "Tax-Exempt", value: "tax-exempt" },
+                ]}
+              />
               </label>
             </div>
 
@@ -1156,7 +1189,7 @@ const CreatePlan = () => {
     </button>
 
     <div className="normal-text" style={{ marginTop: "20px" }}>
-      How do you want to order your RMD strategy (pre-tax investment IDs comma-separated)
+      How do you want to order your RMD strategy 
     </div>
     <input
       className="input-boxes"
@@ -1179,7 +1212,7 @@ const CreatePlan = () => {
 
 
       {/* ------------------------------------------Life Events------------------------------------------ */}
-      <div className="subheading">Life Events</div>
+      <div className="subheading">Event Series</div>
       {formData.lifeEvents.map((lifeEvent, index) => (
         <div
           key={lifeEvent.id}
@@ -1187,7 +1220,7 @@ const CreatePlan = () => {
         >
           {/* Used ChatGPT to help create dynampic Collapsible Header */}
           <div className="collapse-heading">
-            <div className="collapsed-text">Life Event {lifeEvent.id}</div>
+            <div className="collapsed-text">Event Series {lifeEvent.id}</div>
             <button className="collapse-button" onClick={() => toggleLifeEvents(index)}>
               {lifeEvent.isExpanded ? "−" : "+"}
             </button>
@@ -1205,7 +1238,7 @@ const CreatePlan = () => {
               <div className="split-container">
                 <div className="left-side">
                   {/* Common Select Field */}
-                  <div className="normal-text">Select Life Event Type*</div>
+                  <div className="normal-text">Select Event Series Type*</div>
                   <select
                     className="collapse-options"
                     name="type"
@@ -1371,7 +1404,7 @@ const CreatePlan = () => {
 
                 </div>
                 <div className="right-side">
-                  <div className="normal-text">Name of Life Event*</div>
+                  <div className="normal-text">Name of Event Series*</div>
                   <input
                     className="input-boxes"
                     type="text"
@@ -1379,7 +1412,7 @@ const CreatePlan = () => {
                     value={lifeEvent.eventName}
                     onChange={(e) => handleLifeEventChange(index, e)}
                   />
-                  <div className="normal-text">Brief Description of Life Event*</div>
+                  <div className="normal-text">Brief Description of Event Series*</div>
                   <textarea
                     className="input-boxes textarea-box"
                     rows="4"
@@ -1705,7 +1738,7 @@ const CreatePlan = () => {
 
               {/* Duration */}
               <br />
-              <div className="normal-text">What is the duration of this life event?*</div>
+              <div className="normal-text">What is the duration of this Event Series?*</div>
               <input
                 className="input-boxes"
                 type="text"

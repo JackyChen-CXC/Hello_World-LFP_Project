@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import "../css_files/page_style.css";
 
@@ -105,7 +105,38 @@ const OpenScenario = () => {
     return str.replace(/\b\w/g, (char: string) => char.toUpperCase());
   };
 
+  const DistributionDisplay = ({ label, distribution }: { label: string, distribution: Distribution }) => (
+    <>
+      <div className="scenario-info-container">
+        <div>{label} Type:</div>
+        <div>{capitalizeWords(distribution.type)}</div>
+      </div>
+      {distribution.value !== undefined && (
+        <div className="scenario-info-container">
+          <div>{label} Value:</div>
+          <div>{distribution.value}</div>
+        </div>
+      )}
+      {distribution.mean !== undefined && (
+        <div className="scenario-info-container">
+          <div>{label} Mean:</div>
+          <div>{distribution.mean}</div>
+        </div>
+      )}
+      {distribution.stdev !== undefined && (
+        <div className="scenario-info-container">
+          <div>{label} Stdev:</div>
+          <div>{distribution.stdev}</div>
+        </div>
+      )}
+    </>
+  );
+  
+
+  
   if (!scenario) return <div className="page-container">Scenario not found</div>;
+
+  {/**-----------------------------------HTML------------------------------------------------------ */}
 
   return (
     <div className="page-container">
@@ -125,11 +156,12 @@ const OpenScenario = () => {
         </div>
       </div>
 
+      {/**-----------------------------------Title------------------------------------------------------ */}
       <div className="scenario-container" style={{ width: "70%", height: "auto" }}>
         <div className="split-container">
           <div className="left-container">
             <div className="normal-text">Title: {capitalizeWords(scenario.name)}</div>
-            <div className="normal-text">Financial Goal: {scenario.financialGoal}</div>
+            <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
           </div>
           <div className="right-container">
             <div className="normal-text">Plan Type: {capitalizeWords(scenario.maritalStatus)} Plan</div>
@@ -140,34 +172,39 @@ const OpenScenario = () => {
         </div>
 
         <hr />
+        {/**-----------------------------------Basic Info------------------------------------------------------ */}
         <div className="normal-text" style={{ fontWeight: "bold" }}>Basic Information:</div>
-        <div className="normal-text">
-          Birth Year:{" "}
-          <span className="value-text">{scenario.birthYears.join(", ")}</span>
+
+        <div className="scenario-info-container">
+          <div>Birth Year:</div>
+          <div>{scenario.birthYears.join(", ")}</div>
         </div>
-        <div className="normal-text">
-          Life Expectancy:{" "}
+        
+        <div className="scenario-info-container">
+          Life Expectancy:
           {scenario.lifeExpectancy[0]?.type === "fixed" ? (
-            <span className="value-text">{scenario.lifeExpectancy[0]?.value} years</span>
+            <div>{scenario.lifeExpectancy[0]?.value} Years</div>
           ) : (
-            <span className="value-text">Sampled from a normal distribution</span>
+            <div >Sampled from a normal distribution</div>
           )}
         </div>
+        
         {scenario.maritalStatus === "couple" && scenario.birthYears[1] && (
-        <div className="normal-text">
-          Spouse's Birth Year:{" "}
-          <span className="value-text">{scenario.birthYears[1]}</span>
+        <div className="scenario-info-container">
+          Spouse's Birth Year:
+          <div >{scenario.birthYears[1]}</div>
         </div>
         )}
 
-        <div className="normal-text">
+        <div className="scenario-info-container">
           Residential State:{" "}
-          <span className="value-text">{capitalizeWords(scenario.residenceState) || "N/A"}</span>
+          <div >{capitalizeWords(scenario.residenceState) || "N/A"}</div>
         </div>
         <hr/>
+        {/**-----------------------------------Investments------------------------------------------------------ */}
         <div className="normal-text" style={{ fontWeight: "bold" }}>Investments:</div>
         {investmentDetails.length === 0 ? (
-          <div className="normal-text">No detailed investment data available.</div>
+        <div className="normal-text">No detailed investment data available.</div>
         ) : (
           investmentDetails.map((inv, index) => {
             const meta = scenario.investments[index];
@@ -176,75 +213,47 @@ const OpenScenario = () => {
                 <div className="normal-text" style={{ fontWeight: "bold" }}>
                   {index + 1}. Investment Name: {capitalizeWords(inv.name || "Unnamed")}
                 </div>
+                
+                {/**not done, not displaying */}
                 <div className="normal-text" style={{ marginLeft: "5%" }}>
                   {inv.description && (
                     <div>
                       Brief Description:{" "}
-                      <span className="value-text">{capitalizeWords(inv.description)}</span>
+                      <div >{capitalizeWords(inv.description)}</div>
                     </div>
                   )}
-                  <div>
+
+                  <div className="scenario-info-container">
                     Investment Type:{" "}
-                    <span className="value-text">{capitalizeWords(meta?.investmentType || "N/A")}</span>
+                    <div >{capitalizeWords(meta?.investmentType || "N/A")}</div>
                   </div>
-                  <div>
+                  <div className="scenario-info-container">
                     Current Value:{" "}
-                    <span className="value-text">${meta?.value || 0}</span>
+                    <div >${meta?.value || 0}</div>
                   </div>
-                  <div>
+                  <div className="scenario-info-container">
                     Tax Status:{" "}
-                    <span className="value-text">{capitalizeWords(meta?.taxStatus || "N/A")}</span>
+                    <div >{capitalizeWords(meta?.taxStatus || "N/A")}</div>
                   </div>
 
                   {/* Return & Income Distribution */}
-                  <div style={{ marginTop: "1rem" }}>
-                    <div>
-                      Annual Return Type: <span className="value-text">{inv.returnDistribution?.type}</span>
-                    </div>
-                    {inv.returnDistribution?.value !== undefined && (
-                      <div>
-                        Annual Return Value: <span className="value-text">{inv.returnDistribution.value}</span>
-                      </div>
-                    )}
-                    {inv.returnDistribution?.mean !== undefined && (
-                      <div>
-                        Annual Return Mean: <span className="value-text">{inv.returnDistribution.mean}</span>
-                      </div>
-                    )}
-                    {inv.returnDistribution?.stdev !== undefined && (
-                      <div>
-                        Annual Return Stdev: <span className="value-text">{inv.returnDistribution.stdev}</span>
-                      </div>
-                    )}
+                  {inv.returnDistribution && (
+                    <DistributionDisplay label="Annual Return" distribution={inv.returnDistribution} />
+                  )}
 
-                    <div style={{ marginTop: "0.5rem" }}>
-                      Annual Income Type: <span className="value-text">{inv.incomeDistribution?.type}</span>
-                    </div>
-                    {inv.incomeDistribution?.value !== undefined && (
-                      <div>
-                        Annual Income Value: <span className="value-text">{inv.incomeDistribution.value}</span>
-                      </div>
-                    )}
-                    {inv.incomeDistribution?.mean !== undefined && (
-                      <div>
-                        Annual Income Mean: <span className="value-text">{inv.incomeDistribution.mean}</span>
-                      </div>
-                    )}
-                    {inv.incomeDistribution?.stdev !== undefined && (
-                      <div>
-                        Annual Income Stdev: <span className="value-text">{inv.incomeDistribution.stdev}</span>
-                      </div>
-                    )}
-                  </div>
+                  {inv.incomeDistribution && (
+                    <DistributionDisplay label="Annual Income" distribution={inv.incomeDistribution} />
+                  )}
                 </div>
               </div>
             );
           })
         )}
         <hr />
+        {/**-----------------------------------Life Events------------------------------------------------------ */}
         <div className="normal-text" style={{ fontWeight: "bold" }}>Life Events:</div>
         {scenario.eventSeries.length === 0 ? (
-          <div className="normal-text">No life events added.</div>
+        <div className="normal-text">No life events added.</div>
         ) : (
           scenario.eventSeries.map((event, index) => (
             <div key={index} style={{ marginBottom: "1rem" }}>
@@ -253,139 +262,147 @@ const OpenScenario = () => {
               </div>
               <div className="normal-text" style={{ marginLeft: "5%" }}>
 
-                {/* Description */}
-                <div>
+                <div className="scenario-info-container">
                   Description:{" "}
-                  <span className="value-text">{capitalizeWords(event.description)}</span>
+                  <div >{capitalizeWords(event.description)}</div>
                 </div>
 
-                {/* Type */}
-                <div>
-                  Type: <span className="value-text">{capitalizeWords(event.type)}</span>
+                <div className="scenario-info-container">
+                  Type: <div >{capitalizeWords(event.type)}</div>
                 </div>
 
-                {/* Show Initial Amount if it's an income or export-type event */}
                 {(event.type === "income" || event.type === "export") && (
-                  <div>
+                  <div className="scenario-info-container">
                     Initial Amount:{" "}
-                    <span className="value-text">${event.initialAmount}</span>
+                    <div >${event.initialAmount}</div>
                   </div>
                 )}
 
-                {/* Change Amount/Percentage */}
+                {/**not done, missing change amount */}
                 {event.changeAmtOrPct && (
-                  <div>
-                    Change is an:{" "}
-                    <span className="value-text">{capitalizeWords(event.changeAmtOrPct)}</span>
+                  <div className="scenario-info-container">
+                    Annual Change is Expressed As a:{" "}
+                    <div >{capitalizeWords(event.changeAmtOrPct)}</div>
                   </div>
                 )}
+                <>
+                  <div className="scenario-info-container">
+                    <div>Start Year Type:</div>
+                    <div>{capitalizeWords(event.start?.type)}</div>
+                  </div>
 
-                {/* Start Year */}
-                <div style={{ marginTop: "0.5rem" }}>
-                  Start Year Type: <span className="value-text">{event.start?.type}</span>
                   {event.start?.value !== undefined && (
-                    <div>
-                      Start Year: <span className="value-text">{event.start.value}</span>
+                    <div className="scenario-info-container">
+                      <div>Start Year:</div>
+                      <div>{event.start.value}</div>
                     </div>
                   )}
+
                   {event.start?.mean !== undefined && (
-                    <div>
-                      Mean: <span className="value-text">{event.start.mean}</span>
+                    <div className="scenario-info-container">
+                      <div>Mean:</div>
+                      <div>{event.start.mean}</div>
                     </div>
                   )}
+
                   {event.start?.stdev !== undefined && (
-                    <div>
-                      Stdev: <span className="value-text">{event.start.stdev}</span>
+                    <div className="scenario-info-container">
+                      <div>Stdev:</div>
+                      <div>{event.start.stdev}</div>
                     </div>
                   )}
-                </div>
+                </>
 
-                {/* Duration */}
                 {event.duration && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    Duration Type: <span className="value-text">{event.duration.type}</span>
-                    {event.duration.value !== undefined && (
-                      <div>
-                        Duration (Years):{" "}
-                        <span className="value-text">{event.duration.value} Years</span>
-                      </div>
-                    )}
+                <>
+                  <div className="scenario-info-container">
+                    <div>Duration Type:</div>
+                    <div>{capitalizeWords(event.duration.type)}</div>
                   </div>
-                )}
 
-                {/* Change Distribution */}
-                {event.changeDistribution && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    Change Distribution Type:{" "}
-                    <span className="value-text">{event.changeDistribution.type}</span>
-                    {event.changeDistribution.value !== undefined && (
-                      <div>
-                        Value: <span className="value-text">{event.changeDistribution.value}</span>
-                      </div>
-                    )}
+                  {event.duration.value !== undefined && (
+                    <div className="scenario-info-container">
+                      <div>Duration (Years):</div>
+                      <div>{event.duration.value} Years</div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {event.changeDistribution && (
+                <>
+                  <div className="scenario-info-container">
+                    <div>Change Distribution Type:</div>
+                    <div>{capitalizeWords(event.changeDistribution.type)}</div>
                   </div>
-                )}
 
-                {/* Inflation Adjusted */}
+                  {event.changeDistribution.value !== undefined && (
+                    <div className="scenario-info-container">
+                      <div>Value:</div>
+                      <div>{event.changeDistribution.value}</div>
+                    </div>
+                  )}
+                </>
+              )}
+
                 {event.inflationAdjusted !== undefined && (
-                  <div style={{ marginTop: "0.5rem" }}>
+                  <div className="scenario-info-container">
                     Inflation Adjusted:{" "}
-                    <span className="value-text">{event.inflationAdjusted ? "Yes" : "No"}</span>
+                    <div >{event.inflationAdjusted ? "Yes" : "No"}</div>
                   </div>
                 )}
 
-                {/* User Fraction */}
                 {event.userFraction !== undefined && (
-                  <div>
-                    User Fraction: <span className="value-text">{event.userFraction}</span>
+                  <div className="scenario-info-container">
+                    User Fraction: <div >{event.userFraction}</div>
                   </div>
                 )}
 
-                {/* Social Security */}
                 {event.socialSecurity !== undefined && (
-                  <div>
+                  <div className="scenario-info-container">
                     Social Security:{" "}
-                    <span className="value-text">{event.socialSecurity ? "Yes" : "No"}</span>
+                    <div >{event.socialSecurity ? "Yes" : "No"}</div>
                   </div>
                 )}
 
-                {/* Discretionary */}
                 {event.discretionary !== undefined && (
-                  <div>
+                  <div className="scenario-info-container">
                     Discretionary:{" "}
-                    <span className="value-text">{event.discretionary ? "Yes" : "No"}</span>
+                    <div >{event.discretionary ? "Yes" : "No"}</div>
                   </div>
                 )}
 
-                {/* Scenario-level inflation assumption info */}
-                <div className="normal-text" style={{ marginTop: "0.5rem" }}>
-                  Inflation Assumption:{" "}
-                  <span className="value-text">
-                    {capitalizeWords(scenario.inflationAssumption.type)}
-                  </span>
+                <>
+                <div className="scenario-info-container" style={{ marginTop: "0.5rem" }}>
+                  <div>Inflation Assumption:</div>
+                  <div>{capitalizeWords(scenario.inflationAssumption.type)}</div>
                 </div>
+
                 {scenario.inflationAssumption.type === "fixed" ? (
-                  <div className="normal-text">
-                    Inflation (Fixed):{" "}
-                    <span className="value-text">{scenario.inflationAssumption.value}%</span>
+                  <div className="scenario-info-container">
+                    <div>Inflation (Fixed):</div>
+                    <div>{scenario.inflationAssumption.value}%</div>
                   </div>
                 ) : scenario.inflationAssumption.type === "normal" ? (
                   <>
-                    <div className="normal-text">
-                      Inflation (Normal - Mean):{" "}
-                      <span className="value-text">{scenario.inflationAssumption.mean}%</span>
+                    <div className="scenario-info-container">
+                      <div>Inflation (Normal - Mean):</div>
+                      <div>{scenario.inflationAssumption.mean}%</div>
                     </div>
-                    <div className="normal-text">
-                      Inflation (Normal - Std Dev):{" "}
-                      <span className="value-text">{scenario.inflationAssumption.stdev}%</span>
+                    <div className="scenario-info-container">
+                      <div>Inflation (Normal - Std Dev):</div>
+                      <div>{scenario.inflationAssumption.stdev}%</div>
                     </div>
                   </>
                 ) : (
-                  <div className="normal-text">
-                    Inflation Type:{" "}
-                    <span className="value-text">{capitalizeWords(scenario.inflationType)}</span>
+                  <div className="scenario-info-container">
+                    <div>Inflation Type:</div>
+                    <div>{capitalizeWords(scenario.inflationType)}</div>
                   </div>
                 )}
+              </>
+                
+
               </div>
             </div>
           ))
