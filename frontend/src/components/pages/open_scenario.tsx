@@ -88,7 +88,7 @@ const OpenScenario = () => {
       if (!scenario || !scenario.investmentTypes?.length) return;
       try {
         const promises = scenario.investmentTypes.map((typeId) =>
-          fetch(`http://localhost:5000/api/investment-types/${typeId}`).then((res) => res.json())
+          fetch(`http://localhost:5000/api/investment-types/id/${typeId}`).then((res) => res.json())
         );
         const results = await Promise.all(promises);
         setInvestmentDetails(results);

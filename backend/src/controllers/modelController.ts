@@ -2,6 +2,7 @@ import { exec } from "child_process";
 import FinancialPlan from "../models/FinancialPlan";
 import InvestmentType from "../models/InvestmentType";
 
+{/**----------------------------Investment Controllers---------------------------------------- */}
 export const createInvestmentType = async (req: any, res: any) => {
 	try {
 	const {
@@ -34,56 +35,6 @@ export const createInvestmentType = async (req: any, res: any) => {
 	}
 };
 
-
-export const getInvestmentTypeById = async (req: any, res: any) => {
-	try {
-		const { id } = req.params;
-		const investmentType = await InvestmentType.findById(id);
-
-		if (!investmentType) {
-		return res.status(404).json({ error: "Investment type not found" });
-		}
-
-		return res.status(200).json(investmentType);
-	} catch (error) {
-		console.error("Error fetching investment type:", error);
-		return res.status(500).json({ error: "Server error" });
-	}
-};
-export const getInvestmentTypesByPlanId = async (req: any, res: any) => {
-	try {
-		const { planId } = req.params;
-		const plan = await FinancialPlan.findById(planId);
-		if (!plan) {
-		return res.status(404).json({ error: "Plan not found" });
-		}
-
-		const investmentTypes = await InvestmentType.find({
-		_id: { $in: plan.investmentTypes },
-		});
-
-		return res.status(200).json({ data: investmentTypes });
-	} catch (error) {
-		console.error("Error fetching investment types for plan:", error);
-		return res.status(500).json({ message: "Failed to fetch investment types" });
-	}
-};
-
-export const getInvestmentTypeByName = async (req: any, res: any) => {
-	try {
-		const { name } = req.params;
-		const investmentType = await InvestmentType.findOne({ name });
-	
-		if (!investmentType) {
-			return res.status(404).json({ error: "Investment type not found" });
-		}
-	
-		return res.status(200).json(investmentType);
-		} catch (error) {
-		console.error("Error fetching investment type by name:", error);
-		return res.status(500).json({ error: "Server error" });
-	}
-};
 export const findInvestmentType = async (req: any, res: any) => {
 	try {
 		const {
@@ -110,14 +61,85 @@ export const findInvestmentType = async (req: any, res: any) => {
 		taxability,
 		});
 		
-  
-	  return res.status(200).json(investmentType || null);
+
+	return res.status(200).json(investmentType || null);
 	} catch (err) {
-	  console.error("Error finding investment type:", err);
-	  res.status(500).json({ error: "Failed to find investment type" });
+		console.error("Error finding investment type:", err);
+		res.status(500).json({ error: "Failed to find investment type" });
 	}
-  };
-  
+};
+
+export const getAllInvestmentTypes = async (req: any, res: any) => {
+	try {
+		const investmentTypes = await InvestmentType.find();
+		return res.status(200).json(investmentTypes);
+	} catch (error) {
+		console.error("Error fetching investment types:", error);
+		return res.status(500).json({ error: "Server error" });
+	}
+};
+
+export const getInvestmentTypeById = async (req:any, res:any) => {
+  try {
+	const { id } = req.params;
+	const investmentType = await InvestmentType.findById(id);
+	if (!investmentType) return res.status(404).json({ error: "Not found" });
+	return res.status(200).json(investmentType);
+  } catch (err) {
+	return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getInvestmentsByPlanId = async (req: any, res: any) => {
+	try {
+		const { planId } = req.params;
+	
+		const plan = await FinancialPlan.findById(planId).select("investments");
+	
+		if (!plan) {
+			return res.status(404).json({ error: "Plan not found" });
+		}
+	
+		return res.status(200).json(plan.investments);
+		} catch (error) {
+		console.error("Error fetching investments:", error);
+		return res.status(500).json({ error: "Server error" });
+		}
+};
+
+export const deleteInvestmentTypeById = async (req: any, res: any) => {
+	try {
+		const { id } = req.params;
+		const deleted = await InvestmentType.findByIdAndDelete(id);
+	
+		if (!deleted) {
+			return res.status(404).json({ error: "Investment type not found" });
+		}
+	
+		return res.status(200).json({ message: "Investment type deleted successfully" });
+	} catch (error) {
+		console.error("Error deleting investment type:", error);
+		return res.status(500).json({ error: "Server error" });
+	}
+};
+
+{/**----------------------------Event Series Controllers---------------------------------------- */}
+export const getAllEvents = async (req: any, res: any) => {
+	try {
+
+		const plans = await FinancialPlan.find({}, "eventSeries");
+
+		// Flatten all eventSeries arrays into one big array
+		const allEvents = plans.flatMap(plan => plan.eventSeries || []);
+
+		return res.status(200).json(allEvents);
+	} catch (error) {
+		console.error("Error fetching events:", error);
+		return res.status(500).json({ error: "Server error" });
+	}
+};
+
+{/**----------------------------Financial Plan Controllers---------------------------------------- */}
 
 
 export const getAllFinancialPlans = async (req: any, res: any) => {

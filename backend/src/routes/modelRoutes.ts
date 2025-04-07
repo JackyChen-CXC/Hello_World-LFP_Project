@@ -2,10 +2,13 @@ import { Router } from "express";
 import {
   createFinancialPlan,
   createInvestmentType,
+  deleteInvestmentTypeById,
   findInvestmentType,
+  getAllEvents,
   getAllFinancialPlans,
-  getInvestmentTypeByName,
-  getInvestmentTypesByPlanId,
+  getAllInvestmentTypes,
+  getInvestmentsByPlanId,
+  getInvestmentTypeById,
   getSpecificFinancialPlan,
   updateFinancialPlan,
   webscrape
@@ -19,9 +22,12 @@ modelRouter.post("/plans", createFinancialPlan);
 modelRouter.get("/plans/:id", getSpecificFinancialPlan);
 modelRouter.post("/webscrape", webscrape);
 modelRouter.post("/plans/all", getAllFinancialPlans);
-modelRouter.get("/investment-types/name/:name", getInvestmentTypeByName);
 modelRouter.post("/investment-types", createInvestmentType);
 modelRouter.post("/investment-types/find", findInvestmentType);
-modelRouter.get("/investment-types/plan/:planId", getInvestmentTypesByPlanId);
+modelRouter.get("/investment-types/id/:id", getInvestmentTypeById);
+modelRouter.get("/investment-types/all", getAllInvestmentTypes);
+modelRouter.get("/:plan/EventSeries/all", getAllEvents);
 modelRouter.put("/plans/:id", updateFinancialPlan);
+modelRouter.get("/:planId/investments", getInvestmentsByPlanId);
+modelRouter.delete("/investment-types/:id", deleteInvestmentTypeById);
 export default modelRouter;

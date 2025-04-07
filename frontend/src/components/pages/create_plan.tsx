@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../css_files/collapsible.css";
 import "../css_files/page_style.css";
@@ -15,10 +15,10 @@ const CreatePlan = () => {
     lifeExpectancyYears: "",
     lifeExpectancyMean: "",
     lifeExpectancyStd: "",
-    spouselifeExpectancyRadio: "",
-    spouselifeExpectancyYears: "",
-    spouselifeExpectancyMean: "",
-    spouselifeExpectancyStd: "",
+    spouseLifeExpectancyRadio: "",
+    spouseLifeExpectancyYears: "",
+    spouseLifeExpectancyMean: "",
+    spouseLifeExpectancyStd: "",
     inflationAssumptionType: "", // fixed, normal, uniform
     inflationAssumptionFixed: "",
     inflationAssumptionMean: "",
@@ -117,7 +117,7 @@ const CreatePlan = () => {
     }));
   };
 
-  // -----------------------------------------------------INVESTMENT STUFF  -----------------------------------------------------//
+  // -----------------------------------------------------INVESTMENT TRANSFORMATION STUFF  -----------------------------------------------------//
   // Toggle expand/collapse
   const toggleInvestment = (index) => {
     setFormData((prevData) => {
@@ -164,33 +164,71 @@ const CreatePlan = () => {
   };
 
   // Delete an investment
-  const handleDeleteInvestment = (id) => {
+  const handleDeleteInvestment = async (id) => {
+    const investmentToDelete = formData.investments.find((inv) => inv.id === id);
+    const { createdTypeId } = investmentToDelete || {};
+  
+    // Filter out the investment and reassign IDs
+    const updatedInvestments = formData.investments
+      .filter((inv) => inv.id !== id)
+      .map((inv, i) => ({ ...inv, id: i + 1 }));
+  
     setFormData((prevData) => ({
       ...prevData,
-      investments: prevData.investments.filter((inv) => inv.id !== id),
+      investments: updatedInvestments,
     }));
+  
+    // Check if we should delete the associated investmentType
+    if (createdTypeId) {
+      const stillUsed = updatedInvestments.some(
+        (inv) => inv.createdTypeId === createdTypeId
+      );
+  
+      if (!stillUsed) {
+        try {
+          const res = await fetch(`http://localhost:5000/api/investment-types/${createdTypeId}`, {
+            method: "DELETE",
+          });
+  
+          if (res.ok) {
+            console.log(`Deleted unused investment type with id ${createdTypeId}`);
+          } else {
+            const err = await res.json();
+            console.error("Failed to delete investment type:", err);
+          }
+        } catch (error) {
+          console.error("Error deleting investment type:", error);
+        }
+      }
+    }
   };
-
+  
   // Update fields within an investment
   const handleInvestmentChange = (index, e) => {
     const { name, value, type, files } = e.target;
   
     if (name === "investmentType") {
+      const chosenType = existingInvestmentTypes.find(t => t._id === value);
       const newInvestments = [...formData.investments];
+    
       newInvestments[index] = {
         ...newInvestments[index],
-        investmentType: value,
+        // store the chosen \_id in investmentType
+        investmentType: value,          
+        isCreatingNewType: false,
+        // set the investmentName to the existing type’s name if found
+        investmentName: chosenType ? chosenType.name : "", 
       };
+    
       setFormData((prevData) => ({
         ...prevData,
         investments: newInvestments,
       }));
     
-      fetch(`http://localhost:5000/api/investment-types/name/${value}`)
+      // Optionally fetch the details if you need them
+      fetch(`http://localhost:5000/api/investment-types/id/${value}`)
         .then((res) => {
-          if (!res.ok) {
-            throw new Error("Investment type not found");
-          }
+          if (!res.ok) throw new Error("Investment type not found");
           return res.json();
         })
         .then((data) => {
@@ -199,17 +237,14 @@ const CreatePlan = () => {
         .catch((err) => {
           console.error("Failed to fetch investment type data:", err);
         });
-
     
       return;
     }
-
-
     
   
-  
+    // Default field updates
     const newInvestments = [...formData.investments];
-    const nameWithoutIndex = name.replace(/-\d+$/, ""); 
+    const nameWithoutIndex = name.replace(/-\d+$/, "");
     newInvestments[index][nameWithoutIndex] = type === "file" ? files[0] : value;
   
     setFormData((prevData) => ({
@@ -261,7 +296,8 @@ const CreatePlan = () => {
     }
   };
 
-  // ----------------------------------------------------- LIFE EVENT STUFF -----------------------------------------------------//
+
+  // ----------------------------------------------------- LIFE EVENT TRANSFORMATION STUFF -----------------------------------------------------//
   const toggleLifeEvents = (index) => {
     setFormData((prevData) => {
       const newLifeEvents = [...prevData.lifeEvents];
@@ -343,8 +379,62 @@ const CreatePlan = () => {
     }));
   };
   
-  
-  const transformFormData = (formData) => {
+
+useEffect(() => {
+  const discretionaryEvents = formData.lifeEvents.filter(
+    (event) => event.type === "expense" && event.expenseSource === "Discretionary"
+  );
+
+  setSpendingOrder((prev) => {
+    const updated = [...prev];
+    while (updated.length < discretionaryEvents.length) updated.push("");
+    while (updated.length > discretionaryEvents.length) updated.pop();
+    return updated;
+  });
+}, [formData.lifeEvents]);
+
+
+// ----------------------------------------------------- RMD & Expense WITHDRAWALTRANSFORMATION STUFF -----------------------------------------------------//
+const [rmdOrder, setRmdOrder] = useState([]);
+const [rothOrder, setRothOrder] = useState([]);
+const [expenseOrder, setExpenseOrder] = useState([]);
+const [spendingOrder, setSpendingOrder] = useState([]);
+
+const handleRMDOrderChange = (index, value) => {
+  setRmdOrder((prev) => {
+    const updated = [...prev];
+    updated[index] = value;
+    return updated;
+  });
+};
+const handleRothOrderChange = (index, value) => {
+  setRothOrder((prev) => {
+    const updated = [...prev];
+    updated[index] = value;
+    return updated;
+  });
+};
+
+const handleExpenseOrderChange = (index, value) => {
+  setExpenseOrder((prev) => {
+    const updated = [...prev];
+    updated[index] = value;
+    return updated;
+  });
+};
+
+const handleSpendingOrderChange = (index, value) => {
+  setSpendingOrder((prev) => {
+    const updated = [...prev];
+    updated[index] = value;
+    return updated;
+  });
+};
+
+
+// ----------------------------------------------------- TRANSFORM -----------------------------------------------------//
+
+const transformFormData = (formData) => {
   const isJoint = formData.planType === "joint";
 
   return {
@@ -445,18 +535,14 @@ const CreatePlan = () => {
         investmentType: inv.investmentType || "",
         value: parseFloat(inv.investmentValue || "0"),
 
-        // e.g. "non-retirement" | "pre-tax" | "after-tax"
         taxStatus: inv.accountType || "non-retirement",
 
-        // "amount" | "percent" for returns
         returnAmtOrPct: inv.returnAmtOrPct || "percent",
         returnDistribution,
 
-        // "amount" | "percent" for income
         incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
         incomeDistribution,
 
-        // e.g. "taxable" | "tax-exempt"
         taxability: inv.taxability === "taxable",
       };
     }),
@@ -494,17 +580,14 @@ const CreatePlan = () => {
           if (t === "startWith" || t === "startEndEvent") {
             return { type: t, eventSeries: event.startEvent || "" };
           }
-          // default "fixed"
           return { type: "fixed", value: parseInt(event.start || "0") };
         })(),
 
-        // Duration subdocument
         duration: {
           type: "fixed",
           value: parseInt(event.duration || "0"),
         },
 
-        //  If it's an income or expense event...
         ...(isIncome || isExpense
           ? {
               initialAmount: parseFloat(event.initialAmount || "0"),
@@ -542,7 +625,6 @@ const CreatePlan = () => {
             }
           : {}),
 
-        // If it's an invest or rebalance event...
         ...(isInvest || isRebalance
           ? {
               assetAllocation: event.assetAllocation || { stocks: 100 },
@@ -554,7 +636,6 @@ const CreatePlan = () => {
       };
     }),
 
-    // Additional fields
     investmentTypes: [],
     afterTaxContributionLimit: 6500,
     residenceState: "NY",
@@ -563,64 +644,168 @@ const CreatePlan = () => {
     version: 1,
   };
 };
-  
-const handleSubmit = async () => {
+
+const [existingInvestmentTypes, setExistingInvestmentTypes] = useState([]);
+
+useEffect(() => {
+  const fetchInvestmentTypes = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/investment-types/all");
+      if (!res.ok) throw new Error("Failed to fetch investment types");
+      const data = await res.json();
+      setExistingInvestmentTypes(data);
+      console.log("Fetched investment types:", data);
+
+
+    } catch (error) {
+      console.error("Error fetching investment types:", error);
+    }
+  };
+
+  fetchInvestmentTypes();
+}, []);
+
+useEffect(() => {
+  const preTaxInvestments = formData.investments.filter(inv => inv.accountType === "pre-tax");
+  const allInvestments = formData.investments;
+
+  setRmdOrder((prev) => {
+    const updated = [...prev];
+    while (updated.length < preTaxInvestments.length) updated.push("");
+    while (updated.length > preTaxInvestments.length) updated.pop();
+    return updated;
+  });
+
+  setExpenseOrder((prev) => {
+    const updated = [...prev];
+    while (updated.length < allInvestments.length) updated.push("");
+    while (updated.length > allInvestments.length) updated.pop();
+    return updated;
+  });
+}, [formData.investments]);
+
+
+function buildDistribution(distType, mean, stdev, fixedValue) {
+  if (distType === "normal") {
+    return {
+      type: "normal",
+      mean: parseFloat(mean || "0"),
+      stdev: parseFloat(stdev || "0"),
+    };
+  }
+  // default = "fixed"
+  return {
+    type: "fixed",
+    value: parseFloat(fixedValue || "0"),
+  };
+}
+
+
+const handleCreateInvestmentTypeClick = async (index) => {
   try {
-    const transformedData = transformFormData(formData);
-    const updatedInvestments = [];
-    const investmentTypesArray = [];
+    const inv = formData.investments[index];
 
-    for (const inv of transformedData.investments) {
-      const invTypePayload = {
-        name: inv.investmentName || inv.investmentType || "Untitled",
-        description: inv.investmentDescription || "",
-        taxability: inv.taxability,
-        expenseRatio: 0,
-        returnAmtOrPct: inv.returnAmtOrPct,
-        returnDistribution: inv.returnDistribution,
-        incomeAmtOrPct: inv.incomeAmtOrPct,
-        incomeDistribution: inv.incomeDistribution,
-      };
+    const returnDistObj = buildDistribution(
+      inv.returnDistribution,
+      inv.annualReturnMean,
+      inv.annualReturnStdev,
+      inv.annualReturnFixed
+    );
 
-      let investmentType = null;
+    const incomeDistObj = buildDistribution(
+      inv.incomeDistribution,
+      inv.annualIncomeMean,
+      inv.annualIncomeStdev,
+      inv.annualIncomeFixed
+    );
 
-      const findRes = await fetch("http://localhost:5000/api/investment-types/find", {
+    const isTaxable = inv.taxability === "taxable";
+
+    const invTypePayload = {
+      name: inv.investmentName || inv.investmentType || "Untitled",
+      description: inv.investmentDescription || "",
+      taxability: isTaxable,
+      expenseRatio: 0,
+      returnAmtOrPct: inv.returnAmtOrPct,
+      returnDistribution: returnDistObj,
+      incomeAmtOrPct: inv.incomeAmtOrPct,
+      incomeDistribution: incomeDistObj,
+    };
+
+    const findRes = await fetch("http://localhost:5000/api/investment-types/find", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(invTypePayload),
+    });
+
+    const found = await findRes.json();
+    let finalType = found;
+
+    if (!findRes.ok || !found?._id) {
+      const createRes = await fetch("http://localhost:5000/api/investment-types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(invTypePayload),
       });
+      if (!createRes.ok) throw new Error("Failed to create investment type");
 
-      const found = await findRes.json();
-      if (findRes.ok && found?._id) {
-        investmentType = found;
-      } else {
-        const createRes = await fetch("http://localhost:5000/api/investment-types", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(invTypePayload),
-        });
-        if (!createRes.ok) throw new Error("Failed to create investment type");
-        investmentType = await createRes.json();
-      }
+      finalType = await createRes.json();
 
-      // ✅ Use the full object in investmentTypes array
-      investmentTypesArray.push(investmentType);
-
-      // ✅ Use just the ID for referencing in the investments array
-      updatedInvestments.push({
-        id: inv.investmentName || inv.id || "Unnamed",
-        investmentType: investmentType._id, // ref
-        value: inv.value,
-        taxStatus: inv.taxStatus,
+      setExistingInvestmentTypes((prev) => [...prev, finalType]);
+    } else {
+      setExistingInvestmentTypes((prev) => {
+        if (!prev.find((t) => t._id === found._id)) {
+          return [...prev, found];
+        }
+        return prev;
       });
     }
 
+    setFormData((prevData) => {
+      const newInvestments = [...prevData.investments];
+      newInvestments[index] = {
+        ...newInvestments[index],
+        createdTypeId: finalType._id,
+        investmentType: finalType._id,
+        investmentName: finalType.name,
+      };
+      return {
+        ...prevData,
+        investments: newInvestments,
+      };
+    });
+
+    alert(`Investment Type '${finalType.name}' created or found!`);
+  } catch (error) {
+    console.error("Error creating/finding investment type:", error);
+    alert("Error creating/finding investment type");
+  }
+};
+
+const handleSubmit = async () => {
+  try {
+    const transformedData = transformFormData(formData);
+    const updatedInvestments = transformedData.investments.map((inv, idx) => {
+      const finalTypeId = inv.createdTypeId || inv.investmentType;
+      if (!finalTypeId) {
+        alert(`Investment #${idx + 1} has no type. Please pick or create a type.`);
+        throw new Error("No investment type selected/created");
+      }
+
+      const finalId = inv.investmentName || "Unnamed";
+
+      return {
+        id: finalId,
+        investmentType: finalTypeId,
+        value: inv.value,
+        taxStatus: inv.taxStatus,
+      };
+    });
 
     const finalPayload = {
       ...transformedData,
       investments: updatedInvestments,
-      investmentTypes: investmentTypesArray,
-    };    
+    };
 
     const planRes = await fetch("http://localhost:5000/api/plans", {
       method: "POST",
@@ -628,17 +813,18 @@ const handleSubmit = async () => {
       body: JSON.stringify(finalPayload),
     });
 
-    if (!planRes.ok) throw new Error("Failed to save plan");
+    if (!planRes.ok) {
+      throw new Error("Failed to save plan");
+    }
 
     alert("Plan created successfully!");
     setFormData(JSON.parse(JSON.stringify(defaultFormData)));
-
   } catch (error) {
     console.error("Error submitting plan:", error);
     alert("There was an error. Check the console for details.");
   }
 };
-  
+
   const username = localStorage.getItem("name");
   const name = localStorage.getItem("given_name");
   const picture = localStorage.getItem("picture")
@@ -849,7 +1035,7 @@ const handleSubmit = async () => {
                   type="text"
                   name="annualReturnMean"
                   placeholder="Enter mean..."
-                  value={formData.spouselifeExpectancyMean}
+                  value={formData.spouseLifeExpectancyMean}
                   onChange={handleChange}
                 />
                 <div className="normal-text">Standard Deviation</div>
@@ -858,7 +1044,7 @@ const handleSubmit = async () => {
                   type="text"
                   name="annualReturnStdev"
                   placeholder="Enter standard deviation..."
-                  value={formData.spouselifeExpectancyStd}
+                  value={formData.spouseLifeExpectancyStd}
                   onChange={handleChange}
                 />
               </>
@@ -898,7 +1084,6 @@ const handleSubmit = async () => {
         key={investment.id}
         className={`collapse-container ${investment.isExpanded ? "expanded" : ""}`}
       >
-        {/* Used ChatGPT to help create dynampic Collapsible Header */}
         <div className="collapse-heading">
           <div className="collapsed-text">Investment {investment.id}</div>
           <button className="collapse-button" onClick={() => toggleInvestment(index)}>
@@ -911,35 +1096,47 @@ const handleSubmit = async () => {
 
         {investment.isExpanded && (
           <>
-            {/* Investment Type, Name, Description */}
+            {/* Choose between new or existing type */}
             <div className="split-container">
               <div className="left-side">
-                <div className="normal-text">Select Investment Type*</div>
-                <select
-                  className="collapse-options"
-                  name="investmentType"
-                  value={investment.investmentType}
-                  onChange={(e) => handleInvestmentChange(index, e)}
-                >
-                  <option value="">--Select--</option>
-                  <option value="domestic-stocks">Domestic Stocks</option>
-                  <option value="foreign-stocks">Foreign Stocks</option>
-                  <option value="bonds">Bonds</option>
-                  <option value="real-estate">Real Estate</option>
-                  <option value="cash-other">Cash & Other</option>
-                  <option value="investments">Investments</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-              <div className="right-side">
-                <div className="normal-text">Name of Investment*</div>
+                <div className="normal-text">Create New Investment Type Name</div>
                 <input
                   className="input-boxes"
                   type="text"
                   name="investmentName"
                   value={investment.investmentName}
                   onChange={(e) => handleInvestmentChange(index, e)}
+                  onFocus={() => {
+                    const updated = [...formData.investments];
+                    updated[index].isCreatingNewType = true;
+                    updated[index].investmentType = "";
+                    setFormData((prev) => ({ ...prev, investments: updated }));
+                  }}
                 />
+
+              </div>
+              <div className="right-side">
+                <div className="normal-text">Select Existing Investment Type</div>
+                <select
+                  className="collapse-options"
+                  name="investmentType"
+                  value={investment.investmentType}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                  disabled={investment.investmentName}
+                >
+                  <option value="">--Select--</option>
+                  {existingInvestmentTypes.map((type) => (
+                    <option key={type._id} value={type._id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Only show this stuff if they're creating a new type */}
+            {investment.isCreatingNewType && (
+              <div className="investment-type-container">
                 <div className="normal-text">Brief Description of Investment*</div>
                 <textarea
                   className="input-boxes textarea-box"
@@ -948,11 +1145,187 @@ const handleSubmit = async () => {
                   value={investment.investmentDescription}
                   onChange={(e) => handleInvestmentChange(index, e)}
                 ></textarea>
-              </div>
-            </div>
+                <div className="normal-text">How would you like to express the investment's annual return?*</div>
+                <div className="split-container">
+                  <div className="left-side">
+                    <RadioGroup
+                      name={`returnDistribution-${index}`}
+                      selectedValue={investment.returnDistribution}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                      options={[
+                        { label: "Fixed Amount / Percentage", value: "fixed" },
+                        { label: "Normal Distribution Percentage", value: "normal" },
+                      ]}
+                    />
+                  </div>
+                  <div className="right-side">
+                    {investment.returnDistribution === "fixed" && (
+                      <>
+                        <RadioGroup
+                          name={`returnAmtOrPct-${index}`}
+                          selectedValue={investment.returnAmtOrPct}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                          options={[
+                            { label: "Fixed Amount", value: "amount" },
+                            { label: "Percentage", value: "percent" },
+                          ]}
+                        />
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualReturnFixed"
+                          placeholder="Enter fixed return..."
+                          value={investment.annualReturnFixed}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                      </>
+                    )}
 
-            {/* Investment Value */}
-            <div className="normal-text">What is the current value of the investment?*</div>
+                    {investment.returnDistribution === "normal" && (
+                      <>
+                        <RadioGroup
+                          name={`returnAmtOrPct-${index}`}
+                          selectedValue={investment.returnAmtOrPct}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                          options={[
+                            { label: "Fixed Amount", value: "amount" },
+                            { label: "Percentage", value: "percent" },
+                          ]}
+                        />
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualReturnMean"
+                          placeholder="Enter mean..."
+                          value={investment.annualReturnMean}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualReturnStdev"
+                          placeholder="Enter standard deviation..."
+                          value={investment.annualReturnStdev}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <br />
+                <div className="normal-text">Expected annual income from dividends or interest?*</div>
+                <div className="split-container">
+                  <div className="left-side">
+                    <RadioGroup
+                      name={`incomeDistribution-${index}`}
+                      selectedValue={investment.incomeDistribution}
+                      onChange={(e) => handleInvestmentChange(index, e)}
+                      options={[
+                        { label: "Fixed Amount / Percentage", value: "fixed" },
+                        { label: "Normal Distribution Percentage", value: "normal" },
+                      ]}
+                    />
+                  </div>
+                  <div className="right-side">
+                    {investment.incomeDistribution === "fixed" && (
+                      <>
+                        <RadioGroup
+                          name={`incomeAmtOrPct-${index}`}
+                          selectedValue={investment.incomeAmtOrPct}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                          options={[
+                            { label: "Fixed Amount", value: "amount" },
+                            { label: "Percentage", value: "percent" },
+                          ]}
+                        />
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualIncomeFixed"
+                          placeholder="Enter fixed income..."
+                          value={investment.annualIncomeFixed}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                      </>
+                    )}
+                    {investment.incomeDistribution === "normal" && (
+                      <>
+                        <RadioGroup
+                          name={`incomeAmtOrPct-${index}`}
+                          selectedValue={investment.incomeAmtOrPct}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                          options={[
+                            { label: "Fixed Amount", value: "amount" },
+                            { label: "Percentage", value: "percent" },
+                          ]}
+                        />
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualIncomeMean"
+                          placeholder="Enter mean..."
+                          value={investment.annualIncomeMean}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                        <input
+                          className="input-boxes"
+                          type="text"
+                          name="annualIncomeStdev"
+                          placeholder="Enter standard deviation..."
+                          value={investment.annualIncomeStdev}
+                          onChange={(e) => handleInvestmentChange(index, e)}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+                {/* Taxability & Account Type */}
+                <div className="normal-text">Is this investment taxable?*</div>
+                  <label className="normal-text">
+                  <RadioGroup
+                    name={`taxability-${index}`}
+                    selectedValue={investment.taxability}
+                    onChange={(e) => handleInvestmentChange(index, e)}
+                    options={[
+                      { label: "Taxable", value: "taxable" },
+                      { label: "Tax-Exempt", value: "tax-exempt" },
+                    ]}
+                  />
+                  </label>
+
+                {investment.taxability === "taxable" && (
+                  <div>
+                    <div className="normal-text">Upload State Tax File</div>
+                    <div style={{ color: "red" }}>
+                      (If no file is uploaded, taxes will not be simulated)
+                    </div>
+                    <input
+                      style={{ margin: "1%", fontSize: "16px" }}
+                      type="file"
+                      name="taxFile"
+                      //call the function to upload the state tax
+                      onChange={(e) => {
+                        handleInvestmentChange(index, e);
+                        upload_state_tax_file(e); }}
+                    />
+                    {investment.taxFile && <p>Selected File: {investment.taxFile.name}</p>}
+                  </div>
+                )}
+
+                <button
+                  className="page-buttons"
+                  style={{ width: "400px", justifyContent: "center", marginLeft: "50%" }}
+                  onClick={() => handleCreateInvestmentTypeClick(index)}
+                >
+                  Create Investment Type
+                </button>
+
+              </div>
+            )}
+
+            {/* Value + account type (these apply to both) */}
+            <div className="normal-text">What is the current value of this investment?*</div>
             <input
               className="input-boxes"
               type="text"
@@ -960,213 +1333,8 @@ const handleSubmit = async () => {
               value={investment.investmentValue}
               onChange={(e) => handleInvestmentChange(index, e)}
             />
-            {/**Used ChatGPT to figure out how to dynamically create question forms based on other question form responses */}
-            {/* Annual Return Section */}
-            <div className="normal-text">How would you like to express the investment's annual return?*</div>
-            <div className="split-container">
-              <div className="left-side">
-                <RadioGroup
-                  name={`returnDistribution-${index}`}
-                  selectedValue={investment.returnDistribution}
-                  onChange={(e) => handleInvestmentChange(index, e)}
-                  options={[
-                    { label: "Fixed Amount / Percentage", value: "fixed" },
-                    { label: "Normal Distribution Percentage", value: "normal" },
-                  ]}
-                />
 
-              </div>
-              <div className="right-side">
-                {/* Fixed Return */}
-                {investment.returnDistribution === "fixed" && (
-                  <>
-                    <div className="checkbox-group">
-                      <label className="normal-text">
-                        <RadioGroup
-                          name={`returnAmtOrPct-${index}`}
-                          selectedValue={investment.returnAmtOrPct}
-                          onChange={(e) => handleInvestmentChange(index, e)}
-                          options={[
-                            { label: "Fixed Amount", value: "amount" },
-                            { label: "Percentage", value: "percent" },
-                          ]}
-                        />
-                      </label>
-                    </div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualReturnFixed"
-                      placeholder="Enter fixed return..."
-                      value={investment.annualReturnFixed}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                  </>
-                )}
-
-                {/* Normal Return */}
-                {investment.returnDistribution === "normal" && (
-                  <>
-                    <div className="checkbox-group">
-                      <label className="normal-text">
-                        <RadioGroup
-                          name={`returnAmtOrPct-${index}`}
-                          selectedValue={investment.returnAmtOrPct}
-                          onChange={(e) => handleInvestmentChange(index, e)}
-                          options={[
-                            { label: "Fixed Amount", value: "amount" },
-                            { label: "Percentage", value: "percent" },
-                          ]}
-                        />
-                      </label>
-                    </div>
-                    <div className="normal-text">Mean</div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualReturnMean"
-                      placeholder="Enter mean..."
-                      value={investment.annualReturnMean}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                    <div className="normal-text">Standard Deviation</div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name="annualReturnStdev"
-                      placeholder="Enter standard deviation..."
-                      value={investment.annualReturnStdev}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Annual Income Section */}
-            <br />
-            <div className="normal-text">What is the expected annual income from dividends or interest?*</div>
-            <div className="split-container">
-              <div className="left-side">
-                <label className="normal-text">
-                  <RadioGroup
-                    name={`incomeDistribution-${index}`}
-                    selectedValue={investment.incomeDistribution}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                    options={[
-                      { label: "Fixed Amount / Percentage", value: "fixed" },
-                      { label: "Normal Distribution Percentage", value: "normal" },
-                    ]}
-                  />
-
-                </label>
-              </div>
-              <div className="right-side">
-                {/* Fixed Income */}
-                <div className="right-side">
-                {investment.incomeDistribution === "fixed" && (
-                  <>
-                    <div className="checkbox-group">
-                      <label className="normal-text">
-                      <RadioGroup
-                        name={`incomeAmtOrPct-${index}`}
-                        selectedValue={investment.incomeAmtOrPct}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                        options={[
-                          { label: "Fixed Amount", value: "amount" },
-                          { label: "Percentage", value: "percent" },
-                        ]}
-                      />
-                      </label>
-                    </div>
-                    <input
-                      className="input-boxes"
-                      type="text"
-                      name={`annualIncomeFixed-${index}`}
-                      placeholder="Enter fixed income..."
-                      value={investment.annualIncomeFixed}
-                      onChange={(e) => handleInvestmentChange(index, e)}
-                    />
-                  </>
-                )}
-              </div>
-
-
-              {/* Normal Income */}
-              {investment.incomeDistribution === "normal" && (
-                <>
-                  <div className="checkbox-group">
-                    <label className="normal-text">
-                      <RadioGroup
-                        name={`incomeAmtOrPct-${index}`}
-                        selectedValue={investment.incomeAmtOrPct}
-                        onChange={(e) => handleInvestmentChange(index, e)}
-                        options={[
-                          { label: "Fixed Amount", value: "amount" },
-                          { label: "Percentage", value: "percent" },
-                        ]}
-                      />
-                    </label>
-                  </div>
-                  <div className="normal-text">Mean</div>
-                  <input
-                    className="input-boxes"
-                    type="text"
-                    name="annualIncomeMean"
-                    placeholder="Enter mean..."
-                    value={investment.annualIncomeMean}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                  <div className="normal-text">Standard Deviation</div>
-                  <input
-                    className="input-boxes"
-                    type="text"
-                    name="annualIncomeStdev"
-                    placeholder="Enter standard deviation..."
-                    value={investment.annualIncomeStdev}
-                    onChange={(e) => handleInvestmentChange(index, e)}
-                  />
-                </>
-              )}
-              </div>
-            </div>
-
-            {/* Taxability & Account Type */}
-            <div className="normal-text">Is this investment taxable?*</div>
-            <div className="checkbox-group">
-              <label className="normal-text">
-              <RadioGroup
-                name={`taxability-${index}`}
-                selectedValue={investment.taxability}
-                onChange={(e) => handleInvestmentChange(index, e)}
-                options={[
-                  { label: "Taxable", value: "taxable" },
-                  { label: "Tax-Exempt", value: "tax-exempt" },
-                ]}
-              />
-              </label>
-            </div>
-
-            {investment.taxability === "taxable" && (
-              <div>
-                <div className="normal-text">Upload State Tax File</div>
-                <div style={{ color: "red" }}>
-                  (If no file is uploaded, taxes will not be simulated)
-                </div>
-                <input
-                  style={{ margin: "1%", fontSize: "16px" }}
-                  type="file"
-                  name="taxFile"
-                  //call the function to upload the state tax
-                  onChange={(e) => {
-                    handleInvestmentChange(index, e);
-                    upload_state_tax_file(e); }}
-                />
-                {investment.taxFile && <p>Selected File: {investment.taxFile.name}</p>}
-              </div>
-            )}
-
-            <div className="normal-text">What type of account is this investment stored in?*</div>
+            <div className="normal-text">Account Type*</div>
             <select
               className="collapse-options"
               name="accountType"
@@ -1178,38 +1346,16 @@ const handleSubmit = async () => {
               <option value="pre-tax">Pre-Tax Retirement</option>
               <option value="after-tax">After-Tax Retirement</option>
             </select>
-
           </>
+          
         )}
       </div>
     ))}
 
+
     <button className="page-buttons" onClick={handleAddInvestment}>
       ADD
     </button>
-
-    <div className="normal-text" style={{ marginTop: "20px" }}>
-      How do you want to order your RMD strategy 
-    </div>
-    <input
-      className="input-boxes"
-      type="text"
-      name="rmdStrategy"
-      value={formData.rmdStrategy}
-      onChange={handleChange}
-    />
-
-    <div className="normal-text" style={{ marginTop: "20px" }}>
-      How do you want to order your Expense Withdrawal Strategy (investment IDs comma-separated)
-    </div>
-    <input
-      className="input-boxes"
-      type="text"
-      name="expenseWithdrawalStrategy"
-      value={formData.expenseWithdrawalStrategy}
-      onChange={handleChange}
-    />
-
 
       {/* ------------------------------------------Life Events------------------------------------------ */}
       <div className="subheading">Event Series</div>
@@ -1822,16 +1968,108 @@ const handleSubmit = async () => {
       <button className="page-buttons" onClick={handleAddLifeEvents}>
         ADD
       </button>
+{/**----------------------------------- STRATEGY ORDERING-------------------------------------------- */}
       <div className="normal-text" style={{ marginTop: "20px" }}>
-        Spending Strategy (investment IDs comma-separated)
+      How do you want to order your RMD strategy 
       </div>
-      <input
-        className="input-boxes"
-        type="text"
-        name="spendingStrategy"
-        value={formData.spendingStrategy}
-        onChange={handleChange}
-      />
+      <div className="collapse-container">
+        {formData.investments.filter(inv => inv.accountType === "pre-tax").length === 0 ? (
+          <div className="normal-text">There are no pre-tax investments in this plan.</div>
+        ) : (
+          rmdOrder.map((selectedId, index) => (
+            <div key={index} style={{ marginBottom: "10px" }}>
+              <div className="normal-text">RMD Priority #{index + 1}</div>
+              <select
+                className="collapse-options"
+                value={selectedId}
+                onChange={(e) => handleRMDOrderChange(index, e.target.value)}
+              >
+                <option value="">--Select Investment--</option>
+                {formData.investments
+                  .filter(
+                    (inv) =>
+                      inv.accountType === "pre-tax" &&
+                      (!rmdOrder.includes(inv.id) || inv.id === selectedId)
+                  )
+                  .map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.investmentName || "Unnamed Investment"}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="normal-text" style={{ marginTop: "20px" }}>
+        How do you want to order your Expense Withdrawal Strategy 
+      </div>
+      <div className="collapse-container">
+        {formData.investments.filter(inv => inv.investmentName).length === 0 ? (
+          <div className="normal-text">There are no named investments in this plan.</div>
+        ) : (
+          expenseOrder.map((selectedId, index) => (
+            <div key={index} style={{ marginBottom: "10px" }}>
+              <div className="normal-text">Expense Withdrawal Priority #{index + 1}</div>
+              <select
+                className="collapse-options"
+                value={selectedId}
+                onChange={(e) => handleExpenseOrderChange(index, e.target.value)}
+              >
+                <option value="">--Select Investment--</option>
+                {formData.investments
+                  .filter(
+                    (inv) =>
+                      inv.investmentName && // only include named investments
+                      (!expenseOrder.includes(inv.id) || inv.id === selectedId)
+                  )
+                  .map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.investmentName}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          ))
+        )}
+      </div>
+
+
+      <div className="normal-text" style={{ marginTop: "20px" }}>
+        Spending Strategy (discretionary events )
+      </div>
+      <div className="collapse-container">
+        {formData.lifeEvents.filter((e) => e.type === "expense" && e.expenseSource === "Discretionary").length === 0 ? (
+          <div className="normal-text">No discretionary expenses in current plan.</div>
+        ) : (
+          spendingOrder.map((selectedId, index) => (
+            <div key={index} style={{ marginBottom: "10px" }}>
+              <div className="normal-text">Spending Strategy Priority #{index + 1}</div>
+              <select
+                className="collapse-options"
+                value={selectedId}
+                onChange={(e) => handleSpendingOrderChange(index, e.target.value)}
+              >
+                <option value="">--Select Expense Event--</option>
+                {formData.lifeEvents
+                  .filter(
+                    (event) =>
+                      event.type === "expense" &&
+                      event.expenseSource === "Discretionary" &&
+                      (!spendingOrder.includes(event.id) || event.id === selectedId)
+                  )
+                  .map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.eventName}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          ))
+        )}
+      </div>
+
 
       {/* ------------------------------------------Roth Conversion Optimization------------------------------------------ */}
       <div className="subheading">Optimization</div>
@@ -1888,14 +2126,37 @@ const handleSubmit = async () => {
         <div className="normal-text" style={{ marginTop: "20px" }}>
         How would you like to order your Roth Conversion Strategy (pre-tax investment IDs comma-separated)
         </div>
-        <input
-          className="input-boxes"
-          type="text"
-          name="rothconversionstrategy"
-          value={formData.rothconversionstrategy}
-          onChange={handleChange}
-        />
+
+        <div className="collapse-container">
+          {formData.investments.filter((inv) => inv.accountType === "pre-tax").length === 0 ? (
+            <div className="normal-text">No pre-tax investments in current plan.</div>
+          ) : (
+            rothOrder.map((selectedId, index) => (
+              <div key={index} style={{ marginBottom: "10px" }}>
+                <div className="normal-text">Roth Conversion Priority #{index + 1}</div>
+                <select
+                  className="collapse-options"
+                  value={selectedId}
+                  onChange={(e) => handleRothOrderChange(index, e.target.value)}
+                >
+                  <option value="">--Select Pre-Tax Investment--</option>
+                  {formData.investments
+                    .filter(
+                      (inv) =>
+                        inv.accountType === "pre-tax" &&
+                        (!rothOrder.includes(inv.id) || inv.id === selectedId)
+                    )
+                    .map((inv) => (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.investmentName || "Unnamed Investment"}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            ))
+          )}
         </div>
+      </div>
 
       {/* Final Save Button */}
       <button className="page-buttons" onClick={handleSubmit}>
