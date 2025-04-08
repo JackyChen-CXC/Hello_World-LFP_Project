@@ -434,7 +434,7 @@ const handleSpendingOrderChange = (index, value) => {
 
 // ----------------------------------------------------- TRANSFORM -----------------------------------------------------//
 
-const transformFormData = (formData) => {
+const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, rothOrder) => {
   const isJoint = formData.planType === "joint";
 
   return {
@@ -482,10 +482,10 @@ const transformFormData = (formData) => {
       return { type: "fixed", value: parseFloat(changeDist.value || "0") };
     })(),
 
-    spendingStrategy: formData.spendingStrategy?.split(",").map(s => s.trim()) || [],
-    expenseWithdrawalStrategy: formData.expenseWithdrawalStrategy?.split(",").map(s => s.trim()) || [],
-    RMDStrategy: formData.rmdStrategy?.split(",").map(s => s.trim()) || [],
-    RothConversionStrategy: formData.rothconversionstrategy?.split(",").map(s => s.trim()) || [],
+    RMDStrategy: rmdOrder,
+    expenseWithdrawalStrategy: expenseOrder,
+    spendingStrategy: spendingOrder,
+    RothConversionStrategy: rothOrder,
 
     financialGoal: parseFloat(formData.financialGoal || "0"),
     RothConversionOpt: formData.rothConversion === "yes",
@@ -682,6 +682,13 @@ useEffect(() => {
     while (updated.length > allInvestments.length) updated.pop();
     return updated;
   });
+
+  setRothOrder((prev) => {
+    const updated = [...prev];
+    while (updated.length < preTaxInvestments.length) updated.push("");
+    while (updated.length > preTaxInvestments.length) updated.pop();
+    return updated;
+  });
 }, [formData.investments]);
 
 
@@ -784,28 +791,41 @@ const handleCreateInvestmentTypeClick = async (index) => {
 
 const handleSubmit = async () => {
   try {
-    const transformedData = transformFormData(formData);
-    const updatedInvestments = transformedData.investments.map((inv, idx) => {
+    const transformedData = transformFormData(formData, rmdOrder, expenseOrder, spendingOrder, rothOrder);
+    const updatedInvestments = formData.investments.map((inv, idx) => {
       const finalTypeId = inv.createdTypeId || inv.investmentType;
       if (!finalTypeId) {
         alert(`Investment #${idx + 1} has no type. Please pick or create a type.`);
         throw new Error("No investment type selected/created");
       }
 
-      const finalId = inv.investmentName || "Unnamed";
-
       return {
-        id: finalId,
+        id: inv.investmentName || "Unnamed",
         investmentType: finalTypeId,
-        value: inv.value,
-        taxStatus: inv.taxStatus,
+        value: parseFloat(inv.investmentValue || "0"),
+        taxStatus: inv.accountType || "non-retirement",
       };
     });
 
+    // Find all used investment type IDs from formData
+    const usedTypeIds = new Set(
+      formData.investments.map((inv) => String(inv.createdTypeId || inv.investmentType))
+    );
+    
+    const usedInvestmentTypes = existingInvestmentTypes.filter((type) =>
+      usedTypeIds.has(String(type._id))
+    );
+    
     const finalPayload = {
       ...transformedData,
-      investments: updatedInvestments,
+      investmentTypes: usedInvestmentTypes, 
+      RMDStrategy: rmdOrder.filter(id => id !== ""),
+      expenseWithdrawalStrategy: expenseOrder.filter(id => id !== ""),
+      RothConversionStrategy: rothOrder.filter(id => id !== ""),
+      spendingStrategy: spendingOrder.filter(id => id !== "")
+
     };
+    
 
     const planRes = await fetch("http://localhost:5000/api/plans", {
       method: "POST",
@@ -969,7 +989,7 @@ const handleSubmit = async () => {
                 <input
                   className="input-boxes"
                   type="text"
-                  name="annualReturnMean"
+                  name="lifeExpectancyMean"
                   placeholder="Enter mean..."
                   value={formData.lifeExpectancyMean}
                   onChange={handleChange}
@@ -978,7 +998,7 @@ const handleSubmit = async () => {
                 <input
                   className="input-boxes"
                   type="text"
-                  name="annualReturnStdev"
+                  name="lifeExpectancyStd"
                   placeholder="Enter standard deviation..."
                   value={formData.lifeExpectancyStd}
                   onChange={handleChange}
@@ -1033,7 +1053,7 @@ const handleSubmit = async () => {
                 <input
                   className="input-boxes"
                   type="text"
-                  name="annualReturnMean"
+                  name="spouseLifeExpectancyMean"
                   placeholder="Enter mean..."
                   value={formData.spouseLifeExpectancyMean}
                   onChange={handleChange}
@@ -1042,7 +1062,7 @@ const handleSubmit = async () => {
                 <input
                   className="input-boxes"
                   type="text"
-                  name="annualReturnStdev"
+                  name="spouseLifeExpectancyStd"
                   placeholder="Enter standard deviation..."
                   value={formData.spouseLifeExpectancyStd}
                   onChange={handleChange}
@@ -2124,7 +2144,7 @@ const handleSubmit = async () => {
           </div>
         </div>
         <div className="normal-text" style={{ marginTop: "20px" }}>
-        How would you like to order your Roth Conversion Strategy (pre-tax investment IDs comma-separated)
+        How would you like to order your Roth Conversion Strategy
         </div>
 
         <div className="collapse-container">
