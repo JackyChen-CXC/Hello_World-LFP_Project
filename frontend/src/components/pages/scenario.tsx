@@ -25,7 +25,7 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
       <div className="normal-text">Plan Type: {scenario.planType}</div>
       <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
       <div className="normal-text">Date Created: {scenario.dateCreated}</div>
-      <div style={{ display: "flex", marginLeft: "250px", marginTop: "100px" }}>
+      <div style={{ display: "flex", marginLeft: "160px", marginTop: "80px" }}>
       <img
           src="/images/edit.png"
           height={50}

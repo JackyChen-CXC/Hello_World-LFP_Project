@@ -39,3 +39,10 @@
     margin-left:10px;
     margin-bottom: 2px;
 }
+
+.investment-type-container{
+    background-color: #94b09d;
+    border-radius: 5%;
+    padding: 3%;
+    margin: 2%;
+}

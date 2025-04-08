@@ -3,7 +3,7 @@ import { IUser } from "./User";
 // import Investment, { IInvestment } from "./Investment";
 // import LifeEvent, { ILifeEvent } from "./LifeEvent";
 import { DistributionSchema, IDistribution } from "./Distribution";
-import { IInvestmentType } from "./InvestmentType";
+import { IInvestmentType, investmentTypeSchema } from "./InvestmentType";
 
 // Investments individual to Financial Plan (Unlike InvestmentType)
 export interface IInvestment extends Document {
@@ -31,16 +31,13 @@ const InvestmentSchema = new Schema<IInvestment>({
 export interface ILifeEvent extends Document {
     name: string;
     description: string;
-    startYear: IDistribution;
-    durationYears: IDistribution;
+    start: IDistribution;
+    duration: IDistribution;
     type: "income" | "expense" | "invest" | "rebalance";
     initialAmount?: number;
     changeAmtOrPct?: "amount" | "percent";
     changeDistribution?: IDistribution;
     inflationAdjusted?: boolean;
-    inflationType?: "fixed" | "normal";
-    inflationAmtOrPct?: "amount" | "percent";
-    inflationFixed?: number;
     userFraction?: number;
     socialSecurity?: boolean;
     discretionary?: boolean;
@@ -52,9 +49,9 @@ export interface ILifeEvent extends Document {
 
 const LifeEventSchema = new Schema<ILifeEvent>({
     name: { type: String, required: true, default: "" },
-    description: { type: String, required: true, default: "" },
-    startYear: { type: DistributionSchema, required: true },
-    durationYears: { type: DistributionSchema, required: true },
+    description: { type: String },
+    start: { type: DistributionSchema, required: true },
+    duration: { type: DistributionSchema, required: true },
     type: { type: String, required: true, enum: ["income", "expense", "invest", "rebalance"] },
     initialAmount: { type: Number, 
         required: function (this: ILifeEvent) { return this.type === "income" || this.type === "expense";
@@ -89,9 +86,6 @@ const LifeEventSchema = new Schema<ILifeEvent>({
     maxCash: { type: Number, 
         required: function (this: ILifeEvent) { return this.type === "invest";
     }},
-    inflationType: { type: String, enum: ["fixed", "normal"], default: "fixed" },
-    inflationAmtOrPct: { type: String, enum: ["amount", "percent"], default: "percent" },
-    inflationFixed: { type: Number, default: 0 },
     },
     { _id: false }
     
@@ -127,7 +121,7 @@ export interface IFinancialPlan extends Document {
     maritalStatus: "couple" | "individual"
     birthYears: number[];
     lifeExpectancy: IDistribution[];
-    investmentTypes: string[];
+    investmentTypes: IInvestmentType[];
     investments: IInvestment[];
     eventSeries: ILifeEvent[];
     inflationAssumption: IDistribution;
@@ -154,7 +148,7 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     maritalStatus : { type: String, enum: ["couple", "individual"] },
     birthYears: { type: [Number], required: true, default: [] },
     lifeExpectancy: { type: [DistributionSchema], required: true, default: [] },
-    investmentTypes: { type: [String], required: true, default: [] },
+    investmentTypes: { type: [investmentTypeSchema], required: true, default: [] },
     investments: { type: [InvestmentSchema], required: true, default: [] },
     eventSeries: { type: [LifeEventSchema], required: true, default: [] },
     inflationAssumption: { type: DistributionSchema, required: true},

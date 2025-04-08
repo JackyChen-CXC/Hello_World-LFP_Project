@@ -1,6 +1,6 @@
 import User from "../models/User";
 
-// Google Login,
+// Google Login if saving in backend
 export const login = async (req: any, res: any) => {
 	try {
 		

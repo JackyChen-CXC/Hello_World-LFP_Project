@@ -2,10 +2,10 @@ import { exec } from "child_process";
 import FinancialPlan from "../models/FinancialPlan";
 import InvestmentType from "../models/InvestmentType";
 
+{/**----------------------------Investment Controllers---------------------------------------- */}
 export const createInvestmentType = async (req: any, res: any) => {
 	try {
 	const {
-		planId,
 		name,
 		description,
 		returnAmtOrPct,
@@ -16,22 +16,15 @@ export const createInvestmentType = async (req: any, res: any) => {
 		expenseRatio
 	} = req.body;
 
-	const plan = await FinancialPlan.findById(planId);
-	if (!plan) {
-		return res
-		.status(404)
-		.json({ error: "No FinancialPlan found with that planId" });
-	}
 	const newInvestmentType = new InvestmentType({
-		planId,
 		name,
 		description,
-		returnAmtOrPct,        
-		returnDistribution,   
-		incomeAmtOrPct,        
+		returnAmtOrPct,
+		returnDistribution,
+		incomeAmtOrPct,
 		incomeDistribution,
 		taxability,
-		expenseRatio   
+		expenseRatio,
 	});
 
 	await newInvestmentType.save();
@@ -42,40 +35,111 @@ export const createInvestmentType = async (req: any, res: any) => {
 	}
 };
 
-export const getInvestmentTypeById = async (req: any, res: any) => {
+export const findInvestmentType = async (req: any, res: any) => {
 	try {
-		const { id } = req.params;
-		const investmentType = await InvestmentType.findById(id);
-
-		if (!investmentType) {
-		return res.status(404).json({ error: "Investment type not found" });
+		const {
+			name,
+			returnAmtOrPct,
+			returnDistribution = {},
+			incomeAmtOrPct,
+			incomeDistribution = {},
+			taxability
+		} = req.body;
+		
+		if (!name || !returnAmtOrPct || !incomeAmtOrPct || returnDistribution.type === undefined || incomeDistribution.type === undefined) {
+		return res.status(400).json({ error: "Missing required fields for lookup" });
 		}
+		
+		const investmentType = await InvestmentType.findOne({
+		name,
+		returnAmtOrPct,
+		"returnDistribution.type": returnDistribution.type,
+		"returnDistribution.value": returnDistribution.value,
+		incomeAmtOrPct,
+		"incomeDistribution.type": incomeDistribution.type,
+		"incomeDistribution.value": incomeDistribution.value,
+		taxability,
+		});
+		
 
-		return res.status(200).json(investmentType);
+	return res.status(200).json(investmentType || null);
+	} catch (err) {
+		console.error("Error finding investment type:", err);
+		res.status(500).json({ error: "Failed to find investment type" });
+	}
+};
+
+export const getAllInvestmentTypes = async (req: any, res: any) => {
+	try {
+		const investmentTypes = await InvestmentType.find();
+		return res.status(200).json(investmentTypes);
 	} catch (error) {
-		console.error("Error fetching investment type:", error);
+		console.error("Error fetching investment types:", error);
 		return res.status(500).json({ error: "Server error" });
 	}
 };
-export const getInvestmentTypesByPlanId = async (req: any, res: any) => {
+
+export const getInvestmentTypeById = async (req:any, res:any) => {
+  try {
+	const { id } = req.params;
+	const investmentType = await InvestmentType.findById(id);
+	if (!investmentType) return res.status(404).json({ error: "Not found" });
+	return res.status(200).json(investmentType);
+  } catch (err) {
+	return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getInvestmentsByPlanId = async (req: any, res: any) => {
 	try {
 		const { planId } = req.params;
-		const plan = await FinancialPlan.findById(planId);
+	
+		const plan = await FinancialPlan.findById(planId).select("investments");
+	
 		if (!plan) {
-		return res.status(404).json({ error: "Plan not found" });
+			return res.status(404).json({ error: "Plan not found" });
 		}
+	
+		return res.status(200).json(plan.investments);
+		} catch (error) {
+		console.error("Error fetching investments:", error);
+		return res.status(500).json({ error: "Server error" });
+		}
+};
 
-		const investmentTypes = await InvestmentType.find({
-		_id: { $in: plan.investmentTypes },
-		});
-
-		return res.status(200).json({ data: investmentTypes });
+export const deleteInvestmentTypeById = async (req: any, res: any) => {
+	try {
+		const { id } = req.params;
+		const deleted = await InvestmentType.findByIdAndDelete(id);
+	
+		if (!deleted) {
+			return res.status(404).json({ error: "Investment type not found" });
+		}
+	
+		return res.status(200).json({ message: "Investment type deleted successfully" });
 	} catch (error) {
-		console.error("Error fetching investment types for plan:", error);
-		return res.status(500).json({ message: "Failed to fetch investment types" });
+		console.error("Error deleting investment type:", error);
+		return res.status(500).json({ error: "Server error" });
 	}
 };
 
+{/**----------------------------Event Series Controllers---------------------------------------- */}
+export const getAllEvents = async (req: any, res: any) => {
+	try {
+
+		const plans = await FinancialPlan.find({}, "eventSeries");
+
+		// Flatten all eventSeries arrays into one big array
+		const allEvents = plans.flatMap(plan => plan.eventSeries || []);
+
+		return res.status(200).json(allEvents);
+	} catch (error) {
+		console.error("Error fetching events:", error);
+		return res.status(500).json({ error: "Server error" });
+	}
+};
+
+{/**----------------------------Financial Plan Controllers---------------------------------------- */}
 
 
 export const getAllFinancialPlans = async (req: any, res: any) => {
@@ -111,44 +175,18 @@ export const getAllFinancialPlans = async (req: any, res: any) => {
   
 
 
-export const createFinancialPlan = async (req:any, res:any) => {
-	try {
-
-		const newPlan = new FinancialPlan(req.body);
-		const investments = req.body.investments || [];
-		const investmentTypeIds: string[] = [];
-
-		for (const inv of investments) {
-		// Create and save your InvestmentType
-		const newInvType = new InvestmentType({
-			name: inv.investmentName || inv.investmentType || "Untitled",
-			description: "",
-			returnAmtOrPct: inv.returnAmtOrPct || "percent",
-			returnDistribution: inv.returnDistribution || { type: "fixed", value: 0 },
-			expenseRatio: 0,
-			incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
-			incomeDistribution: inv.incomeDistribution || { type: "fixed", value: 0 },
-			taxability: inv.taxability === "taxable",
-		});
-
-		const savedInvType = await newInvType.save();
-		
-		// Convert the ObjectId to a string
-		const invTypeId = String(savedInvType._id); 
-	investmentTypeIds.push(invTypeId);
+	export const createFinancialPlan = async (req: any, res: any) => {
+		try {
+			const newPlan = new FinancialPlan(req.body);
+	
+			await newPlan.save();
+			res.status(201).json(newPlan);
+		} catch (err) {
+			console.error("Error creating plan:", err);
+			res.status(500).json({ error: "Failed to create financial plan" });
 		}
-
-		// Now investmentTypeIds is a string[] and can be assigned to newPlan.investmentTypes
-		newPlan.investmentTypes = investmentTypeIds;
-		await newPlan.save();
-
-
-		res.status(201).json(newPlan);
-	} catch (err) {
-		console.error("Error creating plan:", err);
-		res.status(500).json({ error: "Failed to create financial plan" });
-	}
-};
+	};
+	
   
 
 
@@ -193,35 +231,21 @@ export const webscrape = async (req: any, res: any) => {
     });
 };
 
-
-export const scrapeDoc = async (req: any, res: any) => {
-	try {
-		// use app.py from ..\microservices\webscraping
-        // await axios.post('http://localhost:5001/api/flask/videos'
-	} catch (error) {
-		res.status(200).json({
-			status: "ERROR",
-			error: true,
-			message: "Login failed.",
-		});
-	}
-};
-
 export const updateFinancialPlan = async (req: any, res: any) => {
 	try {
-	const { id } = req.params;
-	const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, req.body, {
-		new: true,
-		runValidators: true,
-	});
+		const { id } = req.params;
+		const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, req.body, {
+			new: true,
+			runValidators: true,
+		});
 
-	if (!updatedPlan) {
-		return res.status(404).json({ error: "Plan not found" });
-	}
+		if (!updatedPlan) {
+			return res.status(404).json({ error: "Plan not found" });
+		}
 
-	return res.status(200).json({ message: "Plan updated", data: updatedPlan });
+		return res.status(200).json({ message: "Plan updated", data: updatedPlan });
 	} catch (err) {
-	console.error("Error updating plan:", err);
-	return res.status(500).json({ error: "Failed to update plan" });
+		console.error("Error updating plan:", err);
+		return res.status(500).json({ error: "Failed to update plan" });
 	}
 };
