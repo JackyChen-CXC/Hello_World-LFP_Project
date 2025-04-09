@@ -40,6 +40,7 @@ const CreatePlan = () => {
         id: 1,
         isExpanded: false,
         investmentType: "",
+        investmentTypeName: "",
         investmentName: "",
         investmentValue:"",
         investmentDescription: "",
@@ -140,6 +141,7 @@ const CreatePlan = () => {
           id: prevData.investments.length + 1,
           isExpanded: false,
           investmentType: "",
+          investmentTypeName: "",
           investmentName: "",
           investmentValue:"",
           investmentDescription: "",
@@ -216,8 +218,8 @@ const CreatePlan = () => {
         // store the chosen \_id in investmentType
         investmentType: value,          
         isCreatingNewType: false,
-        // set the investmentName to the existing type’s name if found
-        investmentName: chosenType ? chosenType.name : "", 
+        // set the investmentTypeName to the existing type’s name if found
+        investmentTypeName: chosenType ? chosenType.name : "", 
       };
     
       setFormData((prevData) => ({
@@ -232,7 +234,7 @@ const CreatePlan = () => {
           return res.json();
         })
         .then((data) => {
-          console.log("Fetched investment type data:", data);
+
         })
         .catch((err) => {
           console.error("Failed to fetch investment type data:", err);
@@ -530,7 +532,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
 
       return {
         id: inv.investmentName || "", 
-        investmentName: inv.investmentName || "",
+        investmentTypeName: inv.investmentTypeName || "",
         investmentDescription: inv.investmentDescription || "",
         investmentType: inv.investmentType || "",
         value: parseFloat(inv.investmentValue || "0"),
@@ -707,6 +709,11 @@ function buildDistribution(distType, mean, stdev, fixedValue) {
   };
 }
 
+const [localInvestmentTypes, setLocalInvestmentTypes] = useState([]);
+const combinedTypes = [
+  ...existingInvestmentTypes,
+  ...localInvestmentTypes
+];
 
 const handleCreateInvestmentTypeClick = async (index) => {
   try {
@@ -729,7 +736,7 @@ const handleCreateInvestmentTypeClick = async (index) => {
     const isTaxable = inv.taxability === "taxable";
 
     const invTypePayload = {
-      name: inv.investmentName || inv.investmentType || "Untitled",
+      name: inv.investmentTypeName || "Untitled",
       description: inv.investmentDescription || "",
       taxability: isTaxable,
       expenseRatio: 0,
@@ -774,7 +781,6 @@ const handleCreateInvestmentTypeClick = async (index) => {
         ...newInvestments[index],
         createdTypeId: finalType._id,
         investmentType: finalType._id,
-        investmentName: finalType.name,
       };
       return {
         ...prevData,
@@ -844,6 +850,7 @@ const handleSubmit = async () => {
     alert("There was an error. Check the console for details.");
   }
 };
+
 
   const username = localStorage.getItem("name");
   const name = localStorage.getItem("given_name");
@@ -1117,46 +1124,49 @@ const handleSubmit = async () => {
         {investment.isExpanded && (
           <>
             {/* Choose between new or existing type */}
-            <div className="split-container">
-              <div className="left-side">
-                <div className="normal-text">Create New Investment Type Name</div>
-                <input
-                  className="input-boxes"
-                  type="text"
-                  name="investmentName"
-                  value={investment.investmentName}
-                  onChange={(e) => handleInvestmentChange(index, e)}
-                  onFocus={() => {
-                    const updated = [...formData.investments];
-                    updated[index].isCreatingNewType = true;
-                    updated[index].investmentType = "";
-                    setFormData((prev) => ({ ...prev, investments: updated }));
-                  }}
-                />
+            <div className="normal-text">Select Investment Type</div>
+            <select
+              className="collapse-options"
+              name="investmentType"
+              value={investment.investmentType}
+              onChange={(e) => {
+                const value = e.target.value;
+                const updated = [...formData.investments];
 
-              </div>
-              <div className="right-side">
-                <div className="normal-text">Select Existing Investment Type</div>
-                <select
-                  className="collapse-options"
-                  name="investmentType"
-                  value={investment.investmentType}
-                  onChange={(e) => handleInvestmentChange(index, e)}
-                  disabled={investment.investmentName}
-                >
-                  <option value="">--Select--</option>
-                  {existingInvestmentTypes.map((type) => (
-                    <option key={type._id} value={type._id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                if (value === "create_new") {
+                  updated[index].isCreatingNewType = true;
+                  updated[index].investmentType = "";
+                  updated[index].investmentTypeName = ""; // optional reset
+                } else {
+                  updated[index].isCreatingNewType = false;
+                  updated[index].investmentType = value;
+                  const selectedType = combinedTypes.find((t) => t._id === value);
+                  updated[index].investmentTypeName = selectedType?.name || "";
+                }
+
+                setFormData((prev) => ({ ...prev, investments: updated }));
+              }}
+            >
+              <option value="">--Select--</option>
+              <option value="create_new">-- Create New Investment Type --</option>
+              {combinedTypes.map((type) => (
+                <option key={type._id} value={type._id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
 
             {/* Only show this stuff if they're creating a new type */}
             {investment.isCreatingNewType && (
               <div className="investment-type-container">
+                <div className="normal-text">Create New Investment Type Name</div>
+                <input
+                  className="input-boxes"
+                  type="text"
+                  name="investmentTypeName"
+                  value={investment.investmentTypeName}
+                  onChange={(e) => handleInvestmentChange(index, e)}
+                />
                 <div className="normal-text">Brief Description of Investment*</div>
                 <textarea
                   className="input-boxes textarea-box"
@@ -1344,6 +1354,14 @@ const handleSubmit = async () => {
               </div>
             )}
 
+            <div className="normal-text">Investment Name </div>
+            <input
+              className="input-boxes"
+              type="text"
+              name="investmentName"
+              value={investment.investmentName}
+              onChange={(e) => handleInvestmentChange(index, e)}
+            />
             {/* Value + account type (these apply to both) */}
             <div className="normal-text">What is the current value of this investment?*</div>
             <input
@@ -2041,7 +2059,7 @@ const handleSubmit = async () => {
                 {formData.investments
                   .filter(
                     (inv) =>
-                      inv.investmentName && // only include named investments
+                      inv.investmentName && 
                       (!expenseOrder.includes(inv.id) || inv.id === selectedId)
                   )
                   .map((inv) => (
