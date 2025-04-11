@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import '../css_files/side_panel_style.css';
 
@@ -22,16 +21,16 @@ const SidePanel = () => {
       <button className="tab-btn" onClick={() => navigate("/help")}>Help</button>
       
       { username ? (
+        <button className="tab-btn" onClick={() => navigate("/profile")}>Profile</button>
+      ): (
+        <></>
+      )}
+      { username ? (
         <button className="tab-btn" onClick={handleLogout}>Logout</button>
       ) : (
         <button className="tab-btn" onClick={() => navigate("/login")}>Login</button>
       )}
 
-      { username ? (
-        <button className="tab-btn" onClick={() => navigate("/profile")}>Profile</button>
-      ): (
-        <></>
-      )}
     </div>
   );
 };

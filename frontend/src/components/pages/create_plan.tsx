@@ -118,6 +118,15 @@ const CreatePlan = () => {
     }));
   };
 
+  const US_STATE_ABBREVIATIONS: string[] = [
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+  ];
+  
+
   // -----------------------------------------------------INVESTMENT TRANSFORMATION STUFF  -----------------------------------------------------//
   // Toggle expand/collapse
   const toggleInvestment = (index) => {
@@ -649,6 +658,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
 
 const [existingInvestmentTypes, setExistingInvestmentTypes] = useState([]);
 
+/** 
 useEffect(() => {
   const fetchInvestmentTypes = async () => {
     try {
@@ -666,6 +676,7 @@ useEffect(() => {
 
   fetchInvestmentTypes();
 }, []);
+*/
 
 useEffect(() => {
   const preTaxInvestments = formData.investments.filter(inv => inv.accountType === "pre-tax");
@@ -765,7 +776,7 @@ const handleCreateInvestmentTypeClick = async (index) => {
 
       finalType = await createRes.json();
 
-      setExistingInvestmentTypes((prev) => [...prev, finalType]);
+      setLocalInvestmentTypes((prev) => [...prev, finalType]);
     } else {
       setExistingInvestmentTypes((prev) => {
         if (!prev.find((t) => t._id === found._id)) {
@@ -818,9 +829,9 @@ const handleSubmit = async () => {
       formData.investments.map((inv) => String(inv.createdTypeId || inv.investmentType))
     );
     
-    const usedInvestmentTypes = existingInvestmentTypes.filter((type) =>
+    const usedInvestmentTypes = [...existingInvestmentTypes, ...localInvestmentTypes].filter((type) =>
       usedTypeIds.has(String(type._id))
-    );
+    );    
     
     const finalPayload = {
       ...transformedData,
@@ -930,7 +941,7 @@ const handleSubmit = async () => {
       <div className="subheading">Basic Information</div>
       <div className="question">
         {/* Plan Name */}
-        <div className="normal-text">Name Your Plan*</div>
+        <div className="normal-text">Name Your Plan *(Required)*</div>
         <input
           className="input-boxes"
           type="text"
@@ -940,7 +951,7 @@ const handleSubmit = async () => {
         />
 
         {/* Plan Type */}
-        <div className="normal-text">Plan Type*</div>
+        <div className="normal-text">Plan Type *(Required)*</div>
         <RadioGroup
           name="planType"
           selectedValue={formData.planType}
@@ -952,7 +963,7 @@ const handleSubmit = async () => {
         />
 
         {/* Current Age & Birth Year */}
-        <div className="normal-text">What Year Were You Born*</div>
+        <div className="normal-text">What Year Were You Born *(Required)*</div>
         <input
           className="input-boxes"
           type="text"
@@ -1018,7 +1029,7 @@ const handleSubmit = async () => {
         {/* Spouse's Age & Birth Year (only for joint plan) */}
         {formData.planType === "joint" && (
           <div>
-            <div className="normal-text">Spouse's Birth Year*</div>
+            <div className="normal-text">Spouse's Birth Year *(Required)*</div>
             <input
               className="input-boxes"
               type="text"
@@ -1083,21 +1094,29 @@ const handleSubmit = async () => {
           
         )}
 
-        <div className="normal-text ">What state are you in?*</div>
-        <input
-          className="input-boxes"
-          type="text"
+        <div className="normal-text ">What state are you in? *(Required)*</div>
+        <select
+          className="collapse-options"
           name="residentState"
           value={formData.residentState}
-          placeholder="Enter 2 Letter State Acronym"
-          onChange={handleChange}
-        />
+          onChange={(e) => {
+            const value = e.target.value;
+            setFormData((prev) => ({ ...prev, residentState: value }));
+          }}
+        >
+          <option value="">--Select--</option>
+          {US_STATE_ABBREVIATIONS.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
       </div>
 
     {/* ------------------------------------------Investments & Savings------------------------------------------ */}
     <div className="subheading">Investments & Savings</div>
 
-    <div className="normal-text">What is your financial goal?*</div>
+    <div className="normal-text">What is your financial goal? *(Required)*</div>
     <input
       className="input-boxes"
       type="text"
@@ -1149,7 +1168,7 @@ const handleSubmit = async () => {
             >
               <option value="">--Select--</option>
               <option value="create_new">-- Create New Investment Type --</option>
-              {combinedTypes.map((type) => (
+              {localInvestmentTypes.map((type) => (
                 <option key={type._id} value={type._id}>
                   {type.name}
                 </option>
@@ -1167,7 +1186,7 @@ const handleSubmit = async () => {
                   value={investment.investmentTypeName}
                   onChange={(e) => handleInvestmentChange(index, e)}
                 />
-                <div className="normal-text">Brief Description of Investment*</div>
+                <div className="normal-text">Brief Description of Investment *(Required)*</div>
                 <textarea
                   className="input-boxes textarea-box"
                   rows="4"
@@ -1175,7 +1194,7 @@ const handleSubmit = async () => {
                   value={investment.investmentDescription}
                   onChange={(e) => handleInvestmentChange(index, e)}
                 ></textarea>
-                <div className="normal-text">How would you like to express the investment's annual return?*</div>
+                <div className="normal-text">How would you like to express the investment's annual return? *(Required)*</div>
                 <div className="split-container">
                   <div className="left-side">
                     <RadioGroup
@@ -1244,7 +1263,7 @@ const handleSubmit = async () => {
                 </div>
 
                 <br />
-                <div className="normal-text">Expected annual income from dividends or interest?*</div>
+                <div className="normal-text">Expected annual income from dividends or interest? *(Required)*</div>
                 <div className="split-container">
                   <div className="left-side">
                     <RadioGroup
@@ -1311,7 +1330,7 @@ const handleSubmit = async () => {
                   </div>
                 </div>
                 {/* Taxability & Account Type */}
-                <div className="normal-text">Is this investment taxable?*</div>
+                <div className="normal-text">Is this investment taxable? *(Required)*</div>
                   <label className="normal-text">
                   <RadioGroup
                     name={`taxability-${index}`}
@@ -1363,7 +1382,7 @@ const handleSubmit = async () => {
               onChange={(e) => handleInvestmentChange(index, e)}
             />
             {/* Value + account type (these apply to both) */}
-            <div className="normal-text">What is the current value of this investment?*</div>
+            <div className="normal-text">What is the current value of this investment? *(Required)*</div>
             <input
               className="input-boxes"
               type="text"
@@ -1372,7 +1391,7 @@ const handleSubmit = async () => {
               onChange={(e) => handleInvestmentChange(index, e)}
             />
 
-            <div className="normal-text">Account Type*</div>
+            <div className="normal-text">Account Type *(Required)*</div>
             <select
               className="collapse-options"
               name="accountType"
@@ -1422,7 +1441,7 @@ const handleSubmit = async () => {
               <div className="split-container">
                 <div className="left-side">
                   {/* Common Select Field */}
-                  <div className="normal-text">Select Event Series Type*</div>
+                  <div className="normal-text">Select Event Series Type *(Required)*</div>
                   <select
                     className="collapse-options"
                     name="type"
@@ -1588,7 +1607,7 @@ const handleSubmit = async () => {
 
                 </div>
                 <div className="right-side">
-                  <div className="normal-text">Name of Event Series*</div>
+                  <div className="normal-text">Name of Event Series *(Required)*</div>
                   <input
                     className="input-boxes"
                     type="text"
@@ -1596,7 +1615,7 @@ const handleSubmit = async () => {
                     value={lifeEvent.eventName}
                     onChange={(e) => handleLifeEventChange(index, e)}
                   />
-                  <div className="normal-text">Brief Description of Event Series*</div>
+                  <div className="normal-text">Brief Description of Event Series *(Required)*</div>
                   <textarea
                     className="input-boxes textarea-box"
                     rows="4"
@@ -1610,7 +1629,7 @@ const handleSubmit = async () => {
               {(lifeEvent.type === "income" || lifeEvent.type === "expense") && (
               <>
                 {/* Initial Amount */}
-                <div className="normal-text">What is the initial amount for this event?*</div>
+                <div className="normal-text">What is the initial amount for this event? *(Required)*</div>
                 <input
                   className="input-boxes"
                   type="text"
@@ -1621,7 +1640,7 @@ const handleSubmit = async () => {
                 />
 
                 {/* Expected Annual Change */}
-                <div className="normal-text">How should the annual change be expressed?*</div>
+                <div className="normal-text">How should the annual change be expressed? *(Required)*</div>
                 <div className="split-container">
                   <div className="left-side">
                     <label className="normal-text">
@@ -1773,7 +1792,7 @@ const handleSubmit = async () => {
 
               {/* Start Date */}
               <div className="normal-text">
-                How would you like to express the start date of this event? (select 1)*
+                How would you like to express the start date of this event? (select 1) *(Required)*
               </div>
               <div className="split-container">
                 <div className="left-side">
@@ -1922,7 +1941,7 @@ const handleSubmit = async () => {
 
               {/* Duration */}
               <br />
-              <div className="normal-text">What is the duration of this Event Series?*</div>
+              <div className="normal-text">What is the duration of this Event Series? *(Required)*</div>
               <input
                 className="input-boxes"
                 type="text"
@@ -1935,7 +1954,7 @@ const handleSubmit = async () => {
 
               {/* Inflation */}
               <div className="normal-text">
-                How would you like to adjust for inflation? (select 1)*
+                How would you like to adjust for inflation? (select 1) *(Required)*
               </div>
 
               <div className="split-container">
@@ -2075,7 +2094,7 @@ const handleSubmit = async () => {
 
 
       <div className="normal-text" style={{ marginTop: "20px" }}>
-        Spending Strategy (discretionary events )
+        Spending Strategy For Discretionary Events 
       </div>
       <div className="collapse-container">
         {formData.lifeEvents.filter((e) => e.type === "expense" && e.expenseSource === "Discretionary").length === 0 ? (

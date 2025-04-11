@@ -15,6 +15,7 @@ interface ScenarioData {
     mean?: number;
     stdev?: number;
   }[];
+
   financialGoal: number;
   RothConversionOpt: boolean;
   RothConversionStart: number;
@@ -26,6 +27,7 @@ interface ScenarioData {
     type: string;
     value: number;
   };
+
   inflationType: string;
   inflationFixed: number;
   inflationAmtorPct: string;
@@ -82,22 +84,39 @@ const OpenScenario = () => {
     fetchScenario();
   }, [id]);
 
-  //used ChatGPT to help fetch investment lists
+  //used ChatGPT to help fetch investment Type lists
   useEffect(() => {
     const fetchInvestmentDetails = async () => {
-      if (!scenario || !scenario.investmentTypes?.length) return;
+      if (!scenario || !scenario.investments?.length) return;
+  
       try {
-        const promises = scenario.investmentTypes.map((typeId) =>
-          fetch(`http://localhost:5000/api/investment-types/id/${typeId}`).then((res) => res.json())
+        const uniqueTypeIds = Array.from(
+          new Set(scenario.investments.map((inv) => inv.investmentType))
         );
+  
+        const promises = uniqueTypeIds.map((typeId) =>
+          fetch(`http://localhost:5000/api/investment-types/id/${typeId}`).then((res) =>
+            res.json()
+          )
+        );
+  
         const results = await Promise.all(promises);
-        setInvestmentDetails(results);
+  
+        // Map results by _id for quick lookup
+        const investmentMap: Record<string, InvestmentTypeData> = {};
+        results.forEach((item) => {
+          investmentMap[item._id] = item;
+        });
+  
+        setInvestmentDetails(Object.values(investmentMap));
       } catch (error) {
         console.error("Failed to load investment types:", error);
       }
     };
+  
     fetchInvestmentDetails();
   }, [scenario]);
+  
 
 
   const capitalizeWords = (str: any) => {
@@ -160,12 +179,12 @@ const OpenScenario = () => {
       <div className="scenario-container" style={{ width: "70%", height: "auto" }}>
         <div className="split-container">
           <div className="left-container">
-            <div className="normal-text">Title: {capitalizeWords(scenario.name)}</div>
-            <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
+            <div className="normal-text" style={{ fontWeight: "bold" }}>Title: {capitalizeWords(scenario.name)}</div>
+            <div className="normal-text" style={{ fontWeight: "bold" }}>Financial Goal: ${scenario.financialGoal}</div>
           </div>
           <div className="right-container">
-            <div className="normal-text">Plan Type: {capitalizeWords(scenario.maritalStatus)} Plan</div>
-            <div className="normal-text">
+            <div className="normal-text" style={{ fontWeight: "bold" }}>Plan Type: {capitalizeWords(scenario.maritalStatus)} Plan</div>
+            <div className="normal-text" style={{ fontWeight: "bold" }}>
               Date Created: {dateCreated || "N/A"}</div>
 
           </div>
@@ -177,7 +196,7 @@ const OpenScenario = () => {
 
         <div className="scenario-info-container">
           <div>Birth Year:</div>
-          <div>{scenario.birthYears.join(", ")}</div>
+          <div>{scenario.birthYears[0]}</div>
         </div>
         
         <div className="scenario-info-container">
@@ -190,10 +209,16 @@ const OpenScenario = () => {
         </div>
         
         {scenario.maritalStatus === "couple" && scenario.birthYears[1] && (
-        <div className="scenario-info-container">
-          Spouse's Birth Year:
-          <div >{scenario.birthYears[1]}</div>
+          <>
+          <div className="scenario-info-container">
+            Spouse's Birth Year:
+            <div >{scenario.birthYears[1]}</div>
+          </div>
+          <div className="scenario-info-container">
+            Spouse's Life Expectancy:
+          <div >{scenario.lifeExpectancy[1]?.value} Years</div>
         </div>
+          </>
         )}
 
         <div className="scenario-info-container">
@@ -201,69 +226,110 @@ const OpenScenario = () => {
           <div >{capitalizeWords(scenario.residenceState) || "N/A"}</div>
         </div>
         <hr/>
-        {/**-----------------------------------Investments------------------------------------------------------ */}
-        <div className="normal-text" style={{ fontWeight: "bold" }}>Investments:</div>
-        {investmentDetails.length === 0 ? (
-        <div className="normal-text">No detailed investment data available.</div>
+        {/**-----------------------------------Investment Types------------------------------------------------------ */}
+        <div className="normal-text" style={{ fontWeight: "bold" }}>Investment Types:</div>
+        {scenario.investments.length === 0 ? (
+          <div className="normal-text">No investment type data available.</div>
         ) : (
-          investmentDetails.map((inv, index) => {
-            const meta = scenario.investments[index];
+          scenario.investments.map((meta, index) => {
+            const inv = investmentDetails.find(
+              (item) => item._id === meta.investmentType
+            );
+
             return (
-              <div key={inv._id} style={{ marginBottom: "1rem" }}>
+              <div key={meta.investmentType + index} style={{ marginBottom: "1rem" }}>
                 <div className="normal-text" style={{ fontWeight: "bold" }}>
-                  {index + 1}. Investment Name: {capitalizeWords(inv.name || "Unnamed")}
+                  {index + 1}. {capitalizeWords(inv?.name || "Unnamed")}
                 </div>
-                
-                {/**not done, not displaying */}
+
                 <div className="normal-text" style={{ marginLeft: "5%" }}>
-                  {inv.description && (
-                    <div>
-                      Brief Description:{" "}
-                      <div >{capitalizeWords(inv.description)}</div>
+                  {inv?.description && (
+                    <div className="scenario-info-container" >
+                      Brief Description:
+                      <div style={{ width: "400px", textAlign: "right", wordWrap: "break-word" }}>
+                        <div>{capitalizeWords(inv.description)}</div>
+                      </div>
                     </div>
                   )}
 
-                  <div className="scenario-info-container">
-                    Investment Type:{" "}
-                    <div >{capitalizeWords(meta?.investmentType || "N/A")}</div>
-                  </div>
-                  <div className="scenario-info-container">
-                    Current Value:{" "}
-                    <div >${meta?.value || 0}</div>
-                  </div>
-                  <div className="scenario-info-container">
-                    Tax Status:{" "}
-                    <div >{capitalizeWords(meta?.taxStatus || "N/A")}</div>
-                  </div>
-
                   {/* Return & Income Distribution */}
-                  {inv.returnDistribution && (
-                    <DistributionDisplay label="Annual Return" distribution={inv.returnDistribution} />
+                  {inv?.returnDistribution && (
+                    <DistributionDisplay
+                      label="Annual Return"
+                      distribution={inv.returnDistribution}
+                    />
                   )}
 
-                  {inv.incomeDistribution && (
-                    <DistributionDisplay label="Annual Income" distribution={inv.incomeDistribution} />
+                  {inv?.incomeDistribution && (
+                    <DistributionDisplay
+                      label="Annual Income"
+                      distribution={inv.incomeDistribution}
+                    />
                   )}
+                  {inv && (
+                    <div className="scenario-info-container">
+                      Taxability:
+                      <div>{inv.taxability ? "True" : "False"}</div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             );
           })
         )}
         <hr />
-        {/**-----------------------------------Life Events------------------------------------------------------ */}
-        <div className="normal-text" style={{ fontWeight: "bold" }}>Life Events:</div>
+
+        {/**-----------------------------------Investments------------------------------------------------------ */}
+        <div className="normal-text" style={{ fontWeight: "bold" }}>Investments:</div>
+        {scenario.investments.length === 0 ? (
+          <div className="normal-text">No investment data available.</div>
+        ) : (
+          scenario.investments.map((meta, index) => {
+            const inv = investmentDetails.find(
+              (item) => item._id === meta.investmentType
+            );
+
+            return (
+              <div key={meta.investmentType + index} style={{ marginBottom: "1rem" }}>
+                <div className="normal-text" style={{ fontWeight: "bold" }}>
+                  {index + 1}. {capitalizeWords(meta?.id || "Unnamed")}
+                </div>
+
+                <div className="scenario-info-container">
+                  Investment Type:
+                  <div>{capitalizeWords(inv?.name || "N/A")}</div>
+                </div>
+
+                <div className="scenario-info-container">
+                  Current Value:
+                  <div>${meta?.value || 0}</div>
+                </div>
+
+                <div className="scenario-info-container">
+                  Tax Status:
+                  <div>{capitalizeWords(meta?.taxStatus || "N/A")}</div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <hr />
+
+        {/**-----------------------------------Event Seriess------------------------------------------------------ */}
+        <div className="normal-text" style={{ fontWeight: "bold" }}>Event Seriess:</div>
         {scenario.eventSeries.length === 0 ? (
-        <div className="normal-text">No life events added.</div>
+        <div className="normal-text">No Event Seriess added.</div>
         ) : (
           scenario.eventSeries.map((event, index) => (
             <div key={index} style={{ marginBottom: "1rem" }}>
               <div className="normal-text" style={{ fontWeight: "bold" }}>
-                {index + 1}. Life Event Name: {capitalizeWords(event.name)}
+                {index + 1}.{capitalizeWords(event.name)}
               </div>
               <div className="normal-text" style={{ marginLeft: "5%" }}>
 
                 <div className="scenario-info-container">
-                  Description:{" "}
+                  Brief Description:{" "}
                   <div >{capitalizeWords(event.description)}</div>
                 </div>
 
