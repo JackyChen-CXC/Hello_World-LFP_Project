@@ -123,29 +123,8 @@ export const exportPlan = async (req: any, res: any) => {
         const planId = scenarioData.id;
         const scenario = await FinancialPlan.findById(planId);
 
-        // delete scenario?.eventSeries
-
         if (scenario) {
-        //     // Fetch full investment type details -> Id (Unused after Schema Change)
-        //     const investmentTypeNames = scenario.investmentTypes || [];
-        //     const investmentTypes = await Promise.all(
-        //         investmentTypeNames.map(async (investmentTypeName: string) => {
-        //             const investmentType = await InvestmentType.findOne({ name: investmentTypeName });
-        //             return investmentType ? {
-        //                 name: investmentType.name,
-        //                 description: investmentType.description,
-        //                 returnAmtOrPct: investmentType.returnAmtOrPct,
-        //                 returnDistribution: investmentType.returnDistribution,
-        //                 expenseRatio: investmentType.expenseRatio,
-        //                 incomeAmtOrPct: investmentType.incomeAmtOrPct,
-        //                 incomeDistribution: investmentType.incomeDistribution,
-        //                 taxability: investmentType.taxability
-        //             } : null;
-        //         })
-        //     ).then(types => types.filter(type => type !== null));
-            
             // Prepare the result object
-
             const result = {
                 name: scenario.name,
                 maritalStatus: scenario.maritalStatus,

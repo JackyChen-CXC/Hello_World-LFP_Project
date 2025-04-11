@@ -4,7 +4,7 @@ export interface ISimulation extends Document {
     planId: string;
     status: string;
     resultsId: string;
-    // Stores all the detailed paths for each simulation inside for depiction using scenario exploration
+    // Stores all the detailed paths for each simulation inside for depiction using scenario exploration (Might be unnecessary)
     InvestmentsOverTime: number[][]; 
     ExpensesOverTime: number[][];
     earlyWithdrawalTaxOverTime: number[][];
