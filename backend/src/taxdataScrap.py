@@ -1,269 +1,118 @@
 #do the following so that when you npm install backend it auto webscrape
 #pip install requests beautifulsoup4 pymongo
 #npm install --save-dev ts-node
+#pip install python-dotenv
 import requests
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 import re
 import sys
+from datetime import datetime
+from dotenv import load_dotenv
+from pathlib import Path
+import os
 
+env_path = Path(__file__).resolve().parent.parent / '.env.example'
+load_dotenv(dotenv_path=env_path)
+
+current_year = datetime.now().year
 
 client = MongoClient("mongodb://localhost:27017/")
 db = client["mydatabase"]
-collection = db["federal_tax"]
 
-def clean_and_convert(value):
-    """ Remove '$' and ',' then convert to integer """
-    return float(re.sub(r'[^\d]', '', value)) if value else None
+collection_name = f"federal_tax_{current_year}"
+collection = db[collection_name]
 
-def string_to_float(s):
-    cleaned_string = s.replace('$', '').replace(',', '').strip()  
-    return float(cleaned_string)
-
-def saveFederalTax(min,max,single,married,over,rate,subamount,type):
+####
+####
+####
+####
+# Federal Tax
+def saveFederalTax(min,max,rate,single,married):
     data = {
         "min_value": min,
         "max_value": max,
-        "single": single,
-        "married": married,
-
-        "over_100k": over,
         "tax_rate": rate,
-        "subtract_amount": subamount,
-        "marriage_type": type
-
+        "single": single,
+        "married": married, 
     }
 
     #collection.replace_one({}, data, upsert=True)
-    collection = db["federal_tax"]
+    collection_name = f"federal_tax_{current_year}"
+    collection = db[collection_name]
     collection.insert_one(data)
 
 def scrape_federal_tax():
-    url = "https://www.irs.gov/publications/p17#d0e50262"
+    url = os.getenv('FEDERAL_TAX_URL')
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
 
     
-    target_div = soup.find("div", {"id": "idm140408599469648"})
-    if not target_div:
-        print("Error: id might have been changed")
+    ##Stores tax data for single tax payers
+    target_paragraph = soup.find('p', string="For a single taxpayer, the rates are:")
+    if not target_paragraph:
+        print("Error: Single taxpayer <p> not found")
         return
 
-    rows = target_div.find_all("tr")
-    for i, row in enumerate(rows):
-        #last row is a empty row needs to skip
-        if i == len(rows) - 1:
-            continue
+    next_table = target_paragraph.find_next('table')
+    tbody = next_table.find('tbody')
 
-        cells = row.find_all("td")
-        if len(cells) == 6:
-            min_value = clean_and_convert(cells[0].text.strip())
-            max_value = clean_and_convert(cells[1].text.strip())   
-            single_value = clean_and_convert(cells[2].text.strip()) 
-            married_value = clean_and_convert(cells[3].text.strip())
+    rows = tbody.find_all('tr')
+    for row in rows:
+        cols = [col.get_text(strip=True) for col in row.find_all(['td', 'th'])]
 
+        rate_str = cols[0].replace('%', '').strip()
+        rate = float(rate_str) / 100.0
 
-            saveFederalTax(min_value,max_value,single_value,married_value,False,None,None,None)
+        min_str = cols[1].replace('$', '').replace(',','').strip()
+        min = float(min_str)
 
-
-    #
-    #
-    #
-    #Scrapes the income table for single
-    a_tag = soup.find("a", {"name": "en_US_2024_publink1000142871"})
-
-    if a_tag:
-        parent_div = a_tag.find_parent("div")
-    else:
-        print("Error: tag name changed")
-
-    rows = parent_div.find_all("tr")
-    for i, row in enumerate(rows):
-        if i == 0:
-            continue
-        cells = row.find_all("td")
-        if len(cells) == 6:
-
-            match = re.search(r" \$(\d{1,3}(?:,\d{3})*) but not over \$(\d{1,3}(?:,\d{3})*)", cells[0].text.strip())
-            if match:
-                min_val = int(match.group(1).replace(",", ""))
-                max_val = int(match.group(2).replace(",", ""))
-                
-                rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
-                subamount = cells[4].text.strip()
-
-            
-                rate = string_to_float(rate)
-                subamount = string_to_float(subamount)
-
-                saveFederalTax(min_val,max_val,None,None,True,rate,subamount,"single")
-    
-            else:
-                match = re.search(r"Over \$(\d{1,3}(?:,\d{3})*)", cells[0].text.strip())
-                if match:
-                    min_val = int(match.group(1).replace(",", ""))
-                    
-                rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
-
-                subamount = cells[4].text.strip()
-
+        max = None
+        try:
+            max_str = cols[2].replace('$', '').replace(',', '').strip()
+            max = float(max_str)
+        except ValueError:
+            max = None
         
-                rate = string_to_float(rate)
-                subamount = string_to_float(subamount)
-
-                saveFederalTax(min_val,None,None,None,True,rate,subamount,"single")
+        saveFederalTax(min,max,rate,True,False)
 
 
 
-    #
-    #
-    #
-    #Scrapes the income table for married
-    a_tag = soup.find("a", {"name": "en_US_2024_publink1000142872"})
-
-    if a_tag:
-        parent_div = a_tag.find_parent("div")
-    else:
-        print("Error: tag name changed")
-
-    rows = parent_div.find_all("tr")
-    for i, row in enumerate(rows):
-        if i == 0:
-            continue
-        cells = row.find_all("td")
-        if len(cells) == 6:
-
-            match = re.search(r" \$(\d{1,3}(?:,\d{3})*) but not over \$(\d{1,3}(?:,\d{3})*)", cells[0].text.strip())
-            if match:
-                min_val = int(match.group(1).replace(",", ""))
-                max_val = int(match.group(2).replace(",", ""))
-                
-                rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
-
-                subamount = cells[4].text.strip()
-
-            
-                rate = string_to_float(rate)
-                subamount = string_to_float(subamount)
-
-                saveFederalTax(min_val,max_val,None,None,True,rate,subamount,"married")
-    
-            else:
-                match = re.search(r"Over \$(\d{1,3}(?:,\d{3})*)", cells[0].text.strip())
-                if match:
-                    min_val = int(match.group(1).replace(",", ""))
-                    
-                
-                rate = re.search(r"\(([-+]?\d*\.\d+)\)", cells[2].text.strip()).group(1)
-
-                subamount = cells[4].text.strip()
-
-          
-                rate = string_to_float(rate)
-                subamount = string_to_float(subamount)
-
-                saveFederalTax(min_val,None,None,None,True,rate,subamount,"married")
-
-        
-            
-
-
-import pandas as pd
-from io import StringIO
-
-collection = db["state_tax"]
-def saveStateTax(state,single_rate,married_rate,single_deduc,married_deduc,single_exemp,married_exemp):
-    data = {
-        "state":state,
-        #[2,0],[5,500] meaning 2% > $0 or 5% if > %500
-        "single_rates": single_rate,
-        "married_rates": married_rate,
-        "single_deduction": single_deduc,
-        "married_deduction": married_deduc,
-        "single_exemption": single_exemp,
-        "married_exemption": married_exemp
-
-    }
-
-    collection = db["state_tax"]
-    #collection.replace_one({}, data, upsert=True)
-    collection.insert_one(data)
-
-def parse_percentage(value):
-    value = value.strip().strip("%")
-    value = re.sub(r'[^0-9.]', '', value)
-    return None if value.lower() in {"none", "n.a.", "n/a", ""} else float(value) / 100
-def parse_currency(value):
-    value = value.strip().replace("$", "").replace(",", "")
-    value = value.replace("credit", "").strip()
-    return None if value.lower() in {"none", "n.a.", "n/a", "", "n.a"} else int(value)
-
-def scrape_state_tax():
-    
-    state_tax_url = "https://taxfoundation.org/data/all/state/state-income-tax-rates-2024/"
-
-    response = requests.get(state_tax_url)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    
-    target_table = soup.find("table", {"id": "tablepress-320"})
-    if not target_table:
-        print("Error: Table may have been removed")
+    ##Stores tax data for married tax payers
+    target_paragraph = soup.find('a', string="Married filing jointly or qualifying surviving spouse")
+    if not target_paragraph:
+        print("Error: Married taxpayer <a> not found")
         return
+    
+    next_table = target_paragraph.find_next('table')
+    tbody = next_table.find('tbody').find_next('tbody')
 
-    tbody = target_table.find("tbody")
-    rows = tbody.find_all("tr")
-
-    state = ""
-    single_rate = []
-    married_rate = []
-    single_deduction = 0
-    married_deduction = 0
-    single_exemption  = 0
-    married_exemption = 0
-
-    for i, row in enumerate(rows):
-
-        cells = row.find_all("td")
-        if len(cells) == 12:
-
-            s_rate = parse_percentage(cells[1].text.strip())
-            s_bracket = parse_currency(cells[3].text.strip())
-            m_rate = parse_percentage(cells[4].text.strip())
-            m_bracket = parse_currency(cells[6].text.strip())
-            s_sd = parse_currency(cells[7].text.strip())
-            m_sd = parse_currency(cells[8].text.strip())
-            s_em = parse_currency(cells[9].text.strip())
-            m_em = parse_currency(cells[10].text.strip())
-            name = cells[0].text.strip()
-            if name not in state:
-                saveStateTax(state, single_rate, married_rate, single_deduction, married_deduction, single_exemption, married_exemption)
-                single_rate = []
-                married_rate = []
-
-                state = name
-                single_rate.append([s_rate,s_bracket])
-                married_rate.append([m_rate,m_bracket])
-                single_deduction = s_sd
-                married_deduction = m_sd
-                single_exemption = s_em
-                married_exemption = m_em
-
-            else:
-                single_rate.append([s_rate,s_bracket])
-                married_rate.append([m_rate,m_bracket])
+    rows = tbody.find_all('tr')
+    for row in rows:
+        cols = [col.get_text(strip=True) for col in row.find_all(['td', 'th'])]
         
+        rate_str = cols[0].replace('%', '').strip()
+        rate = float(rate_str) / 100.0
+
+        min_str = cols[1].replace('$', '').replace(',','').strip()
+        min = float(min_str)
+
+        max = None
+        try:
+            max_str = cols[2].replace('$', '').replace(',', '').strip()
+            max = float(max_str)
+        except ValueError:
+            max = None
+        
+        saveFederalTax(min,max,rate,False,True)
 
 
-                
-    if state:
-        saveStateTax(state, single_rate, married_rate, single_deduction, married_deduction, single_exemption, married_exemption)
 
-
-
-
-
-
+####
+####
+####
+####
+# Standard Deduction
 collection = db["standard_deduction"]
 def saveStandardDeduction(single,married):
     data = {
@@ -271,50 +120,49 @@ def saveStandardDeduction(single,married):
         "married": married
     }
 
-    collection = db["standard_deduction"]
+    collection_name = f"standard_deduction_{current_year}"
+    collection = db[collection_name]
     #collection.replace_one({}, data, upsert=True)
     collection.insert_one(data)
 
 
 def scrape_standard_deduction():
-    url = "https://www.irs.gov/publications/p17#en_US_2024_publink1000283781"
-
+    url = os.getenv('STANDARD_DEDUCTION_URL')
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
 
+    target_paragraph = soup.find('b', string="Table 10-1.Standard Deduction Chart for Most People*")
+    if not target_paragraph:
+        print("Error: Married taxpayer <a> not found")
+        return
     
-    a_tag = soup.find("a", {"name": "en_US_2024_publink1000283782"})
+    next_table = target_paragraph.find_next('table')
+    tbody = next_table.find('tbody')
 
-    if a_tag:
-        parent_div = a_tag.find_parent("div")
-    else:
-        print("Error: tag name changed")
-
-    single = 0
-    married = 0
-    rows = parent_div.find_all("tr")
-    for i, row in enumerate(rows):
-        if i == 0:
-            continue
-        cells = row.find_all("td")
-   
-        if "single or married" in cells[0].text.strip().lower():
-            single = parse_currency(cells[1].text.strip())
-
-
-        if "married filing jointly" in cells[0].text.strip().lower():
-            married = parse_currency(cells[1].text.strip())
-
+    rows = tbody.find_all('tr')
+    for row in rows:
+        cols = [col.get_text(strip=True) for col in row.find_all(['td', 'th'])]
+        if cols[0] == "Single or Married filing separately":
+            single_str = cols[1].replace('$', '').replace(',','').strip()
+            single = float(single_str)
+        if cols[0] == "Married filing jointly or Qualifying surviving spouse":
+            married_str = cols[1].replace('$', '').replace(',','').strip()
+            married = float(married_str)
 
     saveStandardDeduction(single,married)
 
 
 
+####
+####
+####
+####
+# Captial Gain
 def extract_number_from_text(text):
     match = re.search(r'\$([\d,]+)', text)
     
     if match:
-        number = int(match.group(1).replace(",", ""))
+        number = float(match.group(1).replace(",", ""))
         return number
     else:
         return None
@@ -330,71 +178,115 @@ def extract_min_max_from_text(text):
         return None, None
 
 collection = db["captial_gain_tax"]
-def saveCaptialGain(single,married):
-    data = {
-        "single": single,
-        "married": married
-    }
-
-    collection = db["captial_gain_tax"]
+def saveCaptialGain(status,rate,min,max):
+    if status == "single":
+        data = {
+            "status": "single",
+            "rate": rate,
+            "min": min,
+            "max": max
+        }
+    else:
+        data = {
+            "status": "married",
+            "rate": rate,
+            "min": min,
+            "max": max
+        }
+    
+    collection_name = f"captial_gain_tax_{current_year}"
+    collection = db[collection_name]
     #collection.replace_one({}, data, upsert=True)
     collection.insert_one(data)
 
 
 def scrape_captial_gain():
-    url = "https://www.irs.gov/taxtopics/tc409"
-
+    url = os.getenv('CAPTIAL_GAIN_TAX_URL')
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
 
+    target_paragraph = next(
+        (p for p in soup.find_all("p") if "A capital gains rate of" in p.get_text()), 
+        None
+    )  
+    if not target_paragraph:
+        print("Error: captial gain <p> not found")
+        return
+    
+    else:
+        b_tags = target_paragraph.find_all("b")
+        if b_tags:
+            rate = b_tags[-1].get_text(strip=True) 
+            rate_str = rate.replace('%', '').strip()
+            rate = float(rate_str) / 100.0
+            
+            cells = target_paragraph.find_next('ul')
+            rows = cells.find_all("li")
+            for row in rows:
+                if 'single' in row.text:
+                    single_max = extract_number_from_text(row.text.strip())
+                if 'married filing jointly' in row.text:
+                    married_max = extract_number_from_text(row.text.strip())
+            
+            saveCaptialGain("single",rate,0,single_max)
+            saveCaptialGain("married",rate,0,married_max)
 
-    rows = soup.find_all("ul")
-    count = 0
-    rate = 0
-    single = []
-    married = []
-    for i, row in enumerate(rows):
-        cells = row.find_all("li")
-        if len(cells) == 3 or len(cells) == 4:
-            for cell in cells:
-                if 'single' in cell.text:
-                    max = extract_number_from_text(cell.text.strip())
-                    single.append([rate,0,max])
-                    count += 1
+    target_paragraph = target_paragraph.find_next('p')
 
-                if 'married filing jointly' in cell.text:
-                    min, max = extract_min_max_from_text(cell.text.strip())
+    if not target_paragraph:
+        print("Error: captial gain <p> not found")
+        return
+    else:
+        b_tags = target_paragraph.find_all("b")
+        if b_tags:
+            rate = b_tags[0].get_text(strip=True)  
+            rate_str = rate.replace('%', '').strip()
+            rate = float(rate_str) / 100.0
 
-                    if min == None:
-                        max = extract_number_from_text(cell.text.strip())
-                        married.append([rate,0,max])
-                    else:
-                        married.append([rate,min,max])
-                    count += 1
-                
-                if count == 2:
-                    rate = .15
-                
+            cells = target_paragraph.find_next('ul')
+            rows = cells.find_all("li")
+            for row in rows:
+                if 'single' in row.text:
+                    single_min, single_max = extract_min_max_from_text(row.text.strip())
+                if 'married filing jointly' in row.text:
+                    married_min, married_max = extract_min_max_from_text(row.text.strip())
+            
+            saveCaptialGain("single",rate,single_min,single_max)
+            saveCaptialGain("married",rate,married_min,married_max)
+
+    target_paragraph = target_paragraph.find_next('p')
+
+    if not target_paragraph:
+        print("Error: captial gain <p> not found")
+        return
+    else:
+        strong_tags = target_paragraph.find_all("strong")
+        if strong_tags:
+            rate = strong_tags[0].get_text(strip=True)  
+            rate_str = rate.replace('%', '').strip()
+            rate = float(rate_str) / 100.0
+            
+            saveCaptialGain("single",rate,single_max,None)
+            saveCaptialGain("married",rate,married_max,None)
 
 
-    saveCaptialGain(single,married)
-                
 def database_exists(db_name):
     db_list = client.list_database_names()
     return db_name in db_list
                     
 
-#scrape_federal_tax()
-#scrape_state_tax()
-#scrape_standard_deduction()
-#scrape_captial_gain()
 
 if __name__ == "__main__":
-    if not database_exists("federal_tax"):
+    current_year = datetime.now().year
+    fed = f"federal_tax_{current_year}"
+    stand = f"standard_deduction_{current_year}"
+    captial = f"captial_gain_tax_{current_year}"
+
+    if not database_exists(fed):
         scrape_federal_tax()
-    if not database_exists("standard_deduction"):
+    if not database_exists(stand):
         scrape_standard_deduction()
-    if not database_exists("captial_gain_tax"):
+    if not database_exists(captial):
         scrape_captial_gain()
     print("Scrape completed")
 
