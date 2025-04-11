@@ -17,7 +17,7 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
   const navigate = useNavigate();
 
   return (
-    <div className="scenario-container" onClick={() => navigate(`/scenario/${scenario.id}`, {
+    <div className="scenario-container" style={{borderRadius:"15px"}} onClick={() => navigate(`/scenario/${scenario.id}`, {
       state: { dateCreated: scenario.dateCreated }
     })}>
     
