@@ -2,32 +2,7 @@ import { IDistribution } from "../models/Distribution";
 import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
-
-// Helper Functions
-
-// Return a number given Distribution types: "fixed" | "normal" | "uniform"
-function generateFromDistribution(dist: IDistribution): number | undefined {
-    switch (dist.type) { // fixed number
-        case "fixed":
-            return dist.value;
-        case "normal": // normal distibution
-            if (typeof dist.mean === "number" && typeof dist.stdev === "number") {
-                // Box-Muller transform
-                const u1 = Math.random();
-                const u2 = Math.random();
-                const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                return dist.mean + dist.stdev * z;
-            }
-        case "uniform": // uniform distibution
-            if (typeof dist.lower === "number" && typeof dist.upper === "number") {
-                return dist.lower + Math.random() * (dist.upper - dist.lower);
-            }
-        default:
-            // wrong use of function
-            console.log("Wrong use of Distribution function");
-            return undefined;
-    }      
-}
+import { generateFromDistribution } from "./simulationHelpers";
 
 // Main Functions
 
@@ -90,8 +65,10 @@ export const runSimulation = async (req: any, res: any) => {
         const num_simulations = 1000;
         // Boolean
         const spouse = plan.maritalStatus == "couple";
+        // inside simulation loop
+
         // get number of loops (start -> user's death)
-        
+        const num = generateFromDistribution(plan.lifeExpectancy[0]);
         
         // simulate
 
