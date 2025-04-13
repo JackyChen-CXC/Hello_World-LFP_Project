@@ -1,6 +1,15 @@
 import { IDistribution } from "../models/Distribution";
+import { IInvestment, ILifeEvent } from "../models/FinancialPlan";
 import mongoose from "mongoose";
 // Helper Functions
+
+export function getLifeEventsByType(events: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
+    return events.filter(event => event.type === type);
+}
+
+export function getCash(investments: IInvestment[]): IInvestment {
+    return investments.filter(investments => investments.id === "cash")[0];
+}
 
 // Return a number given Distribution types: "fixed" | "normal" | "uniform"
 export function generateFromDistribution(dist: IDistribution): number | undefined {
