@@ -1,5 +1,6 @@
 import { IDistribution } from "../models/Distribution";
 import { IInvestment, ILifeEvent, IFinancialPlan } from "../models/FinancialPlan";
+import { IInvestmentType } from "../models/InvestmentType";
 import mongoose from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
@@ -893,6 +894,10 @@ export async function performRothOptimizer(
     const collectionName = `federal_tax_${currentYear}`;
     const db = getDB();
     const collection = db.collection(collectionName);
+
+    const collectionName2 = `standard_deduction_${currentYear}`;
+    const deductiondb = db.collection(collectionName2);
+    const deduction_value = (await deductiondb.findOne())?.[marriedStatus];
   
     const allInvestments = financialPlan.investments;
     const rothStrategy = financialPlan.RothConversionStrategy;
@@ -912,7 +917,7 @@ export async function performRothOptimizer(
     }
   
     const currentYearFedTaxableIncome = currentYearIncome - 0.15 * currentYearSocialSecurityIncome;
-    let rc = u - currentYearFedTaxableIncome;
+    let rc = u - (currentYearFedTaxableIncome-deduction_value);
     currentYearIncome += rc;
   
     for (const investId of rothStrategy) {
@@ -954,3 +959,106 @@ export async function performRothOptimizer(
   
     return currentYearIncome;
   }
+
+
+
+
+
+
+
+
+//
+//
+//
+//function for part 4 of algorthimn
+export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
+    const investments = financialplan.investments;
+    const investmentTypesMap = new Map<string, IInvestmentType>(
+        financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
+    );
+
+    let taxable_income = 0;
+    let non_taxable_income = 0;
+
+    for (const investment of investments) {
+        // Assuming investment.investmentType is a string (the name of the investment type)
+        const investType = investmentTypesMap.get(investment.investmentType.name);
+        if (!investType) continue;
+
+        const value = investment.value;
+        const dist = investType.incomeDistribution;
+        const distType = dist.type;
+        const distParam = Object.entries(dist)
+            .filter(([key]) => key !== "type")
+            .map(([_, v]) => v);
+
+        let incomeVal = 0;
+        if (distType === "fixed") {
+            incomeVal = distParam[0] ?? 0;
+        } else if (distType === "normal") {
+            incomeVal = generateNormal(distParam[0], distParam[1]);
+        } else if (distType === "uniform") {
+            incomeVal = generateUniform(distParam[0], distParam[1]);
+        } else {
+            continue;
+        }
+
+        let income: number;
+        if (investType.incomeAmtOrPct === "percent") {
+            console.log("income", incomeVal);
+            income = value * incomeVal;
+        } else {
+            console.log("income", incomeVal);
+            income = incomeVal;
+        }
+
+        if (investType.taxability) {
+            if (investment.taxStatus === "non-retirement") {
+                currentYearIncome += income;
+            } else if (investment.taxStatus === "pre-tax") {
+                taxable_income += income;
+            } else if (investment.taxStatus === "after-tax") {
+                non_taxable_income += income;
+            }
+        }
+
+        // Handle return distribution logic
+        const returnDist = investType.returnDistribution;
+        const returnType = returnDist.type;
+        const returnParams = Object.entries(returnDist)
+            .filter(([key]) => key !== "type")
+            .map(([_, v]) => v);
+
+        if (returnType === "fixed") {
+            incomeVal = returnParams[0] ?? 0;
+        } else if (returnType === "normal") {
+            incomeVal = generateNormal(returnParams[0], returnParams[1]);
+        } else if (returnType === "uniform") {
+            incomeVal = generateUniform(returnParams[0], returnParams[1]);
+        } else {
+            continue;
+        }
+
+        if (investType.incomeAmtOrPct === "percent") {
+            income = value * incomeVal;
+            investment.value += income;
+        } else {
+            income = incomeVal;
+            investment.value += income;
+        }
+
+        // Calculate expense
+        const expenseRatio = investType.expenseRatio ?? 0;
+        const expense = expenseRatio * ((value + investment.value) / 2);
+        investment.value -= expense;
+        investment.value = Math.round(investment.value * 100) / 100;
+    }
+
+    console.log(investments);
+    console.log(currentYearIncome, taxable_income, non_taxable_income);
+
+    return [currentYearIncome, taxable_income, non_taxable_income];
+}
+
+
+
