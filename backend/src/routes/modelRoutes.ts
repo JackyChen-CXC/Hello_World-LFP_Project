@@ -32,4 +32,5 @@ modelRouter.get("/:plan/EventSeries/all", getAllEvents);
 modelRouter.put("/plans/:id", updateFinancialPlan);
 modelRouter.get("/:planId/investments", getInvestmentsByPlanId);
 modelRouter.delete("/investment-types/:id", deleteInvestmentTypeById);
+modelRouter.get("/:planId/simulation-results", getInvestmentsByPlanId);
 export default modelRouter;
