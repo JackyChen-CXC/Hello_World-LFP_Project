@@ -7,12 +7,19 @@ import * as yaml from "js-yaml";
 
 // Helper Functions
 
-export function getLifeEventsByType(events: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
-    return events.filter(event => event.type === type);
+export function getLifeEventsByType(eventSeries: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
+    return eventSeries.filter(event => event.type === type);
 }
 
 export function getCash(investments: IInvestment[]): IInvestment {
-    return investments.filter(investments => investments.id === "cash")[0];
+    return investments.filter(investment => investment.id === "cash")[0];
+}
+
+export function updateInvestments(eventSeries: ILifeEvent[]): number {
+    let cash = 0;
+    const incomeEvents = getLifeEventsByType(eventSeries, "income");
+    
+    return cash;
 }
 
 // Return a number given Distribution types: "fixed" | "normal" | "uniform"
@@ -37,6 +44,39 @@ export function generateFromDistribution(dist: IDistribution): number | undefine
             console.log("Wrong use of Distribution function");
             return undefined;
     }      
+}
+
+// for things like start & duration that need a specific year start from a Distribution
+export function standardizeTimeRangesForEventSeries(eventSeries: ILifeEvent[]): ILifeEvent[] {
+    // store all startWith & endWhen
+    const roundTwo = [];
+    // fix all normal and uniform start/durations
+    for(const event of eventSeries){
+        // Start
+        if(event.start.type === "normal" || event.start.type === "uniform"){
+            event.start = { type: "fixed", value: generateFromDistribution(event.start)};
+        }
+        else if (event.start.type === "startWith" || event.start.type === "endWhen"){
+            roundTwo.push(event);
+        }
+        // Duration
+        if(event.duration.type === "normal" || event.duration.type === "uniform"){
+            event.duration = { type: "fixed", value: generateFromDistribution(event.duration)};
+        }
+    }
+    // do a second round to fix all startWith & endWhen
+    for(const event of roundTwo){
+        // find event
+        const tempEvent = eventSeries.filter(temp => temp.name === event.start.eventSeries)[0];
+        
+        if(event.start.type === "startWith"){
+        
+        }
+        else{
+            // find event
+        }
+    }
+    return eventSeries;
 }
 
 // to write/get specific files from raw DB
