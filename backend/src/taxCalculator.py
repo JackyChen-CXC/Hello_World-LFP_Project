@@ -3,12 +3,16 @@ from pymongo import MongoClient
 import yaml
 import re
 import os
+import numpy as np
+from datetime import datetime
 client = MongoClient("mongodb://localhost:27017/")
 db = client["mydatabase"]
 
 
 def calculate_standard_deduction(income,married_status):
-    collection = db["standard_deduction"]
+    current_year = datetime.now().year
+    collection_name = f"standard_deduction_{current_year}"
+    collection = db[collection_name]
     if married_status == "single":
         single_rate = collection.find_one({"single": {"$exists": True}})
         single_rate = single_rate["single"]
@@ -82,143 +86,457 @@ def calculate_state_tax(income,married_status,state):
 
     
 def calculate_captial_gain_tax(income, married_status):
-    collection = db["captial_gain_tax"]
-    document = collection.find_one()
+    current_year = datetime.now().year
+    collection_name = f"captial_gain_tax_{current_year}"
+    collection = db[collection_name]
 
-    if married_status == "single":
-        rates = document["single"]
-        
-        for i in range(len(rates)):
-            rate,min_income, max_income = rates[i]
-            
-            if i == len(rates)-1:
-                print(f"Tax rate: {rate}")
-                return rate*income
-            if income >= min_income and income <= max_income:
-                print(f"Tax rate: {rate}")
-                return rate*income
+    items = list(collection.find({"status": married_status}))
     
-    elif married_status == "married":
-        rates = document["married"]
+    for item in items:
+        min_val = item.get("min", float("-inf"))
+        max_val = item.get("max", float("inf"))
+        if max_val is None:
+            max_val = float("inf")
         
-        for i in range(len(rates)):
-            rate,min_income, max_income = rates[i]
-            
-            if i == len(rates)-1:
-                print(f"Tax rate: {rate}")
-                return rate*income
-            if income >= min_income and income <= max_income:
-                print(f"Tax rate: {rate}")
-                return rate*income         
+        if min_val <= income <= max_val:
+            return item["rate"]*income     
 
 
 def calculate_federal_tax(income,married_status):
-    collection = db["federal_tax"]
-    query = {
-        "min_value": {"$lte": income},
-        "max_value": {"$gte": income}
-    }
-    document = collection.find_one(query)
+    current_year = datetime.now().year
+    collection_name = f"federal_tax_{current_year}"
+    collection = db[collection_name]
 
-    if married_status == "single" and income < 100000:
-        print(f"Tax rate: {document['single']}")
-        return document["single"]
-    
-    elif married_status == "married" and income < 100000:
-        print(f"Tax rate: {document['married']}")
-        return document["married"]
-    
-    elif married_status == "single" and income > 100000:
-        #find the document with following fields
-        query = {
-            "min_value": {"$lte": income},
-            "max_value": {"$gte": income},
-            "marriage_type": "single"
-        }
-        document = collection.find_one(query)
+    query = {married_status: True}
+    items = list(collection.find(query))
 
-        #if not found then it's a super large value(over 600k)
-        if not document:
-            query = {
-                "min_value": {"$lte": income},
-                "max_value": {"$eq": None},
-                "marriage_type": "single"
-            }
-            document = collection.find_one(query)
-
-        #if not found then probabaly error
-        if not document:
-            print("No document Found")
-            return None
+    for item in items:
+        min_val = item.get("min_value", float("-inf"))
+        max_val = item.get("max_value", float("inf"))
+        if max_val is None:
+            max_val = float("inf")
         
-        rate = document["tax_rate"]
-        print(f"rate: {rate}")
-        tax = (income*rate)-document["subtract_amount"]
-        print(f"Tax rate: {tax}")
-        return tax
-    elif married_status == "married" and income > 100000:
-        query = {
-            "min_value": {"$lte": income},
-            "max_value": {"$gte": income},
-            "marriage_type": "married"
-        }
-        document = collection.find_one(query)
-
-        if not document:
-            query = {
-                "min_value": {"$lte": income},
-                "max_value": {"$eq": None},
-                "marriage_type": "married"
-            }
-            document = collection.find_one(query)
-
-        if not document:
-            print("No document Found02")
-            return None
+        if min_val <= income <= max_val:
+            return item["tax_rate"]*income
         
 
-        rate = document["tax_rate"]
-        print(f"rate: {rate}")
-        tax = (income*rate)-document["subtract_amount"]
-        print(f"Tax rate: {tax}")
-        return tax
 
+####
+###
+###
+###
+### federal tax inflation functions
 
 def update_federal_tax_for_flat_inflation(inflation_rate):
-    federal_tax = db["federal_tax"]
+    inflation_rate = inflation_rate + 1
+    current_year = datetime.now().year
+    collection_name = f"federal_tax_{current_year}"
+    federal_tax = db[collection_name]
+
     inflation_db = db["inflation_federal_tax"]
+    inflation_db.delete_many({})
 
-    documents = federal_tax.find()
+    document = list(federal_tax.find())
 
-    for doc in documents:
-        if doc["over_100k"] == False:
-            inflated_doc = {
-                "min_value": doc["min_value"] * inflation_rate,
-                "max_value": doc["max_value"] * inflation_rate,
-                "single": doc["single"] * inflation_rate,
-                "married": doc["married"] * inflation_rate,
-                "over_100k": doc["over_100k"],
-                "tax_rate": doc["tax_rate"],
-                "subtract_amount": doc["subtract_amount"],
-                "marriage_type": doc["marriage_type"]
-            }
-            inflation_db.insert_one(inflated_doc)
+    for doc in document:
+        tax = doc.get("tax_rate")
+        min_val = doc.get("min_value")
+        max_val = doc.get("max_value")
+        single = doc.get('single')
+        married = doc.get('married')
+
+        if tax is None or min_val is None:
+            continue  
+
+        data = {
+            "min_value": min_val * inflation_rate,
+            "max_value": max_val * inflation_rate if max_val is not None else None,
+            "tax_rate": tax,
+            "single": single,
+            "married": married
+        }
+
+        inflation_db.insert_one(data)
+
+
+
+def update_federal_tax_for_normal_distribution_inflation(mean,std):
+    current_year = datetime.now().year
+    collection_name = f"federal_tax_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_federal_tax"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+
+    inflation = np.random.normal(mean,std)
+
+    for doc in document:
+        tax = doc.get("tax_rate")
+        min_val = doc.get("min_value")
+        max_val = doc.get("max_value")
+        single = doc.get('single')
+        married = doc.get('married')
+
+        if tax is None or min_val is None:
+            continue  
+
+        data = {
+            "min_value": min_val * (1+inflation),
+            "max_value": max_val * (1+inflation) if max_val is not None else None,
+            "tax_rate": tax,
+            "single": single,
+            "married": married
+        }
+
+        inflation_db.insert_one(data)
+
+
+def update_federal_tax_for_uniform_distribution_inflation(bot,top):
+    current_year = datetime.now().year
+    collection_name = f"federal_tax_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_federal_tax"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+
+    inflation = np.random.uniform(bot,top)
+
+    for doc in document:
+        tax = doc.get("tax_rate")
+        min_val = doc.get("min_value")
+        max_val = doc.get("max_value")
+        single = doc.get('single')
+        married = doc.get('married')
+
+        if tax is None or min_val is None:
+            continue  
+
+        data = {
+            "min_value": min_val * (1+inflation),
+            "max_value": max_val * (1+inflation) if max_val is not None else None,
+            "tax_rate": tax,
+            "single": single,
+            "married": married
+        }
+
+        inflation_db.insert_one(data)
+
+
+
+
+
+
+####
+###
+###
+###
+### state tax inflation functions
+def updated_state_tax_for_inflation(inflation_rate):
+    def load_state_tax_data(file_path="tax/state_tax.yaml"):
+        with open(file_path, "r") as file:
+            return yaml.safe_load(file)
+        
+    data = load_state_tax_data()
+
+    for state, categories in data['states'].items():
+        for category, brackets in categories.items():
+            for bracket in brackets:
+                bracket['min'] *= (1 + inflation_rate)
+                if bracket['max'] is not None:
+                    bracket['max'] *= (1 + inflation_rate)
+                bracket['base_tax'] *= (1 + inflation_rate)
+
+    input_file_path = "tax/state_tax.yaml"  
+    output_file_path = os.path.join(os.path.dirname(input_file_path), "inflated_state_tax.yaml")
+    
+    with open(output_file_path, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+
+def updated_state_tax_for_normal_distribution_inflation(mean,std):
+    def load_state_tax_data(file_path="tax/state_tax.yaml"):
+        with open(file_path, "r") as file:
+            return yaml.safe_load(file)
+        
+    data = load_state_tax_data()
+    inflation_rate = np.random.normal(mean,std)
+
+    for state, categories in data['states'].items():
+        for category, brackets in categories.items():
+            for bracket in brackets:
+                bracket['min'] *= (1 + inflation_rate)
+                if bracket['max'] is not None:
+                    bracket['max'] *= (1 + inflation_rate)
+                bracket['base_tax'] *= (1 + inflation_rate)
+
+    input_file_path = "tax/state_tax.yaml"  
+    output_file_path = os.path.join(os.path.dirname(input_file_path), "inflated_state_tax.yaml")
+    
+    with open(output_file_path, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+
+def updated_state_tax_for_uniform_distribution_inflation(bot,top):
+    def load_state_tax_data(file_path="tax/state_tax.yaml"):
+        with open(file_path, "r") as file:
+            return yaml.safe_load(file)
+        
+    data = load_state_tax_data()
+    inflation_rate = np.random.uniform(bot,top)
+
+    for state, categories in data['states'].items():
+        for category, brackets in categories.items():
+            for bracket in brackets:
+                bracket['min'] *= (1 + inflation_rate)
+                if bracket['max'] is not None:
+                    bracket['max'] *= (1 + inflation_rate)
+                bracket['base_tax'] *= (1 + inflation_rate)
+
+    input_file_path = "tax/state_tax.yaml"  
+    output_file_path = os.path.join(os.path.dirname(input_file_path), "inflated_state_tax.yaml")
+    
+    with open(output_file_path, 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+
+
+####
+###
+###
+###
+### captial_gain tax inflation functions
+
+def update_captial_gain_tax_for_flat_inflation(inflation_rate):
+    inflation_rate = inflation_rate + 1
+    current_year = datetime.now().year
+    collection_name = f"captial_gain_tax_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_captial_gain_tax"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+
+    for doc in document:
+        tax = doc.get("rate")
+        min_val = doc.get("min")
+        max_val = doc.get("max")
+        status = doc.get("status")
+
+        if tax is None or min_val is None:
+            continue  
+
+        data = {
+            "min": min_val * inflation_rate,
+            "max": max_val * inflation_rate if max_val is not None else None,
+            "rate": tax,
+            "status": status
+        }
+
+        inflation_db.insert_one(data)
+
+
+def update_captial_gain_tax_for_normal_distribution_inflation(mean,std):
+    current_year = datetime.now().year
+    collection_name = f"captial_gain_tax_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_captial_gain_tax"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+    inflation_rate = np.random.normal(mean,std)
+
+    for doc in document:
+        tax = doc.get("rate")
+        min_val = doc.get("min")
+        max_val = doc.get("max")
+        status = doc.get("status")
+
+        if tax is None or min_val is None:
+            continue  
+
+        data = {
+            "min": min_val * (1+inflation_rate),
+            "max": max_val * (1+inflation_rate) if max_val is not None else None,
+            "rate": tax,
+            "status": status
+        }
+
+        inflation_db.insert_one(data)
+
+
+
+def update_captial_gain_tax_for_uniform_distribution_inflation(bot,top):
+    current_year = datetime.now().year
+    collection_name = f"captial_gain_tax_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_captial_gain_tax"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+    inflation_rate = np.random.uniform(bot,top)
+    
+    for doc in document:
+        tax = doc.get("rate")
+        min_val = doc.get("min")
+        max_val = doc.get("max")
+        status = doc.get("status")
+
+        if tax is None or min_val is None:
+            continue  
+
+        data = {
+            "min": min_val * (1+inflation_rate),
+            "max": max_val * (1+inflation_rate) if max_val is not None else None,
+            "rate": tax,
+            "status": status
+        }
+
+        inflation_db.insert_one(data)
+
+
+
+####
+###
+###
+###
+### standard deduction inflation functions
+
+def update_standard_deduction_for_inflation(inflation_rate):
+    current_year = datetime.now().year
+    collection_name = f"standard_deduction_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_standard_deduction"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+
+    for doc in document:
+        single = doc.get("single")
+        married = doc.get("married")
+   
+        data = {
+            "single": single * (1+inflation_rate),
+            "married": married * (1+inflation_rate) 
+         
+        }
+
+        inflation_db.insert_one(data)
+
+
+def update_standard_deduction_normal_distribution_inflation(mean,std):
+    current_year = datetime.now().year
+    collection_name = f"standard_deduction_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_standard_deduction"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+    inflation_rate = np.random.normal(mean,std)
+
+    for doc in document:
+        single = doc.get("single")
+        married = doc.get("married")
+   
+        data = {
+            "single": single * (1+inflation_rate),
+            "married": married * (1+inflation_rate) 
+         
+        }
+
+        inflation_db.insert_one(data)
+
+
+def update_standard_deduction_uniform_distribution_inflation(bot,top):
+    current_year = datetime.now().year
+    collection_name = f"standard_deduction_{current_year}"
+    federal_tax = db[collection_name]
+
+    inflation_db = db["inflation_standard_deduction"]
+    inflation_db.delete_many({})
+
+    document = list(federal_tax.find())
+    inflation_rate = np.random.uniform(bot,top)
+
+    for doc in document:
+        single = doc.get("single")
+        married = doc.get("married")
+   
+        data = {
+            "single": single * (1+inflation_rate),
+            "married": married * (1+inflation_rate) 
+         
+        }
+
+        inflation_db.insert_one(data)
+
+
+
+#
+#
+#
+#
+#
+#calculate rmd
+def calculateRMD(financialplan,age,curYearIncome):
+    current_year = datetime.now().year
+    collection_name = f"rmd_{current_year}"
+    dis = db[collection_name]
+
+    #finds D
+    distribution = dis.find_one({"age": age}).get("distribution_period")
+
+    #finds S
+    sum = 0
+    investments = financialplan.get("investments")
+    for investment in investments:
+        if investment.get("taxStatus") == "pre-tax":
+            sum += investment.get("value")
+    
+    #findRMD
+    rmd = sum/distribution
+
+    #add RMD to current year income
+    curYearIncome += rmd
+
+    return curYearIncome
+
+def calculateRMD_Investment(financialplan,rmd):
+    investments = financialplan.get("investments")
+    pre_tax_invest = investments.find({"taxStatus": "pre-tax"})
+
+    for invest in pre_tax_invest:
+        invest_value = invest.get("value")-rmd
+        if invest_value < 0:
+            #set the investment value to 0
+            invest.get("value") = 0
+            rmd = rmd-invest_value
+            
+            aftertax = investments.find_one({"investmentType": invest.get("investmentType"), "taxStatus": "non-retirement"})
+            if aftertax:
+                aftertax.get("value") += invest_value
+            else:
+                new_invest = invest
+                new_invest.get("taxStatus") = "non-retirement"
+                new_invest.get("value") = invest_value
+                financialplan.add(new_invest)
         else:
-            inflated_doc = {
-                "min_value": doc["min_value"] * inflation_rate,
-                "max_value": doc["max_value"] * inflation_rate,
-                "single": doc["single"],
-                "married": doc["married"],
-                "over_100k": doc["over_100k"],
-                "tax_rate": doc["tax_rate"] * inflation_rate,
-                "subtract_amount": doc["subtract_amount"] * inflation_rate,
-                "marriage_type": doc["marriage_type"]
-            }
-            inflation_db.insert_one(inflated_doc)
+            invest.get("value") = invest_value
 
-
-#print(calculate_standard_deduction(345,"single"))
-#print(calculate_state_tax(300000,"married","colorado"))
-#print(calculate_captial_gain_tax(5000000,"single"))
-#calculate_federal_tax(2000000,"married")
-#print(calculate_state_tax(300000,"married","colorado"))
+            aftertax = investments.find_one({"investmentType": invest.get("investmentType"), "taxStatus": "non-retirement"})
+            if aftertax:
+                aftertax.get("value") += invest_value
+            else:
+                new_invest = invest
+                new_invest.get("taxStatus") = "non-retirement"
+                new_invest.get("value") = invest_value
+                financialplan.add(new_invest)
+            break
