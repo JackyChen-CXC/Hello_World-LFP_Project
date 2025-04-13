@@ -208,9 +208,13 @@ export const getSpecificFinancialPlan = async (req: any, res: any) => {
 
 
 export const webscrape = async (req: any, res: any) => {
-    exec('python3 ../microservices/webscraping/taxdataScrap.py', (error, stdout, stderr) => {
+    const command = process.platform === "win32"
+        ? `"venv\\Scripts\\python" src/taxdataScrap.py`
+        : `"venv/bin/python3" src/taxdataScrap.py`;
+
+    exec(command, (error, stdout, stderr) => {
         if (error) {
-            console.error(`Error: ${error.message}`);
+            console.error(`Error executing Python script: ${error.message}`);
             res.status(500).json({
                 status: "ERROR",
                 error: true,
@@ -218,17 +222,47 @@ export const webscrape = async (req: any, res: any) => {
             });
             return;
         }
+
         if (stderr) {
-            console.error(`stderr: ${stderr}`);
+            console.error(`Python stderr: ${stderr}`);
         }
 
         console.log(`Python Output: ${stdout}`);
         res.status(200).json({
             status: "SUCCESS",
             error: false,
-            message: stdout.trim(),  // Return script output
+            message: stdout.trim(),
         });
     });
+};
+
+export const rmdWebscrape = async (req: any, res: any) => {
+	const command = process.platform === "win32"
+        ? `"venv\\Scripts\\python" src/rmdscrap.py`
+        : `"venv/bin/python3" src/rmdscrap.py`;
+
+		exec(command, (error, stdout, stderr) => {
+			if (error) {
+				console.error(`Error executing Python script: ${error.message}`);
+				res.status(500).json({
+					status: "ERROR",
+					error: true,
+					message: "RMD Table scraping failed.",
+				});
+				return;
+			}
+	
+			if (stderr) {
+				console.error(`Python stderr: ${stderr}`);
+			}
+	
+			console.log(`Python Output: ${stdout}`);
+			res.status(200).json({
+				status: "SUCCESS",
+				error: false,
+				message: stdout.trim(),
+			});
+		});
 };
 
 export const updateFinancialPlan = async (req: any, res: any) => {

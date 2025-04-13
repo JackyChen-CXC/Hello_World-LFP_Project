@@ -2,7 +2,7 @@ import { IDistribution } from "../models/Distribution";
 import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
-import { generateFromDistribution } from "./simulationHelpers";
+import { generateFromDistribution, getCash, standardizeTimeRangesForEventSeries, updateInvestments } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -51,7 +51,7 @@ export const runSimulation = async (req: any, res: any) => {
     try {
         // Get financial plan, simulation & create simulationResult
         const { id, simulations } = req.body;
-        const plan = await FinancialPlan.findById(id);
+        let plan = await FinancialPlan.findById(id);
         const simulation = await Simulation.findOne({ planId : id });
         const result = await SimulationResult.findById(simulation?.resultsId);
 
@@ -69,38 +69,56 @@ export const runSimulation = async (req: any, res: any) => {
         // 1,000–10,000 simulations → good starting range
         const num_simulations = simulations || 1000;
         const spouse = plan.maritalStatus == "couple"; // boolean
-
+        const age = new Date().getFullYear() - plan?.birthYears[0];
 
         // inside simulations (loop by simulation)
         for (let simulations = 0; simulations < num_simulations; simulations++) {
-            // Define Preliminary Values
+            // reset financial plan
+            plan = await FinancialPlan.findById(id);
+            if (!plan) {
+                return res.status(404).json({ error: 'Financial Plan not found.' });
+            }
+            // Preliminary generation of values
             // get number of loops (start -> user's death)
-            const num_years = generateFromDistribution(plan.lifeExpectancy[0]);
-            if(!num_years){
-                console.log("User Life expecentancy not found.");
+            const lifeExpectancy = generateFromDistribution(plan.lifeExpectancy[0]);
+            if(!lifeExpectancy){
+                console.log("User Life expectancy not found.");
                 return res.status(200).json({
                     status: "ERROR",
                     error: true,
-                    message: "Life expecentancy not found.",
+                    message: "Life expectancy not found.",
                 });
             }
+            const num_years = lifeExpectancy - age;
+
+            // fix all start & duration attribute of Events
+            plan.eventSeries = standardizeTimeRangesForEventSeries(plan.eventSeries);
+
             // Simulate (loop by year)
             for(let year = 0; year < num_years; year++){
-                // run all income events, add them to cash investment
+                // 1. preliminary
+                // get this year's InflationAssumption
+                const inflationRate = generateFromDistribution(plan.inflationAssumption);
+                // inflate tax brackets
+
+                // 2. run all income events, add them to cash investment
+                let cash = getCash(plan.investments);
+                cash.value += updateInvestments(plan.eventSeries);
                 
-                // perform RMD for last year if applicable
 
-                // Update investments, expected annual return, reinvestment of income, then expenses.
+                // 3. perform RMD for last year if applicable
 
-                // Run the Roth conversion (RC) optimizer, if it is enabled.
+                // 4. Update investments, expected annual return, reinvestment of income, then expenses.
 
-                // Pay non-discretionary expenses and the previous year’s taxes
+                // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
 
-                // Pay discretionary expenses in the order given by the spending strategy
+                // 6. Pay non-discretionary expenses and the previous year’s taxes
 
-                // Run the invest event scheduled for the current year
+                // 7. Pay discretionary expenses in the order given by the spending strategy
 
-                // Run rebalance events scheduled for the current year
+                // 8. Run the invest event scheduled for the current year
+
+                // 9. Run rebalance events scheduled for the current year
 
             }
         }

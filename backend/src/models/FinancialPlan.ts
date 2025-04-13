@@ -17,7 +17,7 @@ const InvestmentSchema = new Schema<IInvestment>({
     investmentType: { type: String, required: true },
     value: { type: Number, required: true },
     taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
-    id: { type: String, required: true },
+    id: { type: String, required: true , unique: true},
     },
     { _id: false }
 );
