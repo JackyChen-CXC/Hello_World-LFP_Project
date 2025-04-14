@@ -9,17 +9,22 @@ import * as yaml from "js-yaml";
 // Helper Functions
 
 // Get percentage of total investments >= financial goal per year
-export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOverTime: number[][]): number[] {
+export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOverTime: number[][][]): number[] {
+    // sum inner nested array
+    const summedInvestmentsOverTime = totalInvestmentsOverTime.map(year =>
+        year.map(sim => sim.reduce((sum, val) => sum + val, 0)));
+    
     const totalProbability: number[] = [];
-    for (let year = 0; year < totalInvestmentsOverTime.length; year++) {
+    for (let year = 0; year < summedInvestmentsOverTime.length; year++) {
         totalProbability[year] = 
-            totalInvestmentsOverTime[year].filter(totalValue => totalValue >= financialGoal).length /
-            totalInvestmentsOverTime[year].length;
+            summedInvestmentsOverTime[year].filter(totalValue => totalValue >= financialGoal).length /
+            summedInvestmentsOverTime[year].length;
     }
     return totalProbability;
 }
 
 // raw values -> median -> ranges
+// @input = arr of values b
 // [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
 export function generateRanges(total: number[][]){
     const avg: number[] = [];
@@ -34,7 +39,7 @@ export function generateRanges(total: number[][]){
 // hash simulated values into total values
 // @number[] sim: array of one number per year
 // @number[][] total: nested array of unsorted simulated numbers per year
-export function hashIntoTotal(total: number[][], sim: number[]) {
+export function hashIntoTotal(total: any[][], sim: any[]) {
     for (let year = 0; year < sim.length; year++) {
         if (!total[year]) {
             total[year] = [];
@@ -52,7 +57,7 @@ export function getCash(investments: IInvestment[]): IInvestment {
 }
 
 // Helper for 2, Parameters: eventSeries, inflationRate, SpouseDeath
-export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): number[] {
+export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): any[] {
     let cash = 0;
     let socialSecurity = 0;
     const year = new Date().getFullYear();
