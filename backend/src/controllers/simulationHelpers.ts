@@ -180,7 +180,7 @@ export function getDB(){
 //
 //
 //Standard Deduction
-export async function getStandardDeduction(status: 'single' | 'married', data: any[]): Promise<number | null> {
+export function getStandardDeduction(status: 'single' | 'married', data: any[]): number | null {
     // Loop through the data to find the matching status
     for (const item of data) {
       const { status: itemStatus, rate } = item;
@@ -279,7 +279,7 @@ export function calculateStateTax(income: number, marriedStatus: string, state: 
 //
 //
 //captial gain tax
-export async function getCapitalGainTaxRate(income: number, status: 'single' | 'married', adjusted: any[]): Promise<number | null> {
+export function getCapitalGainTaxRate(income: number, status: 'single' | 'married', adjusted: any[]): number | null {
     // Loop through the adjusted tax brackets
     for (const bracket of adjusted) {
       const { min, max, rate, status: bracketStatus } = bracket;
@@ -307,7 +307,7 @@ export async function getCapitalGainTaxRate(income: number, status: 'single' | '
 ///
 ///
 ///federal tax
-export async function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): Promise<number | null> {
+export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): number | null {
     // Find the tax bracket that matches the income and marital status
     for (const bracket of adjusted) {
       const { min_value, max_value, tax_rate, single, married } = bracket;
@@ -1057,3 +1057,408 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
 
 
 
+
+//
+//
+//
+//Helper function for part 6
+export function findTotalNonDiscretionary(financialplan: any): number {
+    const allEvents = financialplan.eventSeries || [];
+    const expenseEvents = allEvents.filter((e: any) => e.type === "expense");
+    const nonDiscretionaryEvents = expenseEvents.filter((e: any) => !e.discretionary);
+
+    let total = 0;
+
+    for (const event of nonDiscretionaryEvents) {
+        const cost = event.initialAmount || 0;
+        const dist = event.changeDistribution || {};
+        const distType = dist.type;
+        const distParams: number[] = Object.entries(dist)
+            .filter(([key]) => key !== "type")
+            .map(([_, value]) => typeof value === 'number' ? value : Number(value));
+        // Calculate change value
+        let change = 0;
+        if (distType === "fixed") {
+            change = distParams[0] || 0;
+        } else if (distType === "normal") {
+            // Assuming a normal distribution function is defined
+            change = generateNormal(distParams[0], distParams[1]);
+        } else if (distType === "uniform") {
+            change = generateUniform(distParams[0], distParams[1]);
+        }
+
+        // Apply change
+        if (event.changeAmtOrPct === "percent") {
+            total += cost * (1 + change);
+        } else {
+            total += cost + change;
+        }
+    }
+
+    return total;
+}
+
+
+export function payNonDiscretionary(
+    financialplan: any,
+    previousYearIncome: number,
+    previousYearSocialSecurityIncome: number,
+    married_status: "single" | "married",
+    state: string,
+    previousYearGain: number,
+    previousYearEarlyWithdrawals: number,
+    age: number,
+    currentYearGain: number,
+    currentYearEarlyWithdrawal: number,
+    standardDeductionBrackets: any [],
+    federalTaxBracket: any [],
+    captialGainTaxBracket: any []
+
+): void {
+
+    const total_income = previousYearIncome + previousYearSocialSecurityIncome;
+
+    // part a
+    const total_taxable_income = total_income - (getStandardDeduction(married_status,standardDeductionBrackets) ?? 0);
+    const federal_tax = getFederalTaxRate(total_taxable_income ?? 0,married_status,federalTaxBracket);
+    const state_tax = calculateStateTax(total_taxable_income ?? 0, married_status, state);
+
+    // part b
+    const capital_gain_tax = previousYearGain > 0
+        ? getCapitalGainTaxRate(previousYearGain, married_status,captialGainTaxBracket)
+        : 0;
+
+    // part c
+    const early_withdrawal_tax = (previousYearEarlyWithdrawals > 0 && age < 59)
+        ? previousYearEarlyWithdrawals * 0.1
+        : 0;
+
+    // part d
+    const total_non_discretionary = findTotalNonDiscretionary(financialplan);
+    const total_payment_amount = total_non_discretionary + (federal_tax ?? 0) + (state_tax ?? 0) + (capital_gain_tax ?? 0) + early_withdrawal_tax;
+
+    // part e
+    const cash_investments = (financialplan.investments || []).filter((i: any) => i.investmentType === "cash");
+    const total_cash = cash_investments.reduce((sum: number, i: any) => sum + (i.value || 0), 0);
+
+    let total_withdrawal_amount = total_payment_amount - total_cash;
+
+    // part f
+    const all_investments = financialplan.investments || [];
+    const withdrawal_strategy: string[] = financialplan.expenseWithdrawalStrategy || [];
+
+    if (total_withdrawal_amount >= 0) {
+        for (const invest_id of withdrawal_strategy) {
+            const investment = all_investments.find((inv: any) => inv.id === invest_id);
+            if (!investment) continue;
+
+            const invest_value = investment.value || 0;
+            let early_withdrawal_total = 0;
+
+            if (invest_value <= total_withdrawal_amount) {
+                total_withdrawal_amount -= invest_value;
+                investment.value = 0;
+
+                if (investment.taxStatus !== "pre-tax") {
+                    //following line assumes we have created a field that stores the total purchased price
+                    //remember to create the field for the investment once algorithmn starts or store it in a array
+                    const purchase_price = investment.total_purchase_price || 0;
+                    currentYearGain += (invest_value - purchase_price);
+                }
+
+                if ((investment.taxStatus === "pre-tax" || investment.taxStatus === "after-tax") && age < 59) {
+                    early_withdrawal_total += invest_value;
+                }
+            } else {
+                investment.value -= total_withdrawal_amount;
+
+                if (investment.taxStatus !== "pre-tax") {
+                    //following line assumes we have created a field that stores the total purchased price
+                    //remember to create the field for the investment once algorithmn starts or store it in a array
+                    const purchase_price = investment.total_purchase_price || 0;
+                    const fraction = total_withdrawal_amount / invest_value;
+                    currentYearGain += fraction * (invest_value - purchase_price);
+                }
+
+                if ((investment.taxStatus === "pre-tax" || investment.taxStatus === "after-tax") && age < 59) {
+                    early_withdrawal_total += total_withdrawal_amount;
+                }
+
+                total_withdrawal_amount = 0;
+            }
+
+            currentYearEarlyWithdrawal += total_withdrawal_amount;
+            if (total_withdrawal_amount === 0) break;
+        }
+    }
+}
+
+
+
+
+
+
+
+//
+//
+//
+//helper function for part7
+
+export function payDiscretionary(
+    financialplan: IFinancialPlan,
+    total_asset: number,
+    currentYearGain: number,
+    currentYearEarlyWithdrawal: number,
+    age: number
+  ): void {
+    const all_events = financialplan.eventSeries ?? [];
+    const spending_strategy = financialplan.spendingStrategy ?? [];
+  
+    let total_event_cost = 0;
+  
+    for (const event_id of spending_strategy) {
+      const event = all_events.find(e => e.name === event_id);
+      if (!event) continue;
+  
+      // Calculates the total cost of the event
+      const cost = event.initialAmount ?? 0;
+      const dist = event.changeDistribution;
+  
+      // Check if dist is defined
+      if (dist) {
+        const dist_type = dist.type;
+        const dist_params = Object.entries(dist)
+          .filter(([key]) => key !== 'type')
+          .map(([, value]) => value);
+  
+        let change = 0;
+        if (dist_type === 'fixed') {
+          change = dist_params[0] ?? 0;
+        } else if (dist_type === 'normal') {
+          change = generateNormal(dist_params[0], dist_params[1]);
+        } else if (dist_type === 'uniform') {
+          change = generateUniform(dist_params[0], dist_params[1]);
+        }
+  
+        if (event.changeAmtOrPct === 'percent') {
+          total_event_cost += cost * (1 + change);
+        } else {
+          total_event_cost += cost + change;
+        }
+      } else {
+        // If dist is not defined, handle accordingly (e.g., no change)
+        total_event_cost += cost;
+      }
+  
+      // If the event will reduce user asset to below financial goal, stop paying
+      if (total_asset - total_event_cost < financialplan.financialGoal) {
+        break;
+      }
+  
+      const all_investments = financialplan.investments ?? [];
+      const withdrawal_strategy = financialplan.expenseWithdrawalStrategy ?? [];
+  
+      if (total_event_cost >= 0) {
+        for (const invest_id of withdrawal_strategy) {
+          const investment = all_investments.find(inv => inv.id === invest_id);
+          if (!investment) continue;
+  
+          const invest_value = investment.value ?? 0;
+          let early_withdrawal_total = 0;
+  
+          if (invest_value <= total_event_cost) {
+            // Sells entire investment
+            total_event_cost -= invest_value;
+            investment.value = 0;
+  
+            if (investment.taxStatus !== 'pre-tax') {
+                //following line assumes we have created a field that stores the total purchased price
+                //remember to create the field for the investment once algorithmn starts
+                //const purchase_price = investment.total_purchase_price;
+                const purchase_price = 0;
+
+                currentYearGain += invest_value - purchase_price;
+            }
+  
+            if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
+              early_withdrawal_total += invest_value;
+            }
+          } else {
+            // Sells part of investment
+            investment.value -= total_event_cost;
+  
+            if (investment.taxStatus !== 'pre-tax') {
+
+                //following line assumes we have created a field that stores the total purchased price
+                //remember to create the field for the investment once algorithmn starts
+                //const purchase_price = investment.total_purchase_price;
+                const purchase_price = 0;
+
+                const fraction = total_event_cost / invest_value;
+                currentYearGain += fraction * (invest_value - purchase_price);
+            }
+  
+            if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
+              early_withdrawal_total += total_event_cost;
+            }
+  
+            total_event_cost = 0;
+          }
+  
+          currentYearEarlyWithdrawal += total_event_cost;
+  
+          if (total_event_cost === 0) {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+
+
+
+
+
+
+
+  //
+  ///
+  ///
+  ///
+  ///Helper function for part 8
+  function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: boolean): void {
+    let total_cash =
+      financialplan.investments.find((inv) => inv.id === "cash")?.value || 0;
+  
+    const my_investment = financialplan.eventSeries.filter((inv) => inv.type === "invest");
+  
+    for (const investments of my_investment) {
+      const excess_cash = investments.maxCash ?? 0;
+      //total_cash = 2000; // placeholder
+      const invest_amount = total_cash - excess_cash;
+  
+      const all_investment = financialplan.investments;
+      if (invest_amount <= 0) {
+        console.log("No excess cash. abort investing");
+        return;
+      }
+  
+      const item: [string, number, string][] = [];
+  
+      let allocationList: { [key: string]: number } = {};
+      if (investments.glidePath) {
+        allocationList = glidePathValue
+          ? investments.assetAllocation || {}
+          : investments.assetAllocation2 || {};
+      } else {
+        allocationList = investments.assetAllocation || {};
+      }
+  
+      for (const [name, percentage] of Object.entries(allocationList)) {
+        const total = percentage * invest_amount;
+        const each_investment = financialplan.investments.find((inv) => inv.id === name);
+        const tax_status = each_investment?.taxStatus || "unknown";
+        item.push([name, total, tax_status]);
+      }
+  
+      let B_total_purchase = 0;
+      for (const e of item) {
+        if (e[2] === "after-tax") {
+          B_total_purchase += e[1];
+        }
+      }
+  
+      const L_contributionLimit = financialplan.afterTaxContributionLimit;
+  
+      if (B_total_purchase > L_contributionLimit) {
+        const scalefactor = L_contributionLimit / B_total_purchase;
+  
+        let sum = 0;
+        for (const e of item) {
+          if (e[2] === "after-tax") {
+            e[1] *= scalefactor;
+          }
+          sum += e[1];
+        }
+  
+        const accounts = item.filter((e) => e[2] === "non-retirement").length;
+        const scale_up_amount = accounts > 0 ? sum / accounts : 0;
+  
+        for (const e of item) {
+          if (e[2] === "non-retirement") {
+            e[1] += scale_up_amount;
+          }
+        }
+      }
+  
+      for (const investment of item) {
+        const buy_investment = all_investment.find(
+          (inv) => inv.id === investment[0] && inv.taxStatus === investment[2]
+        );
+        if (buy_investment) {
+          buy_investment.value += investment[1];
+        }
+      }
+  
+      console.log("array: ", item);
+      console.log(all_investment);
+    }
+  }
+
+
+
+
+
+
+
+
+//
+//
+///
+//
+//Helper function for part 9
+function runRebalance(
+    financialplan: IFinancialPlan,
+    currentYearGain: number,
+    marriedStatus: "single" | "married",
+    captialGainTaxBracket: any []
+  ): number {
+    const rebalanceEvents = financialplan.eventSeries.filter(event => event.type === "rebalance");
+  
+    for (const event of rebalanceEvents) {
+      const allocationList = event.assetAllocation || {};
+  
+      const item: [string, number, number][] = [];
+      let investSum = 0;
+  
+      for (const [name, percentage] of Object.entries(allocationList)) {
+        const investment = financialplan.investments.find(inv => inv.id === name);
+        const investmentValue = investment?.value ?? 0;
+  
+        investSum += investmentValue;
+        item.push([name, investmentValue, percentage]);
+      }
+  
+      for (const [id, currentValue, targetPercent] of item) {
+        const targetValue = targetPercent * investSum;
+        const investment = financialplan.investments.find(inv => inv.id === id);
+  
+        if (!investment) continue;
+  
+        if (targetValue > currentValue) {
+          const diff = targetValue - currentValue;
+          investment.value += diff;
+        } else if (targetValue < currentValue) {
+          const diff = currentValue - targetValue;
+          investment.value -= diff;
+  
+          if (investment.taxStatus === "non-retirement") {
+            currentYearGain += getCapitalGainTaxRate(diff, marriedStatus,captialGainTaxBracket) ?? 0;
+          }
+        }
+      }
+    }
+  
+    return currentYearGain;
+  }
