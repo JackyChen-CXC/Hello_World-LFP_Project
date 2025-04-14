@@ -194,7 +194,6 @@ const CreatePlan = () => {
     mapped.rothconversionstrategy = incoming.RothConversionStrategy?.map(String) || [];
 
     // -------------- Investments -------------- //
-    // We also optionally look up the name from "investmentTypes" if present
     const processedTypeIds = new Set<string>();
 
     mapped.investments = (incoming.investments || []).map((inv, i) => {
@@ -202,7 +201,6 @@ const CreatePlan = () => {
       const investmentTypeId = inv.investmentType || "";
       let foundTypeName = "";
 
-      // Attempt to find a matching type object in incoming.investmentTypes
       if (investmentTypeId && Array.isArray(incoming.investmentTypes)) {
         const foundTypeObj = incoming.investmentTypes.find((t) => {
           const rawId = typeof t._id === "object" && t._id.$oid ? t._id.$oid : t._id;
@@ -213,16 +211,11 @@ const CreatePlan = () => {
         }
       }
 
-      // If you only want to store that name for the *first* usage:
       let finalTypeName = "";
       if (!processedTypeIds.has(investmentTypeId)) {
         finalTypeName = foundTypeName;
         processedTypeIds.add(investmentTypeId);
-      } else {
-        // or if you want the name every time, just do:
-        // finalTypeName = foundTypeName;
-      }
-
+      } 
       return {
         ...baseInv,
         id: i + 1,
@@ -233,7 +226,6 @@ const CreatePlan = () => {
         investmentType: investmentTypeId,
         investmentTypeName: finalTypeName,
 
-        // If your DB data includes distribution details, copy them in here
         returnAmtOrPct: inv.returnAmtOrPct || "percent",
         returnDistribution: inv.returnDistribution?.type || "fixed",
         annualReturnFixed: inv.returnDistribution?.value
@@ -273,14 +265,17 @@ const CreatePlan = () => {
         eventName: ev.name || "",
         eventDescription: ev.description || "",
         initialAmount: ev.initialAmount != null ? String(ev.initialAmount) : "",
-        incomeSource: ev.incomeSource || "",
-        expenseSource: ev.expenseSource || "",
       };
-
-      // Income or Expense source
-      if (ev.incomeSource) out.incomeSource = ev.incomeSource;
-      if (ev.expenseSource) out.expenseSource = ev.expenseSource;
-
+    
+      // Set income or expense source based on flags
+      if (ev.type === "income") {
+        out.incomeSource = ev.socialSecurity ? "socialSecurity" : "wages";
+      }
+    
+      if (ev.type === "expense") {
+        out.expenseSource = ev.discretionary ? "Discretionary" : "nonDiscretionary";
+      }
+    
       // Start distribution
       if (ev.start) {
         if (ev.start.type === "fixed") {
@@ -299,7 +294,7 @@ const CreatePlan = () => {
           out.startEvent = ev.start.eventSeries || "";
         }
       }
-
+    
       // Duration distribution
       if (ev.duration) {
         if (ev.duration.type === "fixed") {
@@ -315,13 +310,12 @@ const CreatePlan = () => {
           out.durationUpper = String(ev.duration.upper || "");
         }
       }
-
-      // Annual change distribution: amount or percent, plus type
+    
+      // Annual change distribution
       if (typeof ev.changeAmtOrPct === "string") {
-        out.annualChangeAmtOrPct = ev.changeAmtOrPct; // "amount" or "percent"
+        out.annualChangeAmtOrPct = ev.changeAmtOrPct;
       }
       if (ev.changeDistribution?.type) {
-        // "fixed", "normal", ...
         out.annualChangeType = ev.changeDistribution.type;
         if (ev.changeDistribution.type === "fixed") {
           out.annualChangeFixed = ev.changeDistribution.value
@@ -335,39 +329,14 @@ const CreatePlan = () => {
             ? String(ev.changeDistribution.stdev)
             : "";
         }
-        // If you store uniform in the DB, handle that similarly
       }
-
+    
+      // Inflation-adjusted
       if (typeof ev.inflationAdjusted === "boolean") {
         out.inflationAdjusted = ev.inflationAdjusted ? "yes" : "no";
       }
-        
-      // If ev.inflationType can be "fixed", "normal", etc.
-      out.inflationType = ev.inflationType || "";
-      out.inflationAmtOrPct = ev.inflationAmtOrPct || "amount";
-      out.inflationFixed = ev.inflationFixed ? String(ev.inflationFixed) : "";
-      out.inflationMean = ev.inflationMean ? String(ev.inflationMean) : "";
-      out.inflationStdev = ev.inflationStdev ? String(ev.inflationStdev) : "";
-      
-      if (ev.userFraction !== undefined && ev.userFraction !== null) {
-        out.userFraction = String(ev.userFraction);
-      }
-
-      // For invests / rebalances
-      if (ev.assetAllocation) {
-        out.assetAllocation = { ...ev.assetAllocation };
-      }
-      if (ev.assetAllocation2) {
-        out.assetAllocation2 = { ...ev.assetAllocation2 };
-      }
-      if (ev.glidePath != null) {
-        out.glidePath = !!ev.glidePath;
-      }
-      if (ev.maxCash != null) {
-        out.maxCash = String(ev.maxCash);
-      }
-
-      // If each event has separate inflation config
+    
+      // Inflation config (if separate per event)
       if (ev.inflationType) {
         out.inflationType = ev.inflationType;
       }
@@ -383,9 +352,28 @@ const CreatePlan = () => {
       if (ev.inflationAmtOrPct) {
         out.inflationAmtOrPct = ev.inflationAmtOrPct;
       }
-
+    
+      if (ev.userFraction !== undefined && ev.userFraction !== null) {
+        out.userFraction = String(ev.userFraction);
+      }
+    
+      // Asset allocation
+      if (ev.assetAllocation) {
+        out.assetAllocation = { ...ev.assetAllocation };
+      }
+      if (ev.assetAllocation2) {
+        out.assetAllocation2 = { ...ev.assetAllocation2 };
+      }
+      if (ev.glidePath != null) {
+        out.glidePath = !!ev.glidePath;
+      }
+      if (ev.maxCash != null) {
+        out.maxCash = String(ev.maxCash);
+      }
+    
       return out;
     });
+    
 
     return mapped;
   }
@@ -1019,6 +1007,16 @@ useEffect(() => {
     return updated;
   });
 }, [formData.investments]);
+
+// Sync strategy dropdowns with saved data on edit mode
+useEffect(() => {
+  if (!isEditMode) return;
+
+  setRmdOrder(formData.rmdStrategy || []);
+  setRothOrder(formData.rothconversionstrategy || []);
+  setExpenseOrder(formData.expenseWithdrawalStrategy || []);
+  setSpendingOrder(formData.spendingStrategy || []);
+}, [isEditMode, formData]);
 
 
 function buildDistribution(distType, mean, stdev, fixedValue) {
@@ -2468,31 +2466,28 @@ const handleSubmit = async () => {
         {formData.investments.filter(inv => inv.accountType === "pre-tax").length === 0 ? (
           <div className="normal-text">There are no pre-tax investments in this plan.</div>
         ) : (
-          rmdOrder.map((selectedId, index) => (
-            <div key={index} style={{ marginBottom: "10px" }}>
+          rmdOrder.map((selected, index) => (
+            <div key={index}>
               <div className="normal-text">RMD Priority #{index + 1}</div>
               <select
                 className="collapse-options"
-                value={selectedId}
+                value={selected}
                 onChange={(e) => handleRMDOrderChange(index, e.target.value)}
               >
-                <option value="">--Select Investment--</option>
+                <option value="">--Select --</option>
                 {formData.investments
-                  .filter(
-                    (inv) =>
-                      inv.accountType === "pre-tax" &&
-                      (!rmdOrder.includes(inv.id) || inv.id === selectedId)
-                  )
-                  .map((inv) => (
-                    <option key={inv.id} value={inv.id}>
-                      {inv.investmentName || "Unnamed Investment"}
-                    </option>
-                  ))}
+                  .filter(inv => inv.accountType === "pre-tax")
+                  .map((inv, idx) => (
+                    <option key={idx} value={inv.investmentName}>
+                      {inv.investmentName}
+                </option>
+                ))}
               </select>
             </div>
           ))
         )}
       </div>
+
 
       <div className="normal-text" style={{ marginTop: "20px" }}>
         How do you want to order your Expense Withdrawal Strategy 
@@ -2501,26 +2496,20 @@ const handleSubmit = async () => {
         {formData.investments.filter(inv => inv.investmentName).length === 0 ? (
           <div className="normal-text">There are no named investments in this plan.</div>
         ) : (
-          expenseOrder.map((selectedId, index) => (
-            <div key={index} style={{ marginBottom: "10px" }}>
+          expenseOrder.map((selected, index) => (
+            <div key={index}>
               <div className="normal-text">Expense Withdrawal Priority #{index + 1}</div>
               <select
                 className="collapse-options"
-                value={selectedId}
+                value={selected}
                 onChange={(e) => handleExpenseOrderChange(index, e.target.value)}
               >
-                <option value="">--Select Investment--</option>
-                {formData.investments
-                  .filter(
-                    (inv) =>
-                      inv.investmentName && 
-                      (!expenseOrder.includes(inv.id) || inv.id === selectedId)
-                  )
-                  .map((inv) => (
-                    <option key={inv.id} value={inv.id}>
-                      {inv.investmentName}
-                    </option>
-                  ))}
+                <option value="">--Select--</option>
+                {formData.investments.map((inv, idx) => (
+                  <option key={idx} value={inv.investmentName}>
+                    {inv.investmentName}
+                  </option>
+                ))}
               </select>
             </div>
           ))
@@ -2535,25 +2524,20 @@ const handleSubmit = async () => {
         {formData.lifeEvents.filter((e) => e.type === "expense" && e.expenseSource === "Discretionary").length === 0 ? (
           <div className="normal-text">No discretionary expenses in current plan.</div>
         ) : (
-          spendingOrder.map((selectedId, index) => (
-            <div key={index} style={{ marginBottom: "10px" }}>
-              <div className="normal-text">Spending Strategy Priority #{index + 1}</div>
+          spendingOrder.map((selected, index) => (
+            <div key={index}>
+              <label className="normal-text">Spending Priority #{index + 1}</label>
               <select
                 className="collapse-options"
-                value={selectedId}
+                value={selected}
                 onChange={(e) => handleSpendingOrderChange(index, e.target.value)}
               >
-                <option value="">--Select Expense Event--</option>
+                <option value="">--Select--</option>
                 {formData.lifeEvents
-                  .filter(
-                    (event) =>
-                      event.type === "expense" &&
-                      event.expenseSource === "Discretionary" &&
-                      (!spendingOrder.includes(event.id) || event.id === selectedId)
-                  )
-                  .map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.eventName}
+                  .filter(ev => ev.type === "expense" && ev.expenseSource === "Discretionary")
+                  .map((ev, idx) => (
+                    <option key={idx} value={ev.eventName}>
+                      {ev.eventName}
                     </option>
                   ))}
               </select>
@@ -2561,7 +2545,6 @@ const handleSubmit = async () => {
           ))
         )}
       </div>
-
 
       {/* ------------------------------------------Roth Conversion Optimization------------------------------------------ */}
       <div className="subheading">Optimization</div>
@@ -2625,24 +2608,20 @@ const handleSubmit = async () => {
               {formData.investments.filter((inv) => inv.accountType === "pre-tax").length === 0 ? (
                 <div className="normal-text">No pre-tax investments in current plan.</div>
               ) : (
-                rothOrder.map((selectedId, index) => (
-                  <div key={index} style={{ marginBottom: "10px" }}>
+                rothOrder.map((selected, index) => (
+                  <div key={index}>
                     <div className="normal-text">Roth Conversion Priority #{index + 1}</div>
                     <select
                       className="collapse-options"
-                      value={selectedId}
+                      value={selected}
                       onChange={(e) => handleRothOrderChange(index, e.target.value)}
                     >
-                      <option value="">--Select Pre-Tax Investment--</option>
+                      <option value="">--Select--</option>
                       {formData.investments
-                        .filter(
-                          (inv) =>
-                            inv.accountType === "pre-tax" &&
-                            (!rothOrder.includes(inv.id) || inv.id === selectedId)
-                        )
-                        .map((inv) => (
-                          <option key={inv.id} value={inv.id}>
-                            {inv.investmentName || "Unnamed Investment"}
+                        .filter(inv => inv.accountType === "pre-tax")
+                        .map((inv, idx) => (
+                          <option key={idx} value={inv.investmentName}>
+                            {inv.investmentName}
                           </option>
                         ))}
                     </select>
