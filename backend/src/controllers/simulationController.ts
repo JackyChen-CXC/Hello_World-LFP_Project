@@ -2,7 +2,7 @@ import { IDistribution } from "../models/Distribution";
 import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
-import { generateFromDistribution, getCash, standardizeTimeRangesForEventSeries, updateInvestments } from "./simulationHelpers";
+import { generateFromDistribution, getCash, standardizeTimeRangesForEventSeries, updateIncomeEvents } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -69,7 +69,8 @@ export const runSimulation = async (req: any, res: any) => {
         // 1,000–10,000 simulations → good starting range
         const num_simulations = simulations || 1000;
         const spouse = plan.maritalStatus == "couple"; // boolean
-        const age = new Date().getFullYear() - plan?.birthYears[0];
+        const startingYear = new Date().getFullYear();
+        const age = startingYear - plan.birthYears[0];
 
         // inside simulations (loop by simulation)
         for (let simulations = 0; simulations < num_simulations; simulations++) {
@@ -90,21 +91,38 @@ export const runSimulation = async (req: any, res: any) => {
                 });
             }
             const num_years = lifeExpectancy - age;
+            // get specified spouse year of death if spouse exists
+            let spouseExpectancy: number | undefined;
+            let spouseYears: number | undefined;
+            if(spouse){
+                spouseExpectancy = generateFromDistribution(plan.lifeExpectancy[1]);
+                spouseYears = lifeExpectancy - (startingYear - plan.birthYears[1]);
+            }
 
             // fix all start & duration attribute of Events
             plan.eventSeries = standardizeTimeRangesForEventSeries(plan.eventSeries);
 
-            // Simulate (loop by year)
-            for(let year = 0; year < num_years; year++){
+            // Simulate (loop by simulated year, after current year)
+            for(let year = 1; year <= num_years; year++){
                 // 1. preliminary
+                // true if spouse exists and is alive
+                const deathSpouse = spouseYears !== undefined && spouseYears > year;
+
                 // get this year's InflationAssumption
                 const inflationRate = generateFromDistribution(plan.inflationAssumption);
+                if(!inflationRate){
+                    console.log('inflationRate not found.');
+                    return res.status(404).json({ error: 'inflationRate not found.' });
+                }
                 // inflate tax brackets
 
-                // 2. run all income events, add them to cash investment
-                let cash = getCash(plan.investments);
-                cash.value += updateInvestments(plan.eventSeries);
-                
+                // compute & store inflation-adjusted annual limits on retirement account contributions
+
+                // 2. run all income events
+                const cash = getCash(plan.investments);
+                let [curYearIncome, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, spouse && deathSpouse);
+                // Add the income to the cash investment
+                cash.value += curYearIncome;
 
                 // 3. perform RMD for last year if applicable
 

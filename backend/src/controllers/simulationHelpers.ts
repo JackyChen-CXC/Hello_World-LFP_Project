@@ -16,38 +16,81 @@ export function getCash(investments: IInvestment[]): IInvestment {
     return investments.filter(investment => investment.id === "cash")[0];
 }
 
-export function updateInvestments(eventSeries: ILifeEvent[]): number {
+// Helper for 2, Parameters: eventSeries, inflationRate, SpouseDeath
+export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): number[] {
     let cash = 0;
+    let socialSecurity = 0;
+    const year = new Date().getFullYear();
     const incomeEvents = getLifeEventsByType(eventSeries, "income");
-    
-    return cash;
+    for(let income of incomeEvents){
+        if(income.initialAmount){
+            // if active
+            if(income.start.value && income.duration.value && year >= income.start.value && year < income.start.value+income.duration.value){
+                // depending on death of spouse & userFraction (could change to one time function on spouse death)
+                if(!deathSpouse){ // no spouse or spouse alive
+                    // sum up last year's income liquidity
+                    cash+= income.initialAmount;
+                    // if social security, add to it
+                    if(income.socialSecurity === true){
+                        socialSecurity += income.initialAmount;
+                    }
+                } else{ // decrease amount gained by UserFraction
+                    if(income.userFraction){
+                        // sum up last year's income liquidity
+                        cash+= income.initialAmount*income.userFraction;
+                        // if social security, add to it
+                        if(income.socialSecurity === true){
+                            socialSecurity += income.initialAmount*income.userFraction;
+                        }
+                    }
+                }
+                // update income event by annual change
+                const change = generateFromDistribution(income.changeDistribution);
+                if(change){
+                    if(income.changeAmtOrPct == "amount"){
+                        income.initialAmount += change;
+                    } else{ // percent
+                        income.initialAmount *= (1+change);
+                    }
+                }
+                
+            }
+            // update amount by inflation if applicable inflationAdjusted
+            if(income.inflationAdjusted === true){
+                income.initialAmount *= (1+inflationRate);
+            }
+        }
+    }
+    return [cash, socialSecurity];
 }
 
 // Return a number given Distribution types: "fixed" | "normal" | "uniform"
-export function generateFromDistribution(dist: IDistribution): number | undefined {
-    switch (dist.type) { // fixed number
-        case "fixed":
-            return dist.value;
-        case "normal": // normal distibution
-            if (typeof dist.mean === "number" && typeof dist.stdev === "number") {
-                // Box-Muller transform
-                const u1 = Math.random();
-                const u2 = Math.random();
-                const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                return dist.mean + dist.stdev * z;
-            }
-        case "uniform": // uniform distibution
-            if (typeof dist.lower === "number" && typeof dist.upper === "number") {
-                return dist.lower + Math.random() * (dist.upper - dist.lower);
-            }
-        default:
-            // wrong use of function
-            console.log("Wrong use of Distribution function");
-            return undefined;
+export function generateFromDistribution(dist: IDistribution | undefined): number | undefined {
+    if(dist){
+        switch (dist.type) { // fixed number
+            case "fixed":
+                return dist.value;
+            case "normal": // normal distibution
+                if (typeof dist.mean === "number" && typeof dist.stdev === "number") {
+                    // Box-Muller transform
+                    const u1 = Math.random();
+                    const u2 = Math.random();
+                    const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                    return dist.mean + dist.stdev * z;
+                }
+            case "uniform": // uniform distibution
+                if (typeof dist.lower === "number" && typeof dist.upper === "number") {
+                    return dist.lower + Math.random() * (dist.upper - dist.lower);
+                }
+            default:
+                // wrong use of function
+                console.log("Wrong use of Distribution function");
+                return undefined;
+        }
     }      
 }
 
-// for things like start & duration that need a specific year start from a Distribution
+// for start & duration that need a specific year start from a Distribution
 export function standardizeTimeRangesForEventSeries(eventSeries: ILifeEvent[]): ILifeEvent[] {
     // store all startWith & endWhen
     const roundTwo = [];
@@ -71,10 +114,12 @@ export function standardizeTimeRangesForEventSeries(eventSeries: ILifeEvent[]): 
         const tempEvent = eventSeries.filter(temp => temp.name === event.start.eventSeries)[0];
         
         if(event.start.type === "startWith"){
-        
+            event.start = {type: "fixed", value: tempEvent.start.value};
         }
         else{
-            // find event
+            if(tempEvent.start.value && tempEvent.duration.value ){ // the year after a specified event series ends.
+                event.start = {type: "fixed", value: tempEvent.start.value + tempEvent.duration.value + 1};
+            }
         }
     }
     return eventSeries;
