@@ -60,10 +60,11 @@ export const runSimulation = async (req: any, res: any) => {
         const result = await SimulationResult.findById(simulation?.resultsId);
 
         // Storage for all simulation raw values
-        const totalInvestmentsOverTime: number[][] = [[]];
-        const totalExpensesOverTime: number[][] = [[]];
-        const totalEarlyWithdrawalTaxOverTime: number[][] = [[]];
-        const totalPercentageTotalDiscretionary: number[][] = [[]];
+        const totalInvestmentsOverTime: number[][][] = [];
+        const totalIncomeOverTime: number[][][] = [];
+        const totalExpensesOverTime: number[][][] = [];
+        const totalEarlyWithdrawalTaxOverTime: number[][] = [];
+        const totalPercentageTotalDiscretionary: number[][] = [];
         // Check if everything is there
         if (!plan || ! simulation || ! result) {
             console.log('Items not found.');
@@ -79,8 +80,10 @@ export const runSimulation = async (req: any, res: any) => {
         // inside simulations (loop by simulation)
         for (let simulations = 0; simulations < num_simulations; simulations++) {
             // Storage for total yearly raw values
-            const InvestmentsOverTime: number[] = [];
-            const ExpensesOverTime: number[] = [];
+            const InvestmentsOverTime: number[][] = [];
+            const IncomeOverTime: number[][] = [];
+            const ExpensesOverTime: number[][] = [];
+
             const earlyWithdrawalTaxOverTime: number[] = [];
             const percentageTotalDiscretionary: number[] = [];
 
@@ -134,8 +137,10 @@ export const runSimulation = async (req: any, res: any) => {
                 // 2. run all income events
                 const cash = getCash(plan.investments);
                 // retrieve previous year income and updates the incomeEvents after
-                let [curYearIncome, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, deathSpouse);
-                // Add the income to the cash investment
+                let [incomeEvents, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, deathSpouse);
+                // Add the total income to the cash investment
+                IncomeOverTime.push(incomeEvents);
+                let curYearIncome = incomeEvents.reduce((sum: number, val: number) => sum + val, 0);
                 cash.value += curYearIncome;
 
                 // 3. perform RMD for last year if applicable
@@ -156,6 +161,7 @@ export const runSimulation = async (req: any, res: any) => {
 
             // hash simulation raw values into total arrays
             hashIntoTotal(totalInvestmentsOverTime, InvestmentsOverTime);
+            hashIntoTotal(totalIncomeOverTime, IncomeOverTime);
             hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
             hashIntoTotal(totalEarlyWithdrawalTaxOverTime, earlyWithdrawalTaxOverTime);
             hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);

@@ -16,6 +16,7 @@ export interface ISimulationResult extends Document {
     // range = [min val, max val]
     financialGoal: number;
     investmentsRange: number[][];
+    incomeRange: number[][];
     expensesRange: number[][];
     earlyWithdrawTaxRange: number[][];
     // (the percentage is based on the amounts, not the number, 
@@ -24,15 +25,18 @@ export interface ISimulationResult extends Document {
 
     // 4.3 Stacked bar chart of median or average values of a selected quantity over time
     // Stores results as average/median desired quantity
-    avgInvestmentsOverTime: number[];
-    medianInvestmentsOverTime: number[];
+    // investmentOrder: any[];
+    avgInvestmentsOverTime: number[][];
+    medianInvestmentsOverTime: number[][];
 
-    avgIncomeOverTime: number[];
-    medianIncomeOverTime: number[];
+    // incomeOrder: any[];
+    avgIncomeOverTime: number[][];
+    medianIncomeOverTime: number[][];
     
     // includes taxes
-    avgExpensesOverTime: number[];
-    medianExpensesOverTime: number[];
+    // expensesOrder: any[];
+    avgExpensesOverTime: number[][];
+    medianExpensesOverTime: number[][];
 }
 
 const simulationResultSchema = new Schema<ISimulationResult>({
@@ -40,14 +44,19 @@ const simulationResultSchema = new Schema<ISimulationResult>({
     inflationAssumption: { type: DistributionSchema, required: true },
     financialGoal: { type: Number, required: true },
     probabilityOverTime: { type: [Number], required: true, default: [] },
+
     investmentsRange: { type: [[[Number]]], required: true, default: [] },
+    incomeRange: { type: [[[Number]]], required: true, default: [] },
     expensesRange: { type: [[[Number]]], required: true, default: [] },
     earlyWithdrawTaxRange: { type: [[[Number]]], required: true, default: [] },
     percentageDiscretionaryRange: { type: [[[Number]]], required: true, default: [] },
-    avgInvestmentsOverTime: { type: [Number], required: true, default: [] },
-    medianInvestmentsOverTime: { type: [Number], required: true, default: [] },
-    avgExpensesOverTime: { type: [Number], required: true, default: [] },
-    medianExpensesOverTime: { type: [Number], required: true, default: [] },
+
+    avgInvestmentsOverTime: { type: [[Number]], required: true, default: [] },
+    medianInvestmentsOverTime: { type: [[Number]], required: true, default: [] },
+    avgIncomeOverTime: { type: [[Number]], required: true, default: [] },
+    medianIncomeOverTime: { type: [[Number]], required: true, default: [] },
+    avgExpensesOverTime: { type: [[Number]], required: true, default: [] },
+    medianExpensesOverTime: { type: [[Number]], required: true, default: [] },
 });
 
 // simulationResultSchema.index({ simulationId: 1 });
