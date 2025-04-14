@@ -120,7 +120,9 @@ const OpenSimulation = () => {
     if (graph === "shaded") return <ShadedLineChart />;
     if (graph === "stacked") return <StackedBarChart />;
   };
-
+  const username = localStorage.getItem("name");
+  const name = localStorage.getItem("given_name");
+  const picture = localStorage.getItem("picture")
   return (
     <div className="page-container">
       <div className="header" style={{ marginBottom: "5%" }}>
@@ -129,8 +131,19 @@ const OpenSimulation = () => {
           display: "flex", justifyContent: "center",
           alignItems: "center", position: "absolute", right: "40px"
         }}>
-          <div>user</div>
-          <img src="/images/user.png" height={80} width={90} />
+         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "absolute", right: "40px" }}>
+        {username ? (
+            <>
+              <div style={{ margin: 20 }}>{username}</div>
+              <img src={picture} height={60} width={60} alt="User" 
+              style={{ cursor: "pointer",borderRadius: "50%" }} 
+              className="transparent-hover"
+               />
+            </>
+          ) : (
+            <div>Guest</div>
+          )}
+        </div>
         </div>
       </div>
 

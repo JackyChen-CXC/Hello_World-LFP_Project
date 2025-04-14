@@ -237,7 +237,21 @@ justify-content: center;
     background-color: #c0c0c0;
   }
 
-
+  .custom-btn {
+    background-color: #7EC995;
+    color: rgb(19, 14, 14);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px 5px;
+    transition: opacity 0.3s ease, background-color 0.3s ease;
+  }
+  
+  .custom-btn:hover {
+    opacity: 0.5;
+  }
+  
 /*----------------------------------------Dashboard-------------------------------*/
 .dashboard-container {
     width: 100%;
