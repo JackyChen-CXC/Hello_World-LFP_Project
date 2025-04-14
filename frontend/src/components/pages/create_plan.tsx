@@ -1182,7 +1182,11 @@ const handleSubmit = async () => {
 
     alert(isEditMode ? "Plan updated successfully!" : "Plan created successfully!");
 
-    setFormData(JSON.parse(JSON.stringify(defaultFormData)));
+    if (isEditMode) {
+      navigate("/scenario");
+    } else {
+      setFormData(JSON.parse(JSON.stringify(defaultFormData)));
+    }
   } catch (error) {
     console.error("Error submitting plan:", error);
     alert("There was an error. Check the console for details.");
