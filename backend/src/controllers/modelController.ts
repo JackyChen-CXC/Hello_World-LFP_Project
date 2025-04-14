@@ -1,6 +1,8 @@
 import { exec } from "child_process";
 import FinancialPlan from "../models/FinancialPlan";
 import InvestmentType from "../models/InvestmentType";
+import Simulation from "../models/Simulation";
+import SimulationResult from "../models/SimulationResult";
 
 {/**----------------------------Investment Controllers---------------------------------------- */}
 export const createInvestmentType = async (req: any, res: any) => {
@@ -206,6 +208,32 @@ export const getSpecificFinancialPlan = async (req: any, res: any) => {
 	}
 };
 
+
+{/**----------------------------SimulationResult Controllers---------------------------------------- */}
+
+export const getSimulationResultsByPlanId = async (req: any, res: any) => {
+	try {
+		const { planId } = req.params;
+		const simulation = await Simulation.findOne({ planId: planId });
+
+		if (!simulation) {
+			return res.status(404).json({ message: "Simulation not found" });
+		}
+
+		const result = await SimulationResult.findOne({ _id: simulation.resultsId });
+
+		if (!result) {
+			return res.status(404).json({ message: "Simulation Results not found" });
+		}
+
+		return res.status(200).json({ data: result });
+		} catch (err) {
+		console.error("Error fetching plan by ID:", err);
+		return res.status(500).json({ message: "Failed to retrieve plan" });
+	}
+};
+
+{/**----------------------------Scraping Controllers---------------------------------------- */}
 
 export const webscrape = async (req: any, res: any) => {
     const command = process.platform === "win32"
