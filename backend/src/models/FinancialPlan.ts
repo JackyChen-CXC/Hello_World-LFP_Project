@@ -80,12 +80,20 @@ const LifeEventSchema = new Schema<ILifeEvent>({
     glidePath: { type: Boolean, 
         required: function (this: ILifeEvent) { return this.type === "invest";
     }},
-    assetAllocation2: { type: Map, of: Number,
-        required: function (this: ILifeEvent) { return this.type === "invest";
-    }},
-    maxCash: { type: Number, 
-        required: function (this: ILifeEvent) { return this.type === "invest";
-    }},
+    assetAllocation2: {
+        type: Map,
+        of: Number,
+        required: function (this: ILifeEvent) {
+            return this.type === "invest" && this.glidePath === true;
+        }
+    },
+    maxCash: {
+        type: Number,
+        required: function (this: ILifeEvent) {
+        return this.type === "invest";
+        }
+    },
+    
     },
     { _id: false }
     

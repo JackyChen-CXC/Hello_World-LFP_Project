@@ -349,6 +349,58 @@ const OpenScenario = () => {
                 <div className="scenario-info-container">
                   Type: <div >{capitalizeWords(event.type)}</div>
                 </div>
+                {/* ----- INVEST EVENTS ----- */}
+                {event.type === "invest" && (
+                  <>
+                    <div className="scenario-info-container">
+                      Glide Path:
+                      <div>{event.glidePath ? "True" : "False"}</div>
+                    </div>
+
+                    <div className="scenario-info-container">
+                      Max Cash:
+                      <div>${event.maxCash}</div>
+                    </div>
+
+                    <div className="scenario-info-container">
+                      Asset Allocation:
+                      <div>
+                        {Object.entries(event.assetAllocation || {}).map(([key, val]) => (
+                          <div key={key}>
+                            {key}: {val}%
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {event.glidePath && (
+                      <div className="scenario-info-container">
+                        Asset Allocation 2 (Glide Target):
+                        <div>
+                          {Object.entries(event.assetAllocation2 || {}).map(([key, val]) => (
+                            <div key={key}>
+                              {key}: {val}%
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ----- REBALANCE EVENTS ----- */}
+                {event.type === "rebalance" && (
+                  <div className="scenario-info-container">
+                    Asset Allocation:
+                    <div>
+                      {Object.entries(event.assetAllocation || {}).map(([key, val]) => (
+                        <div key={key}>
+                          {key}: {val}%
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {(event.type === "income" || event.type === "export") && (
                   <div className="scenario-info-container">

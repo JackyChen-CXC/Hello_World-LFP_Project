@@ -1,4 +1,4 @@
-import React, { useEffect,useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../css_files/collapsible.css";
 import "../css_files/page_style.css";
@@ -96,12 +96,15 @@ const CreatePlan = () => {
         inflationAdjusted: "",
         userFraction: "",
         changeDistribution: { type: "", value: "", mean: "", stdev: "" },
-        assetAllocation: { Stocks: "", Bonds: "", Cash: "" },
-        assetAllocation2: { Stocks: "", Bonds: "" },
+        selectedInvestments: [],
+        allocationMode: "",
+        fixedAllocation: {},
+        glideInitial: {},
+        glideFinal: {},
         glidePath: false,
-        maxCash: ""
-
-        // delete
+        assetAllocation: {},
+        assetAllocation2: {},
+        maxCash: "",
       },
     ],
   };
@@ -378,7 +381,7 @@ const CreatePlan = () => {
     return mapped;
   }
 
-
+  
   const [formData, setFormData] = useState(() => {
     const init = initializeFormData(location.state?.formData);
     delete init._initialInvestmentTypes;
@@ -690,14 +693,39 @@ const CreatePlan = () => {
     const cleanName = name.replace(/-\d+$/, "");
     const [parentKey, childKey] = cleanName.split(".");
   
-    if (childKey) {
+    if (childKey !== undefined) {
       newLifeEvents[index][parentKey] = {
         ...(newLifeEvents[index][parentKey] || {}),
         [childKey]: value,
       };
     } else {
       newLifeEvents[index][cleanName] = type === "checkbox" ? checked : value;
+    }    
+    
+    // Update changeDistribution fields directly
+    if (["annualChangeType", "annualChangeFixed", "annualChangeMean", "annualChangeStdev", "annualChangeMin", "annualChangeMax"].includes(cleanName)) {
+      const event = newLifeEvents[index];
+      const currentType = event.annualChangeType;
+
+      const updatedChangeDist = { ...event.changeDistribution };
+
+      if (cleanName === "annualChangeType") {
+        updatedChangeDist.type = value;
+      } else if (cleanName === "annualChangeFixed") {
+        updatedChangeDist.value = value;
+      } else if (cleanName === "annualChangeMean") {
+        updatedChangeDist.mean = value;
+      } else if (cleanName === "annualChangeStdev") {
+        updatedChangeDist.stdev = value;
+      } else if (cleanName === "annualChangeMin") {
+        updatedChangeDist.lower = value;
+      } else if (cleanName === "annualChangeMax") {
+        updatedChangeDist.upper = value;
+      }
+
+      newLifeEvents[index].changeDistribution = updatedChangeDist;
     }
+
   
     setFormData((prevData) => ({
       ...prevData,
@@ -867,7 +895,10 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
         investmentTypeName: inv.investmentTypeName || "",
         investmentDescription: inv.investmentDescription || "",
         investmentType: inv.investmentType|| "",
-        value: parseFloat(inv.investmentValue || "0"),
+        value: inv.investmentValue !== undefined && inv.investmentValue !== ""
+          ? parseFloat(inv.investmentValue)
+          : 0,
+
 
         taxStatus: inv.accountType || "non-retirement",
 
@@ -952,13 +983,19 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
                     mean: parseFloat(event.changeDistribution?.mean || "0"),
                     stdev: parseFloat(event.changeDistribution?.stdev || "0"),
                   };
+                } else if (t === "uniform") {
+                  return {
+                    type: "uniform",
+                    lower: parseFloat(event.changeDistribution?.lower || "0"),
+                    upper: parseFloat(event.changeDistribution?.upper || "0"),
+                  };
                 }
-                // default "fixed"
                 return {
                   type: "fixed",
                   value: parseFloat(event.changeDistribution?.value || "0"),
                 };
               })(),
+              
               inflationAdjusted: true,
               userFraction: parseFloat(event.userFraction || "1"),
               socialSecurity: isIncome && event.incomeSource === "socialSecurity",
@@ -977,14 +1014,40 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
             }
           : {}),
 
-        ...(isInvest || isRebalance
-          ? {
-              assetAllocation: event.assetAllocation || { stocks: 100 },
-              glidePath: isInvest ? event.glidePath || false : undefined,
-              assetAllocation2: isInvest ? event.assetAllocation2 || { bonds: 100 } : undefined,
-              maxCash: isInvest ? parseFloat(event.maxCash || "0") : undefined,
+          ...(isInvest || isRebalance
+            ? {
+              assetAllocation:
+                isInvest && event.allocationMode === "glide"
+                  ? event.glideInitial || {}
+                  : isInvest
+                    ? event.fixedAllocation || {}
+                    : {
+                        ...(event.primaryInvestment
+                          ? { [event.primaryInvestment]: parseFloat(event.assetAllocation?.[event.primaryInvestment] || "0") }
+                          : {}),
+                        ...(event.secondaryInvestment
+                          ? { [event.secondaryInvestment]: parseFloat(event.assetAllocation?.[event.secondaryInvestment] || "0") }
+                          : {}),
+                      },
+        
+              glidePath: isInvest ? event.allocationMode === "glide" : undefined,
+        
+              assetAllocation2:
+                isInvest && event.allocationMode === "glide"
+                  ? event.glideFinal || {}
+                  : undefined,
+        
+              selectedInvestments:
+                isInvest
+                  ? event.selectedInvestments || []
+                  : [event.primaryInvestment, event.secondaryInvestment].filter(Boolean),
+        
+              ...(isInvest && event.maxCash !== undefined
+                ? { maxCash: parseFloat(event.maxCash || "0") }
+                : {}),
             }
           : {}),
+          
       };
     }),
 
@@ -1257,6 +1320,7 @@ const handleSubmit = async () => {
       };
     });
   };
+  
   
   type RadioGroupProps = {
     label?: string;
@@ -1713,48 +1777,48 @@ const handleSubmit = async () => {
                   </label>
 
                 {investment.taxability === "taxable" && (
-                     <div>
-                     <div className="normal-text">Upload State Tax File</div>
-                     <div style={{ color: "red" }}>
-                       (If no file is uploaded, taxes will not be simulated)
-                     </div>
-                     
-                     {/* Hidden file input */}
-                     <input
-                       ref={fileInputRef}
-                       type="file"
-                       name="taxFile"
-                       style={{ display: "none" }}
-                       onChange={(e) => {
-                         
-                         handleInvestmentChange(index, e);
-                         handleFileSelection(e)
-                         
-                         
-                       }}
-                     />
-                     
-                     {/* Custom "Choose File" button */}
-                     <button
-                       onClick={handleChooseFile}
-                       className="custom-btn"
-                     >
-                       Choose File
-                     </button>
-                     
-                     {/* Show selected file name and upload button if a file is chosen */}
-                     {selectedFile && (
-                       <div>
-                         <p style={{ color: "red" }}>Selected file: {selectedFile.name}</p>
-                         <button
-                           onClick={uploadUserFile}
-                           className="custom-btn"
-                         >
-                           Upload Selected File
-                         </button>
-                       </div>
-                     )}
-                   </div>
+                    <div>
+                    <div className="normal-text">Upload State Tax File</div>
+                    <div style={{ color: "red" }}>
+                      (If no file is uploaded, taxes will not be simulated)
+                    </div>
+                    
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      name="taxFile"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        
+                        handleInvestmentChange(index, e);
+                        handleFileSelection(e)
+                        
+                        
+                      }}
+                    />
+                    
+                    {/* Custom "Choose File" button */}
+                    <button
+                      onClick={handleChooseFile}
+                      className="custom-btn"
+                    >
+                      Choose File
+                    </button>
+                    
+                    {/* Show selected file name and upload button if a file is chosen */}
+                    {selectedFile && (
+                      <div>
+                        <p style={{ color: "red" }}>Selected file: {selectedFile.name}</p>
+                        <button
+                          onClick={uploadUserFile}
+                          className="custom-btn"
+                        >
+                          Upload Selected File
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <button
@@ -1891,66 +1955,104 @@ const handleSubmit = async () => {
                     <>
                       {/* Asset Allocation */}
                       <div >Asset Allocation:</div>
-                      <div className="split-container">
-                        <div className="left-side">
-                          <label >Stocks:</label>
-                          <input
-                            className="small-input-boxes"
-                            type="number"
-                            name="Stocks"
-                            value={lifeEvent.assetAllocation?.Stocks || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                          />
-                          <label >Bonds:</label>
-                          <input
-                            className="small-input-boxes"
-                            type="number"
-                            name="Bonds"
-                            value={lifeEvent.assetAllocation?.Bonds || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                          />
-                        </div>
+                      <div>
+                      {/* Investment selector (shared for fixed or glide) */}
+                      <div className="normal-text">Select Investments for Asset Allocation</div>
+                      <select
+                        className="collapse-options"
+                        name="selectedInvestments"
+                        value={lifeEvent.selectedInvestments || []}
+                        onChange={(e) => {
+                          const target = e.target as HTMLSelectElement;
+                          const selected = Array.from(target.selectedOptions).map((opt) => opt.value);
+                          handleLifeEventChange(index, {
+                            target: { name: "selectedInvestments", value: selected },
+                          });
+                        }}
+                      >
+                        <option disabled value="">-- Select --</option>
+                        {formData.investments
+                          .filter((inv) => inv.accountType !== "pre-tax")
+                          .map((inv) => (
+                            <option key={inv.investmentName} value={inv.investmentName}>
+                              {inv.investmentName}
+                            </option>
+                          ))}
+                      </select>
 
-                        {/* Glide Path */}
-                        <div className="right-side">
-                          <label>Glide Path:</label>
-                          <input
-                            type="checkbox"
-                            name="glidePath"
-                            checked={lifeEvent.glidePath || false}
-                            onChange={(e) =>
-                              handleLifeEventChange(index, {
-                                target: { name: "glidePath", value: e.target.checked },
-                              })
-                            }
-                          />
-                        </div>
+
                       </div>
 
-                      {/* Asset Allocation 2 */}
-                      <div  style={{ marginTop: "15px" }}>Asset Allocation 2:</div>
-                      <div className="split-container">
-                        <div className="left-side">
-                          <label >Stocks:</label>
-                          <input
-                            className="small-input-boxes"
-                            type="number"
-                            name="Stocks"
-                            value={lifeEvent.assetAllocation2?.Stocks || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
-                          />
-                          <label >Bonds:</label>
-                          <input
-                            className="small-input-boxes"
-                            type="number"
-                            name="Bonds"
-                            value={lifeEvent.assetAllocation2?.Bonds || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation2")}
-                          />
-                        </div>
+                      <RadioGroup
+                        name={`allocationMode-${index}`}
+                        selectedValue={lifeEvent.allocationMode}
+                        onChange={(e) => handleLifeEventChange(index, {
+                          target: { name: "allocationMode", value: e.target.value }
+                        })}
+                        options={[
+                          { label: "Fixed Allocation", value: "fixed" },
+                          { label: "Glide Path", value: "glide" }
+                        ]}
+                      />
+                      {lifeEvent.allocationMode === "fixed" && (
+                      <>
+                        {formData.investments
+                          .filter(inv => inv.accountType !== "pre-tax")
+                          .map((inv, invIndex) => (
+                            <div key={invIndex}>
+                              <label>{inv.investmentName}</label>
+                              <input
+                                type="number"
+                                className="small-input-boxes"
+                                name={`fixedAllocation.${inv.investmentName}`}
+                                value={lifeEvent.fixedAllocation?.[inv.investmentName] || ""}
+                                onChange={(e) => handleAssetAllocationInputChange(index, e, "fixedAllocation")}
+                              />
+                              %
+                            </div>
+                          ))}
+                      </>
+                    )}
+                    {lifeEvent.allocationMode === "glide" && (
+                      <div>
+                        <div className="normal-text">Initial Allocation:</div>
+                        {formData.investments
+                          .filter(inv => inv.accountType !== "pre-tax")
+                          .map((inv, invIndex) => (
+                            <div key={invIndex}>
+                              <label>{inv.investmentName}</label>
+                              <input
+                                type="number"
+                                className="small-input-boxes"
+                                name={`glideInitial.${inv.investmentName}`}
+                                value={lifeEvent.glideInitial?.[inv.investmentName] || ""}
+                                onChange={(e) => handleAssetAllocationInputChange(index, e, "glideInitial")}
+                              />
+                              %
+                            </div>
+                          ))}
 
-                        <div className="right-side">
-                          <label >Max Cash:</label>
+                          <div className="normal-text" style={{ marginTop: "10px" }}>Final Allocation:</div>
+                          {formData.investments
+                            .filter(inv => inv.accountType !== "pre-tax")
+                            .map((inv, invIndex) => (
+                              <div key={invIndex}>
+                                <label>{inv.investmentName}</label>
+                                <input
+                                  type="number"
+                                  className="small-input-boxes"
+                                  name={`glideFinal.${inv.investmentName}`}
+                                  value={lifeEvent.glideFinal?.[inv.investmentName] || ""}
+                                  onChange={(e) => handleAssetAllocationInputChange(index, e, "glideFinal")}
+                                />
+                                %
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                      {lifeEvent.type === "invest" && (
+                        <div>
+                          <label className="normal-text">Maximum Cash Holding:</label>
                           <input
                             className="small-input-boxes"
                             type="number"
@@ -1959,46 +2061,92 @@ const handleSubmit = async () => {
                             onChange={(e) => handleLifeEventChange(index, e)}
                           />
                         </div>
-                      </div>
+                      )}
                     </>
                   )}
 
                   {lifeEvent.type === "rebalance" && (
                     <>
-                      <div >Asset Allocation:</div>
-                      <div className="split-container">
-                        <div className="left-side">
-                          <label >Stocks:</label>
-                          <input
-                            className="small-input-boxes"
-                            type="number"
-                            name="Stocks"
-                            value={lifeEvent.assetAllocation?.Stocks || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                          />
+                      <div className="normal-text">Asset Allocation (Rebalance):</div>
 
-                          <label className="normal-text">Bonds:</label>
-                          <input
-                            className="small-input-boxes"
-                            type="number"
-                            name="Bonds"
-                            value={lifeEvent.assetAllocation?.Bonds || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                          />
+                      {/* First Investment Dropdown */}
+                      <div className="normal-text">Select First Investment</div>
+                      <select
+                        className="collapse-options"
+                        name="primaryInvestment"
+                        value={lifeEvent.primaryInvestment || ""}
+                        onChange={(e) => {
+                          const selected = e.target.value;
+                          const selectedAccountType = formData.investments.find(inv => inv.investmentName === selected)?.accountType;
 
-                          <label className="normal-text">Cash:</label>
+                          handleLifeEventChange(index, {
+                            target: { name: "primaryInvestment", value: selected }
+                          });
+
+                          handleLifeEventChange(index, {
+                            target: { name: "primaryAccountType", value: selectedAccountType || "" }
+                          });
+
+                          // Optionally reset the secondary investment
+                          handleLifeEventChange(index, {
+                            target: { name: "secondaryInvestment", value: "" }
+                          });
+                        }}
+                      >
+                        <option value="">-- Select --</option>
+                        {formData.investments.map((inv) => (
+                          <option key={inv.investmentName} value={inv.investmentName}>
+                            {inv.investmentName} ({inv.accountType})
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Second Investment Dropdown */}
+                      {lifeEvent.primaryInvestment && (
+                        <>
+                          <div className="normal-text" style={{ marginTop: "10px" }}>Select Second Investment (Same Account Type)</div>
+                          <select
+                            className="collapse-options"
+                            name="secondaryInvestment"
+                            value={lifeEvent.secondaryInvestment || ""}
+                            onChange={(e) => {
+                              handleLifeEventChange(index, {
+                                target: { name: "secondaryInvestment", value: e.target.value }
+                              });
+                            }}
+                          >
+                            <option value="">-- Select --</option>
+                            {formData.investments
+                              .filter((inv) =>
+                                inv.accountType === lifeEvent.primaryAccountType &&
+                                inv.investmentName !== lifeEvent.primaryInvestment
+                              )
+                              .map((inv) => (
+                                <option key={inv.investmentName} value={inv.investmentName}>
+                                  {inv.investmentName}
+                                </option>
+                              ))}
+                          </select>
+                        </>
+                      )}
+
+
+                      <div className="normal-text" style={{ marginTop: "10px" }}>Set Allocation Percentages</div>
+                      {(lifeEvent.selectedInvestments || []).map((invName, invIndex) => (
+                        <div key={invIndex}>
+                          <label>{invName}</label>
                           <input
-                            className="small-input-boxes"
                             type="number"
-                            name="Cash"
-                            value={lifeEvent.assetAllocation?.Cash || ""}
+                            className="small-input-boxes"
+                            name={`assetAllocation.${invName}`}
+                            value={lifeEvent.assetAllocation?.[invName] || ""}
                             onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
                           />
+                          %
                         </div>
-                      </div>
+                      ))}
                     </>
                   )}
-
 
                 </div>
                 <div className="right-side">
