@@ -25,16 +25,16 @@ export interface ISimulationResult extends Document {
 
     // 4.3 Stacked bar chart of median or average values of a selected quantity over time
     // Stores results as average/median desired quantity
-    investmentOrder: any[];
+    // investmentOrder: any[];
     avgInvestmentsOverTime: number[][];
     medianInvestmentsOverTime: number[][];
 
-    incomeOrder: any[];
+    // incomeOrder: any[];
     avgIncomeOverTime: number[][];
     medianIncomeOverTime: number[][];
     
     // includes taxes
-    expensesOrder: any[];
+    // expensesOrder: any[];
     avgExpensesOverTime: number[][];
     medianExpensesOverTime: number[][];
 }
