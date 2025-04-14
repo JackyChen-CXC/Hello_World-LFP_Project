@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect,useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../css_files/collapsible.css";
 import "../css_files/page_style.css";
@@ -545,34 +545,72 @@ const CreatePlan = () => {
   
 
   //upload state tax file to backend
-  const upload_state_tax_file = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      return;
-    }
-  
-    // Validate file type
-    const allowedTypes = ['.yaml', '.yml'];
-    const fileExt = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    
-    if (!allowedTypes.includes(fileExt)) {
-      alert('Only YAML files are allowed');
-      return;
-    }
-  
-    const formData = new FormData();
-    formData.append("taxFile", file);
-  
+  interface UploadedFile {
+    id: string;
+    name: string;
+    url: string;
+  }
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const userId = localStorage.getItem("userId") || "";
+
+  // Function to fetch files uploaded by the user
+  const fetchUploadedFiles = async () => {
+    if (!userId) return;
     try {
-      const response = await fetch("/api/upload-state-tax", {
+      const response = await fetch(`http://localhost:5000/api/user-files?userId=${userId}`);
+      const result = await response.json();
+      if (response.ok) {
+        setUploadedFiles(result.data);
+      } else {
+        console.error("Failed to fetch user files:", result.error);
+      }
+    } catch (error) {
+      console.error("Error fetching user files:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUploadedFiles();
+  }, []);
+  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Validate that only YAML files are allowed
+    const allowedTypes = [".yaml"];
+    const fileExt = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!allowedTypes.includes(fileExt)) {
+      alert("Only YAML files can be uploaded");
+      return;
+    }
+    setSelectedFile(file);
+  };
+  const handleChooseFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  const uploadUserFile = async () => {
+    if (!selectedFile) return;
+    const formData = new FormData();
+    formData.append("userFile", selectedFile);
+    formData.append("userId", userId);
+    try {
+      const response = await fetch("http://localhost:5000/api/upload-user-file", {
         method: "POST",
         body: formData,
       });
-  
       const result = await response.json();
-      
       if (response.ok) {
         console.log("File uploaded successfully", result);
+        alert("File uploaded successfully");
+        setSelectedFile(null);
+        // Reset file input using the ref
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        fetchUploadedFiles();
       } else {
         console.error("Upload failed:", result.error);
         alert(`Upload failed: ${result.error}`);
@@ -580,10 +618,9 @@ const CreatePlan = () => {
     } catch (error) {
       console.error("Error uploading file:", error);
       alert("Error uploading file");
-    } finally {
-      e.target.value = '';
     }
   };
+  
 
 
   // ----------------------------------------------------- LIFE EVENT TRANSFORMATION STUFF -----------------------------------------------------//
@@ -1676,22 +1713,48 @@ const handleSubmit = async () => {
                   </label>
 
                 {investment.taxability === "taxable" && (
-                  <div>
-                    <div className="normal-text">Upload State Tax File</div>
-                    <div style={{ color: "red" }}>
-                      (If no file is uploaded, taxes will not be simulated)
-                    </div>
-                    <input
-                      style={{ margin: "1%", fontSize: "16px" }}
-                      type="file"
-                      name="taxFile"
-                      //call the function to upload the state tax
-                      onChange={(e) => {
-                        handleInvestmentChange(index, e);
-                        upload_state_tax_file(e); }}
-                    />
-                    {investment.taxFile && <p>Selected File: {investment.taxFile.name}</p>}
-                  </div>
+                     <div>
+                     <div className="normal-text">Upload State Tax File</div>
+                     <div style={{ color: "red" }}>
+                       (If no file is uploaded, taxes will not be simulated)
+                     </div>
+                     
+                     {/* Hidden file input */}
+                     <input
+                       ref={fileInputRef}
+                       type="file"
+                       name="taxFile"
+                       style={{ display: "none" }}
+                       onChange={(e) => {
+                         
+                         handleInvestmentChange(index, e);
+                         handleFileSelection(e)
+                         
+                         
+                       }}
+                     />
+                     
+                     {/* Custom "Choose File" button */}
+                     <button
+                       onClick={handleChooseFile}
+                       className="custom-btn"
+                     >
+                       Choose File
+                     </button>
+                     
+                     {/* Show selected file name and upload button if a file is chosen */}
+                     {selectedFile && (
+                       <div>
+                         <p style={{ color: "red" }}>Selected file: {selectedFile.name}</p>
+                         <button
+                           onClick={uploadUserFile}
+                           className="custom-btn"
+                         >
+                           Upload Selected File
+                         </button>
+                       </div>
+                     )}
+                   </div>
                 )}
 
                 <button
