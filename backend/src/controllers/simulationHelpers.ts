@@ -57,51 +57,54 @@ export function getCash(investments: IInvestment[]): IInvestment {
 }
 
 // Helper for 2, Parameters: eventSeries, inflationRate, SpouseDeath
+// @Output = array of income amounts by order of income events
 export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): any[] {
-    let cash = 0;
+    let income = [];
     let socialSecurity = 0;
     const year = new Date().getFullYear();
     const incomeEvents = getLifeEventsByType(eventSeries, "income");
-    for(let income of incomeEvents){
-        if(income.initialAmount){
+    for(let event of incomeEvents){
+        if(event.initialAmount){
+            let cash = 0; // to preserve order with 0 values if not active
             // if active
-            if(income.start.value && income.duration.value && year >= income.start.value && year < income.start.value+income.duration.value){
+            if(event.start.value && event.duration.value && year >= event.start.value && year < event.start.value + event.duration.value){
                 // depending on death of spouse & userFraction (could fix to one time function for all values on spouse death)
                 if(!deathSpouse){ // no spouse or spouse alive
                     // sum up last year's income liquidity
-                    cash+= income.initialAmount;
+                    cash += (event.initialAmount);
                     // if social security, add to it
-                    if(income.socialSecurity === true){
-                        socialSecurity += income.initialAmount;
+                    if(event.socialSecurity === true){
+                        socialSecurity += event.initialAmount;
                     }
                 } else{ // decrease amount gained by UserFraction
-                    if(income.userFraction){
+                    if(event.userFraction){
                         // sum up last year's income liquidity
-                        cash+= income.initialAmount*income.userFraction;
+                        cash += (event.initialAmount*event.userFraction);
                         // if social security, add to it
-                        if(income.socialSecurity === true){
-                            socialSecurity += income.initialAmount*income.userFraction;
+                        if(event.socialSecurity === true){
+                            socialSecurity += event.initialAmount*event.userFraction;
                         }
                     }
                 }
                 // update income event by annual change
-                const change = generateFromDistribution(income.changeDistribution);
+                const change = generateFromDistribution(event.changeDistribution);
                 if(change){
-                    if(income.changeAmtOrPct == "amount"){
-                        income.initialAmount += change;
+                    if(event.changeAmtOrPct == "amount"){
+                        event.initialAmount += change;
                     } else{ // percent
-                        income.initialAmount *= (1+change);
+                        event.initialAmount *= (1+change);
                     }
                 }
                 
             }
+            income.push(cash);
             // update amount by inflation if applicable inflationAdjusted
-            if(income.inflationAdjusted === true){
-                income.initialAmount *= (1+inflationRate);
+            if(event.inflationAdjusted === true){
+                event.initialAmount *= (1+inflationRate);
             }
         }
     }
-    return [cash, socialSecurity];
+    return [income, socialSecurity];
 }
 
 // Return a number given Distribution types: "fixed" | "normal" | "uniform"

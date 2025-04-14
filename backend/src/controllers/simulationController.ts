@@ -137,8 +137,10 @@ export const runSimulation = async (req: any, res: any) => {
                 // 2. run all income events
                 const cash = getCash(plan.investments);
                 // retrieve previous year income and updates the incomeEvents after
-                let [curYearIncome, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, deathSpouse);
-                // Add the income to the cash investment
+                let [incomeEvents, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, deathSpouse);
+                // Add the total income to the cash investment
+                IncomeOverTime.push(incomeEvents);
+                let curYearIncome = incomeEvents.reduce((sum: number, val: number) => sum + val, 0);
                 cash.value += curYearIncome;
 
                 // 3. perform RMD for last year if applicable

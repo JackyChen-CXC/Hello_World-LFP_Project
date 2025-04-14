@@ -131,7 +131,7 @@ dist
 
 venv/
 
-src/tax/*
+/backend/src/tax/*
 
 # But do not ignore state_tax.yaml
-!src/tax/state_tax.yaml
+!/backend/src/tax/state_tax.yaml
