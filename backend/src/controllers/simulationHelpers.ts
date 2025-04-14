@@ -24,17 +24,24 @@ export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOver
 }
 
 // raw values -> median -> ranges
-// @input = arr of values b
+// @input = [year][simulation][number || items]
 // [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
-export function generateRanges(total: number[][]){
-    const avg: number[] = [];
-    const median: number[] = [];
-    const range: number[][] = []; // [min, max], 
+export function generateRange(total: any[][]){
+    const range: number[][] = []; // [min, max],
+    // check if need to convert from 3D to 2D array
+    const check = Array.isArray(total[0][0]);
+    if(check){
+        total = total.map(year =>
+            year.map(sim => sim.reduce((sum: number, val: number) => sum + val, 0)));
+    }
+    // calculate ranges for each year 
     for (let year = 0; year < total.length; year++) {
+        const sorted = total[year].sort((a, b) => a - b);
         
     }
-    return [avg, median, range];
+    return range;
 }
+
 
 // hash simulated values into total values
 // @number[] sim: array of one number per year
@@ -816,17 +823,17 @@ export function calculateRMD(financialPlan: IFinancialPlan, age: number, curYear
                 // Add RMD to current year income
                 curYearIncome += rmd;
 
-                return curYearIncome;
+                return rmd;
             } else {
                 throw new Error("Distribution period not found for the given age");
             }
         })
         .catch(err => {
             console.error("Error calculating RMD:", err);
-            return curYearIncome; // Return current income if there's an error
+            return -1; // Return current income if there's an error
         });
 
-    return curYearIncome; // Return the income as a fallback
+    return -1; // Return the income as a fallback
 }
 
 
