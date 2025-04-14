@@ -2077,7 +2077,9 @@ const handleSubmit = async () => {
                         value={lifeEvent.primaryInvestment || ""}
                         onChange={(e) => {
                           const selected = e.target.value;
-                          const selectedAccountType = formData.investments.find(inv => inv.investmentName === selected)?.accountType;
+                          const selectedAccountType = formData.investments.find(
+                            (inv) => inv.investmentName === selected
+                          )?.accountType;
 
                           handleLifeEventChange(index, {
                             target: { name: "primaryInvestment", value: selected }
@@ -2087,9 +2089,13 @@ const handleSubmit = async () => {
                             target: { name: "primaryAccountType", value: selectedAccountType || "" }
                           });
 
-                          // Optionally reset the secondary investment
                           handleLifeEventChange(index, {
                             target: { name: "secondaryInvestment", value: "" }
+                          });
+
+                          // Reset assetAllocation
+                          handleLifeEventChange(index, {
+                            target: { name: "assetAllocation", value: {} }
                           });
                         }}
                       >
@@ -2101,25 +2107,73 @@ const handleSubmit = async () => {
                         ))}
                       </select>
 
+                      {/* First Investment Allocation Input */}
+                      {lifeEvent.primaryInvestment && (
+                        <div style={{ marginTop: "10px" }}>
+                          <label className="normal-text">
+                            Enter allocation for {lifeEvent.primaryInvestment} (as a decimal between 0 and 1):
+                          </label>
+                          <input
+                            className="input-boxes"
+                            type="number"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={lifeEvent.assetAllocation?.[lifeEvent.primaryInvestment] || ""}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value || "0");
+                          
+                              const alloc = {
+                                [lifeEvent.primaryInvestment]: val,
+                                [lifeEvent.secondaryInvestment]: Math.max(0, 1 - val)
+                              };
+
+                              handleLifeEventChange(index, {
+                                target: { name: "assetAllocation", value: alloc }
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
+
                       {/* Second Investment Dropdown */}
                       {lifeEvent.primaryInvestment && (
                         <>
-                          <div className="normal-text" style={{ marginTop: "10px" }}>Select Second Investment (Same Account Type)</div>
+                          <div className="normal-text" style={{ marginTop: "10px" }}>
+                            Select Second Investment (Same Account Type)
+                          </div>
                           <select
                             className="collapse-options"
                             name="secondaryInvestment"
                             value={lifeEvent.secondaryInvestment || ""}
                             onChange={(e) => {
+                              const selected = e.target.value;
+                              const primaryVal = parseFloat(
+                                lifeEvent.assetAllocation?.[lifeEvent.primaryInvestment] || "0"
+                              );
+
+                              const rounded = (n: number) => Math.round(n * 1000) / 1000;
+
+                              const alloc = {
+                                [lifeEvent.primaryInvestment]: rounded(primaryVal),
+                                [selected]: rounded(1 - primaryVal)
+                              };
+                              
                               handleLifeEventChange(index, {
-                                target: { name: "secondaryInvestment", value: e.target.value }
+                                target: { name: "secondaryInvestment", value: selected }
+                              });
+
+                              handleLifeEventChange(index, {
+                                target: { name: "assetAllocation", value: alloc }
                               });
                             }}
                           >
                             <option value="">-- Select --</option>
                             {formData.investments
-                              .filter((inv) =>
-                                inv.accountType === lifeEvent.primaryAccountType &&
-                                inv.investmentName !== lifeEvent.primaryInvestment
+                              .filter(
+                                (inv) =>
+                                  inv.accountType === lifeEvent.primaryAccountType &&
+                                  inv.investmentName !== lifeEvent.primaryInvestment
                               )
                               .map((inv) => (
                                 <option key={inv.investmentName} value={inv.investmentName}>
@@ -2129,24 +2183,9 @@ const handleSubmit = async () => {
                           </select>
                         </>
                       )}
-
-
-                      <div className="normal-text" style={{ marginTop: "10px" }}>Set Allocation Percentages</div>
-                      {(lifeEvent.selectedInvestments || []).map((invName, invIndex) => (
-                        <div key={invIndex}>
-                          <label>{invName}</label>
-                          <input
-                            type="number"
-                            className="small-input-boxes"
-                            name={`assetAllocation.${invName}`}
-                            value={lifeEvent.assetAllocation?.[invName] || ""}
-                            onChange={(e) => handleAssetAllocationInputChange(index, e, "assetAllocation")}
-                          />
-                          %
-                        </div>
-                      ))}
                     </>
                   )}
+
 
                 </div>
                 <div className="right-side">

@@ -367,7 +367,7 @@ const OpenScenario = () => {
                       <div>
                         {Object.entries(event.assetAllocation || {}).map(([key, val]) => (
                           <div key={key}>
-                            {key}: {val}%
+                            {key}: {val}
                           </div>
                         ))}
                       </div>
@@ -379,7 +379,7 @@ const OpenScenario = () => {
                         <div>
                           {Object.entries(event.assetAllocation2 || {}).map(([key, val]) => (
                             <div key={key}>
-                              {key}: {val}%
+                              {key}: {val}
                             </div>
                           ))}
                         </div>
@@ -395,7 +395,7 @@ const OpenScenario = () => {
                     <div>
                       {Object.entries(event.assetAllocation || {}).map(([key, val]) => (
                         <div key={key}>
-                          {key}: {val}%
+                          {key}: {val}
                         </div>
                       ))}
                     </div>
