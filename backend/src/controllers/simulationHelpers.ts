@@ -100,32 +100,20 @@ export function getDB(){
 //
 //
 //Standard Deduction
-export async function calculateStandardDeduction(income: number, marriedStatus: string): Promise<number | void> {
-    const currentYear = new Date().getFullYear();
-    const collectionName = `standard_deduction_${currentYear}`;
-    const db = getDB();
-    const collection = db.collection(collectionName);
-
-    if (marriedStatus === "single") {
-        const singleDoc = await collection.findOne({ single: { $exists: true } });
-        const singleRate = singleDoc?.single;
-
-        if (typeof singleRate === "number") {
-            const result = income - singleRate;
-            return result >= 0 ? result : 0;
-        }
-    } else if (marriedStatus === "married") {
-        const marriedDoc = await collection.findOne({ married: { $exists: true } });
-        const marriedRate = marriedDoc?.married;
-
-        if (typeof marriedRate === "number") {
-            const result = income - marriedRate;
-            return result >= 0 ? result : 0;
-        }
-    } else {
-        console.error("Error: invalid married status");
+export async function getStandardDeduction(status: 'single' | 'married', data: any[]): Promise<number | null> {
+    // Loop through the data to find the matching status
+    for (const item of data) {
+      const { status: itemStatus, rate } = item;
+  
+      // Check if the status matches
+      if (itemStatus === status) {
+        return rate; // Return the rate if a match is found
+      }
     }
-}
+  
+    // Return null if no matching status is found
+    return null;
+  }
 
 
 //
@@ -168,8 +156,8 @@ export function calculateStateTax(income: number, marriedStatus: string, state: 
         console.error(`No tax data found for ${normalizedState}. Please upload it.`);
         return;
     }
-
-    const noTaxStates = ["alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"];
+    //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
+    const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
     if (noTaxStates.includes(normalizedState)) {
         return 0;
     }
@@ -187,7 +175,7 @@ export function calculateStateTax(income: number, marriedStatus: string, state: 
         const { min, max, base_tax, rate } = bracket;
 
         if (income > min) {
-            if (normalizedState === "new_york") {
+            if (normalizedState === "ny") {
                 const taxableAmount = Math.min(income, max) - min;
                 tax = base_tax + (taxableAmount * rate);
             } else {
@@ -211,27 +199,26 @@ export function calculateStateTax(income: number, marriedStatus: string, state: 
 //
 //
 //captial gain tax
-export async function calculateCapitalGainTax(income: number, marriedStatus: string): Promise<number | undefined> {
-    const currentYear = new Date().getFullYear();
-    const collectionName = `captial_gain_tax_${currentYear}`;
-    const db = getDB();
-    const collection = db.collection(collectionName);
-
-    try {
-        const items = await collection.find({ status: marriedStatus }).toArray();
-
-        for (const item of items) {
-            const minVal = item.min ?? -Infinity;
-            let maxVal = item.max ?? Infinity;
-
-            if (minVal <= income && income <= maxVal) {
-                return item.rate * income;
-            }
-        }
-    } catch (err) {
-        console.error("Error accessing capital gain tax data:", err);
+export async function getCapitalGainTaxRate(income: number, status: 'single' | 'married', adjusted: any[]): Promise<number | null> {
+    // Loop through the adjusted tax brackets
+    for (const bracket of adjusted) {
+      const { min, max, rate, status: bracketStatus } = bracket;
+  
+      // Check if the value is within the range for this tax bracket
+      // and if the status matches the bracket's status
+      if (
+        income >= min &&
+        (max === null || income <= max) &&
+        bracketStatus === status
+      ) {
+        // Return the rate if conditions are met
+        return rate*income;
+      }
     }
-}
+  
+    // Return null if no matching tax bracket is found
+    return null;
+  }
 
 
 
@@ -240,28 +227,25 @@ export async function calculateCapitalGainTax(income: number, marriedStatus: str
 ///
 ///
 ///federal tax
-export async function calculateFederalTax(income: number, marriedStatus: string): Promise<number | undefined> {
-    const currentYear = new Date().getFullYear();
-    const collectionName = `federal_tax_${currentYear}`;
-    const db = getDB();
-    const collection = db.collection(collectionName);
-
-    try {
-        const query = { [marriedStatus]: true };
-        const items = await collection.find(query).toArray();
-
-        for (const item of items) {
-            const minVal = item.min_value ?? -Infinity;
-            let maxVal = item.max_value ?? Infinity;
-
-            if (minVal <= income && income <= maxVal) {
-                return item.tax_rate * income;
-            }
-        }
-    } catch (err) {
-        console.error("Error calculating federal tax:", err);
+export async function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): Promise<number | null> {
+    // Find the tax bracket that matches the income and marital status
+    for (const bracket of adjusted) {
+      const { min_value, max_value, tax_rate, single, married } = bracket;
+  
+      // Check if the income falls within the range for this bracket and the marital status matches
+      if (
+        income >= min_value &&
+        (max_value === null || income <= max_value) &&
+        ((marriedStatus === 'single' && single !== undefined) || (marriedStatus === 'married' && married !== undefined))
+      ) {
+        // Return the tax rate if conditions are met
+        return tax_rate*income;
+      }
     }
-}
+  
+    // Return null if no bracket is found
+    return null;
+  }
 
 
 
@@ -270,49 +254,38 @@ export async function calculateFederalTax(income: number, marriedStatus: string)
 //
 //
 //federal tax flat inflation
-export async function updateFederalTaxForFlatInflation(inflationRate: number): Promise<void> {
-    const db = getDB();
+export async function updateFederalTaxForFlatInflation(inflationRate: number) {
     inflationRate += 1;
-
     const currentYear = new Date().getFullYear();
     const collectionName = `federal_tax_${currentYear}`;
-    const federalTax = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_federal_tax");
-
-    try {
-        await inflationDb.deleteMany({});
-        const documents = await federalTax.find().toArray();
-
-        for (const doc of documents) {
-            const tax = doc.tax_rate;
-            const minVal = doc.min_value;
-            const maxVal = doc.max_value;
-            const single = doc.single;
-            const married = doc.married;
-
-            if (tax === undefined || minVal === undefined) {
-                continue;
-            }
-
-            const data: Record<string, any> = {
-                min_value: minVal * inflationRate,
-                tax_rate: tax,
-                single,
-                married
-            };
-
-            if (maxVal !== undefined && maxVal !== null) {
-                data.max_value = maxVal * inflationRate;
-            } else {
-                data.max_value = null;
-            }
-
-            await inflationDb.insertOne(data);
-        }
-    } catch (err) {
-        console.error("Error updating federal tax with inflation:", err);
+    const db = getDB(); // Assuming getdb is a function that returns a MongoDB connection
+    const federalTaxCollection = db.collection(collectionName);
+  
+    const documents = await federalTaxCollection.find().toArray();
+    const adjusted: any[] = [];
+  
+    for (const doc of documents) {
+      const tax = doc.tax_rate;
+      const minVal = doc.min_value;
+      const maxVal = doc.max_value;
+      const single = doc.single;
+      const married = doc.married;
+  
+      if (tax === undefined || minVal === undefined) {
+        continue;
+      }
+  
+      adjusted.push({
+        min_value: minVal * inflationRate,
+        max_value: maxVal !== undefined ? maxVal * inflationRate : null,
+        tax_rate: tax,
+        single: single,
+        married: married,
+      });
     }
-}
+  
+    return adjusted;
+  }
 
 
 
@@ -321,55 +294,38 @@ export async function updateFederalTaxForFlatInflation(inflationRate: number): P
 //
 //
 //federal tax normal distribution inflation
-export async function updateFederalTaxForNormalDistributionInflation(mean: number, std: number): Promise<void> {
-    const db = getDB();
+export async function updateFederalTaxForNormalDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
     const collectionName = `federal_tax_${currentYear}`;
-    const federalTax = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_federal_tax");
-
-    try {
-        // Clear previous inflation-adjusted tax data
-        await inflationDb.deleteMany({});
-        
-        // Get all tax brackets
-        const documents = await federalTax.find().toArray();
-
-        // Generate one sample from normal distribution
-        const inflation = generateNormal(mean, std);
-
-        for (const doc of documents) {
-            const tax = doc.tax_rate;
-            const minVal = doc.min_value;
-            const maxVal = doc.max_value;
-            const single = doc.single;
-            const married = doc.married;
-
-            if (tax === undefined || minVal === undefined) {
-                continue;
-            }
-
-            const inflationFactor = 1 + inflation;
-
-            const data: Record<string, any> = {
-                min_value: minVal * inflationFactor,
-                tax_rate: tax,
-                single,
-                married
-            };
-
-            if (maxVal !== undefined && maxVal !== null) {
-                data.max_value = maxVal * inflationFactor;
-            } else {
-                data.max_value = null;
-            }
-
-            await inflationDb.insertOne(data);
-        }
-    } catch (err) {
-        console.error("Error updating federal tax with normal distribution inflation:", err);
+    const db = getDB(); // Assuming getdb is a function that returns the MongoDB connection
+    const federalTaxCollection = db.collection(collectionName);
+  
+    const documents = await federalTaxCollection.find().toArray();
+    const inflation = generateNormal(mean, std);
+    const adjusted: any[] = [];
+  
+    for (const doc of documents) {
+      const tax = doc.tax_rate;
+      const minVal = doc.min_value;
+      const maxVal = doc.max_value;
+      const single = doc.single;
+      const married = doc.married;
+  
+      if (tax === undefined || minVal === undefined) {
+        continue;
+      }
+  
+      adjusted.push({
+        min_value: minVal * (1 + inflation),
+        max_value: maxVal !== undefined ? maxVal * (1 + inflation) : null,
+        tax_rate: tax,
+        single: single,
+        married: married,
+      });
     }
-}
+  
+    return adjusted;
+  }
 
 // Simple normal distribution generator using Box-Muller transform
 function generateNormal(mean: number, std: number): number {
@@ -387,52 +343,38 @@ function generateNormal(mean: number, std: number): number {
 //
 //
 //federal tax uniform distribution
-export async function updateFederalTaxForUniformDistributionInflation(bot: number, top: number): Promise<void> {
-    const db = getDB();
+export async function updateFederalTaxForUniformDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
     const collectionName = `federal_tax_${currentYear}`;
-    const federalTax = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_federal_tax");
-
-    try {
-        await inflationDb.deleteMany({});
-        const documents = await federalTax.find().toArray();
-
-        // Generate a single uniform random inflation value
-        const inflation = generateUniform(bot, top);
-
-        for (const doc of documents) {
-            const tax = doc.tax_rate;
-            const minVal = doc.min_value;
-            const maxVal = doc.max_value;
-            const single = doc.single;
-            const married = doc.married;
-
-            if (tax === undefined || minVal === undefined) {
-                continue;
-            }
-
-            const inflationFactor = 1 + inflation;
-
-            const data: Record<string, any> = {
-                min_value: minVal * inflationFactor,
-                tax_rate: tax,
-                single,
-                married
-            };
-
-            if (maxVal !== undefined && maxVal !== null) {
-                data.max_value = maxVal * inflationFactor;
-            } else {
-                data.max_value = null;
-            }
-
-            await inflationDb.insertOne(data);
-        }
-    } catch (err) {
-        console.error("Error updating federal tax with uniform distribution inflation:", err);
+    const db = getDB(); // Assuming getdb is a function that returns the MongoDB connection
+    const federalTaxCollection = db.collection(collectionName);
+  
+    const documents = await federalTaxCollection.find().toArray();
+    const inflation = generateUniform(mean, std);
+    const adjusted: any[] = [];
+  
+    for (const doc of documents) {
+      const tax = doc.tax_rate;
+      const minVal = doc.min_value;
+      const maxVal = doc.max_value;
+      const single = doc.single;
+      const married = doc.married;
+  
+      if (tax === undefined || minVal === undefined) {
+        continue;
+      }
+  
+      adjusted.push({
+        min_value: minVal * (1 + inflation),
+        max_value: maxVal !== undefined ? maxVal * (1 + inflation) : null,
+        tax_rate: tax,
+        single: single,
+        married: married,
+      });
     }
-}
+  
+    return adjusted;
+  }
 
 // Generate a single value from a uniform distribution between bot and top
 function generateUniform(bot: number, top: number): number {
@@ -573,48 +515,36 @@ export function updateStateTaxForUniformDistributionInflation(bot: number, top: 
 //
 //
 //captain gain flat inflation
-export async function updateCapitalGainTaxForFlatInflation(inflationRate: number): Promise<void> {
-    const inflationFactor = inflationRate + 1;
+export async function updateCapitalGainTaxForFlatInflation(inflationRate: number) {
+    inflationRate += 1;
     const currentYear = new Date().getFullYear();
-    const collectionName = `captial_gain_tax_${currentYear}`;
+    const collectionName = `capital_gain_tax_${currentYear}`;
     const db = getDB(); 
-
-    const federalTaxCollection = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_captial_gain_tax");
-
-    try {
-        // Clear the inflation collection
-        await inflationDb.deleteMany({});
-
-        // Fetch all documents from the federal tax collection
-        const documents = await federalTaxCollection.find().toArray();
-
-        for (const doc of documents) {
-            const tax = doc?.rate;
-            const minVal = doc?.min;
-            const maxVal = doc?.max;
-            const status = doc?.status;
-
-            if (tax === undefined || minVal === undefined) {
-                continue; // Skip if tax or min value is missing
-            }
-
-            const data = {
-                min: minVal * inflationFactor,
-                max: maxVal !== undefined ? maxVal * inflationFactor : null,
-                rate: tax,
-                status: status,
-            };
-
-            // Insert the modified data into the inflation collection
-            await inflationDb.insertOne(data);
-        }
-
-        console.log("Capital Gain Tax data updated for flat inflation.");
-    } catch (err) {
-        console.error("Error updating Capital Gain Tax for flat inflation:", err);
+    const capitalGainTaxCollection = db.collection(collectionName);
+  
+    const documents = await capitalGainTaxCollection.find().toArray();
+    const adjusted: any[] = [];
+  
+    for (const doc of documents) {
+      const tax = doc.rate;
+      const minVal = doc.min;
+      const maxVal = doc.max;
+      const status = doc.status;
+  
+      if (tax === undefined || minVal === undefined) {
+        continue;
+      }
+  
+      adjusted.push({
+        min: minVal * inflationRate,
+        max: maxVal !== undefined ? maxVal * inflationRate : null,
+        rate: tax,
+        status: status,
+      });
     }
-}
+  
+    return adjusted;
+  }
 
 
 
@@ -622,49 +552,35 @@ export async function updateCapitalGainTaxForFlatInflation(inflationRate: number
 //
 //
 //captial gain normal distribtion
-export async function updateCapitalGainTaxForNormalDistributionInflation(mean: number, std: number): Promise<void> {
+export async function updateCapitalGainTaxForNormalDistributionInflation(mean: number, std: number) {
+    const inflationRate = generateNormal(mean, std);
     const currentYear = new Date().getFullYear();
-    const collectionName = `captial_gain_tax_${currentYear}`;
+    const collectionName = `capital_gain_tax_${currentYear}`;
     const db = getDB(); 
-
-    const federalTaxCollection = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_captial_gain_tax");
-
-    try {
-        // Clear the inflation collection
-        await inflationDb.deleteMany({});
-
-        // Fetch all documents from the federal tax collection
-        const documents = await federalTaxCollection.find().toArray();
-
-        // Generate inflation rate using normal distribution
-        const inflationRate = generateNormal(mean, std);
-
-        for (const doc of documents) {
-            const tax = doc?.rate;
-            const minVal = doc?.min;
-            const maxVal = doc?.max;
-            const status = doc?.status;
-
-            if (tax === undefined || minVal === undefined) {
-                continue; // Skip if tax or min value is missing
-            }
-
-            const data = {
-                min: minVal * (1 + inflationRate),
-                max: maxVal !== undefined ? maxVal * (1 + inflationRate) : null,
-                rate: tax,
-                status: status,
-            };
-
-            // Insert the modified data into the inflation collection
-            await inflationDb.insertOne(data);
-        }
-
-        console.log("Capital Gain Tax data updated for normal distribution inflation.");
-    } catch (err) {
-        console.error("Error updating Capital Gain Tax for normal distribution inflation:", err);
+    const capitalGainTaxCollection = db.collection(collectionName);
+  
+    const documents = await capitalGainTaxCollection.find().toArray();
+    const adjusted: any[] = [];
+  
+    for (const doc of documents) {
+      const tax = doc.rate;
+      const minVal = doc.min;
+      const maxVal = doc.max;
+      const status = doc.status;
+  
+      if (tax === undefined || minVal === undefined) {
+        continue;
+      }
+  
+      adjusted.push({
+        min: minVal * (1 + inflationRate),
+        max: maxVal !== undefined ? maxVal * (1 + inflationRate) : null,
+        rate: tax,
+        status: status,
+      });
     }
+  
+    return adjusted;
 }
 
 
@@ -672,151 +588,114 @@ export async function updateCapitalGainTaxForNormalDistributionInflation(mean: n
 //
 //
 //captial gain uniform distribution
-export async function updateCapitalGainTaxForUniformDistributionInflation(bot: number, top: number): Promise<void> {
+export async function updateCapitalGainTaxForUniformDistributionInflation(mean: number, std: number) {
+    const inflationRate = generateUniform(mean, std);
     const currentYear = new Date().getFullYear();
-    const collectionName = `captial_gain_tax_${currentYear}`;
+    const collectionName = `capital_gain_tax_${currentYear}`;
     const db = getDB(); 
-
-    const federalTaxCollection = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_captial_gain_tax");
-
-    try {
-        // Clear the inflation collection
-        await inflationDb.deleteMany({});
-
-        // Fetch all documents from the federal tax collection
-        const documents = await federalTaxCollection.find().toArray();
-
-        // Generate inflation rate using uniform distribution
-        const inflationRate = generateUniform(bot, top);
-
-        for (const doc of documents) {
-            const tax = doc?.rate;
-            const minVal = doc?.min;
-            const maxVal = doc?.max;
-            const status = doc?.status;
-
-            if (tax === undefined || minVal === undefined) {
-                continue; // Skip if tax or min value is missing
-            }
-
-            const data = {
-                min: minVal * (1 + inflationRate),
-                max: maxVal !== undefined ? maxVal * (1 + inflationRate) : null,
-                rate: tax,
-                status: status,
-            };
-
-            // Insert the modified data into the inflation collection
-            await inflationDb.insertOne(data);
-        }
-
-        console.log("Capital Gain Tax data updated for uniform distribution inflation.");
-    } catch (err) {
-        console.error("Error updating Capital Gain Tax for uniform distribution inflation:", err);
+    const capitalGainTaxCollection = db.collection(collectionName);
+  
+    const documents = await capitalGainTaxCollection.find().toArray();
+    const adjusted: any[] = [];
+  
+    for (const doc of documents) {
+      const tax = doc.rate;
+      const minVal = doc.min;
+      const maxVal = doc.max;
+      const status = doc.status;
+  
+      if (tax === undefined || minVal === undefined) {
+        continue;
+      }
+  
+      adjusted.push({
+        min: minVal * (1 + inflationRate),
+        max: maxVal !== undefined ? maxVal * (1 + inflationRate) : null,
+        rate: tax,
+        status: status,
+      });
     }
+  
+    return adjusted;
 }
-
 
 
 //
 //
 //
 //standard deduction for flat inflation
-async function updateStandardDeductionForInflation(inflationRate: number) {
-    const db = getDB();
+export async function updateStandardDeductionForInflation(inflationRate: number) {
     const currentYear = new Date().getFullYear();
     const collectionName = `standard_deduction_${currentYear}`;
+    const db = getDB(); 
     const federalTaxCollection = db.collection(collectionName);
-
-    const inflationDb = db.collection('inflation_standard_deduction');
-    await inflationDb.deleteMany({}); // delete all existing documents
-
-    const document = await federalTaxCollection.find().toArray();
-
-    document.forEach((doc) => {
-        const single = doc.single;
-        const married = doc.married;
-
-        const data = {
-            single: single * (1 + inflationRate),
-            married: married * (1 + inflationRate),
-        };
-
-        inflationDb.insertOne(data);
-    });
+  
+    const document = await federalTaxCollection.findOne();
+    if (!document) {
+      return {};
+    }
+  
+    const single = document.single;
+    const married = document.married;
+  
+    return {
+      single: single !== undefined ? single * (1 + inflationRate) : null,
+      married: married !== undefined ? married * (1 + inflationRate) : null,
+    };
 }
-
 
 //
 //
 //
 //standard deduction for normal distribution
-export function updateStandardDeductionNormalDistributionInflation(mean: number, std: number) {
-    const db = getDB();
+export async function updateStandardDeductionNormalDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
     const collectionName = `standard_deduction_${currentYear}`;
-    const federalTax = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_standard_deduction");
-
-    inflationDb.deleteMany({});
-
-    federalTax.find().toArray()
-        .then(documents => {
-            const inflationRate = generateNormal(mean, std);
-
-            documents.forEach(doc => {
-                const single = doc.single;
-                const married = doc.married;
-
-                const data = {
-                    single: single * (1 + inflationRate),
-                    married: married * (1 + inflationRate)
-                };
-
-                inflationDb.insertOne(data);
-            });
-        })
-        .catch(err => {
-            console.error("Error updating standard deduction for normal distribution inflation:", err);
-        });
-}
+    const db = getDB(); 
+    const federalTaxCollection = db.collection(collectionName);
+  
+    const document = await federalTaxCollection.findOne();
+    if (!document) {
+      return {};
+    }
+  
+    const inflationRate = generateNormal(mean, std); 
+  
+    const single = document.single;
+    const married = document.married;
+  
+    return {
+      single: single !== undefined ? single * (1 + inflationRate) : null,
+      married: married !== undefined ? married * (1 + inflationRate) : null,
+    };
+  }
 
 
 //
 //
 //
 //standard deduction for uniform distribution
-export function updateStandardDeductionUniformDistributionInflation(bot: number, top: number) {
-    const db = getDB();
+export async function updateStandardDeductionUniformDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
     const collectionName = `standard_deduction_${currentYear}`;
-    const federalTax = db.collection(collectionName);
-    const inflationDb = db.collection("inflation_standard_deduction");
-
-    inflationDb.deleteMany({});
-
-    federalTax.find().toArray()
-        .then(documents => {
-            const inflationRate = generateUniform(bot, top);
-
-            documents.forEach(doc => {
-                const single = doc.single;
-                const married = doc.married;
-
-                const data = {
-                    single: single * (1 + inflationRate),
-                    married: married * (1 + inflationRate)
-                };
-
-                inflationDb.insertOne(data);
-            });
-        })
-        .catch(err => {
-            console.error("Error updating standard deduction for uniform distribution inflation:", err);
-        });
-}
-
+    const db = getDB(); 
+    const federalTaxCollection = db.collection(collectionName);
+  
+    const document = await federalTaxCollection.findOne();
+    if (!document) {
+      return {};
+    }
+  
+    const inflationRate = generateUniform(mean, std); 
+  
+    const single = document.single;
+    const married = document.married;
+  
+    return {
+      single: single !== undefined ? single * (1 + inflationRate) : null,
+      married: married !== undefined ? married * (1 + inflationRate) : null,
+    };
+  }
 
 
 ///
@@ -866,7 +745,7 @@ export function calculateRMD(financialPlan: IFinancialPlan, age: number, curYear
 
 //
 //
-//
+//Helper Function for part 3 of simulation
 //RMD move
 export function calculateRMD_Investment(financialPlan: IFinancialPlan, rmd: number): IInvestment[] {
     const allInvestments = financialPlan.investments;
@@ -922,46 +801,41 @@ export function calculateRMD_Investment(financialPlan: IFinancialPlan, rmd: numb
 
 //
 //
-//
+//Helper function got part 5 of the simulation
 //roth optimizer
-export async function performRothOptimizer(
+export function performRothOptimizer(
     financialPlan: IFinancialPlan,
     currentYearIncome: number,
     currentYearSocialSecurityIncome: number,
-    marriedStatus: "married" | "single"
-  ): Promise<number> {
-    const currentYear = new Date().getFullYear();
-    const collectionName = `federal_tax_${currentYear}`;
-    const db = getDB();
-    const collection = db.collection(collectionName);
-
-    const collectionName2 = `standard_deduction_${currentYear}`;
-    const deductiondb = db.collection(collectionName2);
-    const deduction_value = (await deductiondb.findOne())?.[marriedStatus];
-  
+    marriedStatus: "married" | "single",
+    taxBrackets: any[],
+    standardDeduction: any
+  ): number {
     const allInvestments = financialPlan.investments;
     const rothStrategy = financialPlan.RothConversionStrategy;
   
-    const query = { [marriedStatus]: true };
-    const items = await collection.find(query).toArray();
-  
+    // Find the applicable upper bracket limit
     let u = Infinity;
-    for (const item of items) {
-      const min = item.min_value ?? -Infinity;
-      let max = item.max_value ?? Infinity;
+    for (const bracket of taxBrackets) {
+      const min = bracket.min_value ?? -Infinity;
+      const max = bracket.max_value ?? Infinity;
   
-      if (min <= currentYearIncome && currentYearIncome <= max) {
+      if (bracket[marriedStatus] && currentYearIncome >= min && currentYearIncome <= max) {
         u = max;
         break;
       }
     }
   
-    const currentYearFedTaxableIncome = currentYearIncome - 0.15 * currentYearSocialSecurityIncome;
-    let rc = u - (currentYearFedTaxableIncome-deduction_value);
+    const fedTaxableIncome = currentYearIncome - 0.15 * currentYearSocialSecurityIncome;
+  
+    // Access the standard deduction for the correct status, defaulting to 0 if null
+    const deductionValue = standardDeduction[marriedStatus] ?? 0;
+    
+    let rc = u - (fedTaxableIncome - deductionValue);
     currentYearIncome += rc;
   
     for (const investId of rothStrategy) {
-      const investment = allInvestments.find(inv => inv.id === investId);
+      const investment = allInvestments.find((inv) => inv.id === investId);
       if (!investment) continue;
   
       let investValue = investment.value;
@@ -978,20 +852,22 @@ export async function performRothOptimizer(
       }
   
       const foundInvest = allInvestments.find(
-        inv => inv.investmentType === investment.investmentType && inv.taxStatus === "after-tax"
+        (inv) =>
+          inv.investmentType === investment.investmentType &&
+          inv.taxStatus === "after-tax"
       );
   
       if (foundInvest) {
         foundInvest.value += movedValue;
       } else {
         const newInvest = {
-                id: `${investment.id}_after-tax`,
-                value: movedValue,
-                investmentType: investment.investmentType,
-                taxStatus: "after-tax",
-            } as IInvestment;
-            
-            allInvestments.push(newInvest);
+          id: `${investment.id}_after-tax`,
+          value: movedValue,
+          investmentType: investment.investmentType,
+          taxStatus: "after-tax",
+        } as IInvestment;
+  
+        allInvestments.push(newInvest);
       }
   
       if (rc === 0) break;
@@ -1006,11 +882,10 @@ export async function performRothOptimizer(
 
 
 
-
 //
 //
 //
-//function for part 4 of algorthimn
+//Helper function for part 4 of simulation
 export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
     const investments = financialplan.investments;
     const investmentTypesMap = new Map<string, IInvestmentType>(
