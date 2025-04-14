@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "../css_files/collapsible.css";
 import "../css_files/page_style.css";
 
@@ -105,9 +105,299 @@ const CreatePlan = () => {
       },
     ],
   };
+  const location = useLocation();
+  
+  const isEditMode = location.state?.isEditing || false;
+  const editingPlanId = location.state?.planId || null;
 
-  const [formData, setFormData] = useState(defaultFormData);
+  function initializeFormData(incoming) {
+    if (!incoming) return defaultFormData;
 
+    // Start with a copy of your defaults.
+    const mapped = JSON.parse(JSON.stringify(defaultFormData));
+
+    // ----------------- Map Top-Level Fields ----------------- //
+    mapped.planName = incoming.name || "";
+    mapped.planType = incoming.maritalStatus === "couple" ? "joint" : "individual";
+
+    const firstBirth = incoming.birthYears?.[0] ?? null;
+    const secondBirth = incoming.birthYears?.[1] ?? null;
+    mapped.birthYear = firstBirth != null ? String(firstBirth) : "";
+    mapped.spouseBirthYear = secondBirth != null ? String(secondBirth) : "";
+
+    mapped.financialGoal = incoming.financialGoal != null
+      ? String(incoming.financialGoal)
+      : "";
+
+    mapped.residentState = incoming.residenceState || mapped.residentState;
+    if (incoming.afterTaxContributionLimit != null) {
+      mapped.afterTaxContributionLimit = String(incoming.afterTaxContributionLimit);
+    }
+
+    // -------------- Life Expectancy Mapping -------------- //
+    const userLE = incoming.lifeExpectancy?.[0] || null;
+    if (userLE) {
+      if (userLE.type === "fixed") {
+        mapped.lifeExpectancyRadio = "yes";
+        mapped.lifeExpectancyYears = String(userLE.value || "");
+      } else {
+        mapped.lifeExpectancyRadio = "no";
+        mapped.lifeExpectancyMean = String(userLE.mean || "");
+        mapped.lifeExpectancyStd = String(userLE.stdev || "");
+      }
+    }
+
+    const spouseLE = incoming.lifeExpectancy?.[1] || null;
+    if (mapped.planType === "joint" && spouseLE) {
+      if (spouseLE.type === "fixed") {
+        mapped.spouseLifeExpectancyRadio = "yes";
+        mapped.spouseLifeExpectancyYears = String(spouseLE.value || "");
+      } else {
+        mapped.spouseLifeExpectancyRadio = "no";
+        mapped.spouseLifeExpectancyMean = String(spouseLE.mean || "");
+        mapped.spouseLifeExpectancyStd = String(spouseLE.stdev || "");
+      }
+    }
+
+   // -------------- Inflation Assumption -------------- //
+    const inf = incoming.inflationAssumption;
+    if (inf) {
+      if (inf.type === "fixed") {
+        mapped.inflationAssumptionType = "fixed";
+        mapped.inflationAssumptionFixed = String(inf.value || "");
+      } else if (inf.type === "normal") {
+        mapped.inflationAssumptionType = "normal";
+        mapped.inflationAssumptionMean = String(inf.mean || "");
+        mapped.inflationAssumptionStdev = String(inf.stdev || "");
+      } else if (inf.type === "uniform") {
+        mapped.inflationAssumptionType = "uniform";
+        mapped.inflationAssumptionLower = String(inf.lower || "");
+        mapped.inflationAssumptionUpper = String(inf.upper || "");
+      }
+    }
+
+
+
+    // -------------- Strategy Arrays -------------- //
+    mapped.spendingStrategy = incoming.spendingStrategy?.map(String) || [];
+    mapped.expenseWithdrawalStrategy = incoming.expenseWithdrawalStrategy?.map(String) || [];
+    mapped.rmdStrategy = incoming.RMDStrategy?.map(String) || [];
+    mapped.rothConversion = incoming.RothConversionOpt ? "yes" : "no";
+    mapped.rothStartYear = String(incoming.RothConversionStart || "");
+    mapped.rothEndYear = String(incoming.RothConversionEnd || "");
+    mapped.rothStartYear = incoming.RothConversionStart
+      ? String(incoming.RothConversionStart)
+      : "";
+    mapped.rothEndYear = incoming.RothConversionEnd
+      ? String(incoming.RothConversionEnd)
+      : "";
+    mapped.rothconversionstrategy = incoming.RothConversionStrategy?.map(String) || [];
+
+    // -------------- Investments -------------- //
+    // We also optionally look up the name from "investmentTypes" if present
+    const processedTypeIds = new Set<string>();
+
+    mapped.investments = (incoming.investments || []).map((inv, i) => {
+      const baseInv = JSON.parse(JSON.stringify(defaultFormData.investments[0]));
+      const investmentTypeId = inv.investmentType || "";
+      let foundTypeName = "";
+
+      // Attempt to find a matching type object in incoming.investmentTypes
+      if (investmentTypeId && Array.isArray(incoming.investmentTypes)) {
+        const foundTypeObj = incoming.investmentTypes.find((t) => {
+          const rawId = typeof t._id === "object" && t._id.$oid ? t._id.$oid : t._id;
+          return rawId === investmentTypeId;
+        });
+        if (foundTypeObj) {
+          foundTypeName = foundTypeObj.name;
+        }
+      }
+
+      // If you only want to store that name for the *first* usage:
+      let finalTypeName = "";
+      if (!processedTypeIds.has(investmentTypeId)) {
+        finalTypeName = foundTypeName;
+        processedTypeIds.add(investmentTypeId);
+      } else {
+        // or if you want the name every time, just do:
+        // finalTypeName = foundTypeName;
+      }
+
+      return {
+        ...baseInv,
+        id: i + 1,
+        isExpanded: false,
+        investmentName: inv.id || "",
+        investmentValue: String(inv.value || ""),
+        accountType: inv.taxStatus || "non-retirement",
+        investmentType: investmentTypeId,
+        investmentTypeName: finalTypeName,
+
+        // If your DB data includes distribution details, copy them in here
+        returnAmtOrPct: inv.returnAmtOrPct || "percent",
+        returnDistribution: inv.returnDistribution?.type || "fixed",
+        annualReturnFixed: inv.returnDistribution?.value
+          ? String(inv.returnDistribution.value)
+          : "",
+        annualReturnMean: inv.returnDistribution?.mean
+          ? String(inv.returnDistribution.mean)
+          : "",
+        annualReturnStdev: inv.returnDistribution?.stdev
+          ? String(inv.returnDistribution.stdev)
+          : "",
+
+        incomeAmtOrPct: inv.incomeAmtOrPct || "percent",
+        incomeDistribution: inv.incomeDistribution?.type || "fixed",
+        annualIncomeFixed: inv.incomeDistribution?.value
+          ? String(inv.incomeDistribution.value)
+          : "",
+        annualIncomeMean: inv.incomeDistribution?.mean
+          ? String(inv.incomeDistribution.mean)
+          : "",
+        annualIncomeStdev: inv.incomeDistribution?.stdev
+          ? String(inv.incomeDistribution.stdev)
+          : "",
+        taxability: inv.taxability ? (inv.taxability ? "taxable" : "tax-exempt") : "taxable",
+      };
+    });
+    mapped._initialInvestmentTypes = incoming.investmentTypes || [];
+
+    // -------------- Life Events (eventSeries) -------------- //
+    mapped.lifeEvents = (incoming.eventSeries || []).map((ev, i) => {
+      const base = JSON.parse(JSON.stringify(defaultFormData.lifeEvents[0]));
+      const out = {
+        ...base,
+        id: i + 1,
+        isExpanded: false,
+        type: ev.type || "",
+        eventName: ev.name || "",
+        eventDescription: ev.description || "",
+        initialAmount: ev.initialAmount != null ? String(ev.initialAmount) : "",
+        incomeSource: ev.incomeSource || "",
+        expenseSource: ev.expenseSource || "",
+      };
+
+      // Income or Expense source
+      if (ev.incomeSource) out.incomeSource = ev.incomeSource;
+      if (ev.expenseSource) out.expenseSource = ev.expenseSource;
+
+      // Start distribution
+      if (ev.start) {
+        if (ev.start.type === "fixed") {
+          out.startType = "startingYear";
+          out.start = String(ev.start.value || "");
+        } else if (ev.start.type === "normal") {
+          out.startType = "normal";
+          out.startMean = String(ev.start.mean || "");
+          out.startStdev = String(ev.start.stdev || "");
+        } else if (ev.start.type === "uniform") {
+          out.startType = "uniform";
+          out.startMin = String(ev.start.lower || "");
+          out.startMax = String(ev.start.upper || "");
+        } else if (ev.start.type === "startWith" || ev.start.type === "startEndEvent") {
+          out.startType = ev.start.type;
+          out.startEvent = ev.start.eventSeries || "";
+        }
+      }
+
+      // Duration distribution
+      if (ev.duration) {
+        if (ev.duration.type === "fixed") {
+          out.durationType = "fixed";
+          out.durationYear = String(ev.duration.value || "");
+        } else if (ev.duration.type === "normal") {
+          out.durationType = "normal";
+          out.durationMean = String(ev.duration.mean || "");
+          out.durationStdev = String(ev.duration.stdev || "");
+        } else if (ev.duration.type === "uniform") {
+          out.durationType = "uniform";
+          out.durationLower = String(ev.duration.lower || "");
+          out.durationUpper = String(ev.duration.upper || "");
+        }
+      }
+
+      // Annual change distribution: amount or percent, plus type
+      if (typeof ev.changeAmtOrPct === "string") {
+        out.annualChangeAmtOrPct = ev.changeAmtOrPct; // "amount" or "percent"
+      }
+      if (ev.changeDistribution?.type) {
+        // "fixed", "normal", ...
+        out.annualChangeType = ev.changeDistribution.type;
+        if (ev.changeDistribution.type === "fixed") {
+          out.annualChangeFixed = ev.changeDistribution.value
+            ? String(ev.changeDistribution.value)
+            : "";
+        } else if (ev.changeDistribution.type === "normal") {
+          out.annualChangeMean = ev.changeDistribution.mean
+            ? String(ev.changeDistribution.mean)
+            : "";
+          out.annualChangeStdev = ev.changeDistribution.stdev
+            ? String(ev.changeDistribution.stdev)
+            : "";
+        }
+        // If you store uniform in the DB, handle that similarly
+      }
+
+      if (typeof ev.inflationAdjusted === "boolean") {
+        out.inflationAdjusted = ev.inflationAdjusted ? "yes" : "no";
+      }
+        
+      // If ev.inflationType can be "fixed", "normal", etc.
+      out.inflationType = ev.inflationType || "";
+      out.inflationAmtOrPct = ev.inflationAmtOrPct || "amount";
+      out.inflationFixed = ev.inflationFixed ? String(ev.inflationFixed) : "";
+      out.inflationMean = ev.inflationMean ? String(ev.inflationMean) : "";
+      out.inflationStdev = ev.inflationStdev ? String(ev.inflationStdev) : "";
+      
+      if (ev.userFraction !== undefined && ev.userFraction !== null) {
+        out.userFraction = String(ev.userFraction);
+      }
+
+      // For invests / rebalances
+      if (ev.assetAllocation) {
+        out.assetAllocation = { ...ev.assetAllocation };
+      }
+      if (ev.assetAllocation2) {
+        out.assetAllocation2 = { ...ev.assetAllocation2 };
+      }
+      if (ev.glidePath != null) {
+        out.glidePath = !!ev.glidePath;
+      }
+      if (ev.maxCash != null) {
+        out.maxCash = String(ev.maxCash);
+      }
+
+      // If each event has separate inflation config
+      if (ev.inflationType) {
+        out.inflationType = ev.inflationType;
+      }
+      if (ev.inflationMean != null) {
+        out.inflationMean = String(ev.inflationMean);
+      }
+      if (ev.inflationStdev != null) {
+        out.inflationStdev = String(ev.inflationStdev);
+      }
+      if (ev.inflationFixed != null) {
+        out.inflationFixed = String(ev.inflationFixed);
+      }
+      if (ev.inflationAmtOrPct) {
+        out.inflationAmtOrPct = ev.inflationAmtOrPct;
+      }
+
+      return out;
+    });
+
+    return mapped;
+  }
+
+
+  const [formData, setFormData] = useState(() => {
+    const init = initializeFormData(location.state?.formData);
+    delete init._initialInvestmentTypes;
+    return init;
+  });
+  
+  
 
   // -----------------------------------------------------BASIC INFO STUFF   -----------------------------------------------------//
   const handleChange = (e) => {
@@ -478,19 +768,27 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
 
     // -- Example inflation assumption
     inflationAssumption: (() => {
-      const firstEvent = formData.lifeEvents?.[0];
-      // If user never sets it, default to { type: "fixed", value: 0 }
-      const changeDist = firstEvent?.changeDistribution || { type: "fixed", value: 0 };
-
-      if (changeDist.type === "normal") {
+      const type = formData.inflationAssumptionType;
+    
+      if (type === "normal") {
         return {
           type: "normal",
-          mean: parseFloat(changeDist.mean || "0"),
-          stdev: parseFloat(changeDist.stdev || "0"),
+          mean: parseFloat(formData.inflationAssumptionMean || "0"),
+          stdev: parseFloat(formData.inflationAssumptionStdev || "0"),
+        };
+      } else if (type === "uniform") {
+        return {
+          type: "uniform",
+          lower: parseFloat(formData.inflationAssumptionLower || "0"),
+          upper: parseFloat(formData.inflationAssumptionUpper || "0"),
         };
       }
-      // default "fixed"
-      return { type: "fixed", value: parseFloat(changeDist.value || "0") };
+    
+      // default to fixed
+      return {
+        type: "fixed",
+        value: parseFloat(formData.inflationAssumptionFixed || "0"),
+      };
     })(),
 
     RMDStrategy: rmdOrder,
@@ -543,7 +841,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
         id: inv.investmentName || "", 
         investmentTypeName: inv.investmentTypeName || "",
         investmentDescription: inv.investmentDescription || "",
-        investmentType: inv.investmentType || "",
+        investmentType: inv.investmentType|| "",
         value: parseFloat(inv.investmentValue || "0"),
 
         taxStatus: inv.accountType || "non-retirement",
@@ -594,10 +892,28 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
           return { type: "fixed", value: parseInt(event.start || "0") };
         })(),
 
-        duration: {
-          type: "fixed",
-          value: parseInt(event.duration || "0"),
-        },
+        duration: (() => {
+          const type = event.durationType || "fixed";
+          if (type === "normal") {
+            return {
+              type: "normal",
+              mean: parseFloat(event.durationMean || "0"),
+              stdev: parseFloat(event.durationStdev || "0"),
+            };
+          } else if (type === "uniform") {
+            return {
+              type: "uniform",
+              lower: parseFloat(event.durationLower || "0"),
+              upper: parseFloat(event.durationUpper || "0"),
+            };
+          }
+          // default = "fixed"
+          return {
+            type: "fixed",
+            value: parseInt(event.durationYear || "0"),
+          };
+        })(),
+        
 
         ...(isIncome || isExpense
           ? {
@@ -619,7 +935,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
                 };
               })(),
               inflationAdjusted: true,
-              userFraction: parseFloat(event.userPct || "1"),
+              userFraction: parseFloat(event.userFraction || "1"),
               socialSecurity: isIncome && event.incomeSource === "socialSecurity",
               discretionary: isExpense && event.expenseSource === "Discretionary",
               inflationType: event.inflationType || "fixed",
@@ -649,7 +965,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
 
     investmentTypes: [],
     afterTaxContributionLimit: 6500,
-    residenceState: "NY",
+    residenceState: formData.residentState || "",
     sharedUsersId: [],
     sharedUserPerms: [],
     version: 1,
@@ -720,7 +1036,10 @@ function buildDistribution(distType, mean, stdev, fixedValue) {
   };
 }
 
-const [localInvestmentTypes, setLocalInvestmentTypes] = useState([]);
+const [localInvestmentTypes, setLocalInvestmentTypes] = useState(() =>
+  initializeFormData(location.state?.formData)._initialInvestmentTypes || []
+);
+
 const combinedTypes = [
   ...existingInvestmentTypes,
   ...localInvestmentTypes
@@ -809,21 +1128,6 @@ const handleCreateInvestmentTypeClick = async (index) => {
 const handleSubmit = async () => {
   try {
     const transformedData = transformFormData(formData, rmdOrder, expenseOrder, spendingOrder, rothOrder);
-    const updatedInvestments = formData.investments.map((inv, idx) => {
-      const finalTypeId = inv.createdTypeId || inv.investmentType;
-      if (!finalTypeId) {
-        alert(`Investment #${idx + 1} has no type. Please pick or create a type.`);
-        throw new Error("No investment type selected/created");
-      }
-
-      return {
-        id: inv.investmentName || "Unnamed",
-        investmentType: finalTypeId,
-        value: parseFloat(inv.investmentValue || "0"),
-        taxStatus: inv.accountType || "non-retirement",
-      };
-    });
-
     // Find all used investment type IDs from formData
     const usedTypeIds = new Set(
       formData.investments.map((inv) => String(inv.createdTypeId || inv.investmentType))
@@ -836,25 +1140,50 @@ const handleSubmit = async () => {
     const finalPayload = {
       ...transformedData,
       investmentTypes: usedInvestmentTypes, 
-      RMDStrategy: rmdOrder.filter(id => id !== ""),
-      expenseWithdrawalStrategy: expenseOrder.filter(id => id !== ""),
-      RothConversionStrategy: rothOrder.filter(id => id !== ""),
-      spendingStrategy: spendingOrder.filter(id => id !== "")
+      RMDStrategy: rmdOrder.map((val, idx) => {
+        const inv = formData.investments.find((inv, i) => i === idx);
+        return inv?.investmentName || "";
+      }).filter(Boolean),
+      
+      expenseWithdrawalStrategy: expenseOrder.map((val, idx) => {
+        const inv = formData.investments.find((inv, i) => i === idx);
+        return inv?.investmentName || "";
+      }).filter(Boolean),
+      
+      RothConversionStrategy: rothOrder.map((val, idx) => {
+        const inv = formData.investments.find((inv, i) => i === idx);
+        return inv?.investmentName || "";
+      }).filter(Boolean),
+      
+      spendingStrategy: spendingOrder.map((val, idx) => {
+        const ev = formData.lifeEvents.find((ev, i) => i === idx && ev.expenseSource === "Discretionary");
+        return ev?.eventName || "";
+      }).filter(Boolean)
+      
 
     };
     
 
-    const planRes = await fetch("http://localhost:5000/api/plans", {
-      method: "POST",
+    const endpoint = isEditMode
+      ? `http://localhost:5000/api/plans/${editingPlanId}`
+      : "http://localhost:5000/api/plans";
+
+    const method = isEditMode ? "PUT" : "POST";
+
+    const planRes = await fetch(endpoint, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(finalPayload),
+      
     });
+
 
     if (!planRes.ok) {
       throw new Error("Failed to save plan");
     }
 
-    alert("Plan created successfully!");
+    alert(isEditMode ? "Plan updated successfully!" : "Plan created successfully!");
+
     setFormData(JSON.parse(JSON.stringify(defaultFormData)));
   } catch (error) {
     console.error("Error submitting plan:", error);
@@ -867,6 +1196,7 @@ const handleSubmit = async () => {
   const name = localStorage.getItem("given_name");
   const picture = localStorage.getItem("picture")
   const navigate = useNavigate()
+  
 
   const handleAssetAllocationInputChange = (index, e, key) => {
     const { name, value } = e.target;
@@ -1065,7 +1395,7 @@ const handleSubmit = async () => {
                   onChange={handleChange}
                 />
               )}
-              {formData.lifeExpectancyRadio === "no" && (
+              {formData.spouseLifeExpectancyRadio === "no" && (
               <>
               <div className="normal-text">Mean</div>
                 <input
@@ -1780,9 +2110,9 @@ const handleSubmit = async () => {
                     <input
                       className="input-boxes"
                       type="text"
-                      name="userPct"
+                      name="userFraction"
                       placeholder="e.g. 50"
-                      value={lifeEvent.userPct || ""}
+                      value={lifeEvent.userFraction || ""}
                       onChange={(e) => handleLifeEventChange(index, e)}
                     />
                   </>
@@ -1941,82 +2271,187 @@ const handleSubmit = async () => {
 
               {/* Duration */}
               <br />
-              <div className="normal-text">What is the duration of this Event Series? *(Required)*</div>
-              <input
-                className="input-boxes"
-                type="text"
-                name="duration"
-                placeholder="Enter Duration in Years"
-                value={lifeEvent.duration}
-                onChange={(e) => handleLifeEventChange(index, e)}
-              />
-
-
-              {/* Inflation */}
-              <div className="normal-text">
-                How would you like to adjust for inflation? (select 1) *(Required)*
-              </div>
-
+              <div className="normal-text">How should the duration of this event be expressed? *(Required)*</div>
               <div className="split-container">
                 <div className="left-side">
                   <label className="normal-text">
                     <input
                       type="radio"
-                      name={`changeDistribution.type-${index}`}
+                      name={`durationType-${index}`}
                       value="fixed"
-                      checked={lifeEvent.changeDistribution?.type === "fixed"}
-                      onChange={(e) => handleLifeEventChange(index, e)}
+                      checked={lifeEvent.durationType === "fixed"}
+                      onChange={(e) =>
+                        handleLifeEventChange(index, {
+                          target: { name: "durationType", value: e.target.value },
+                        })
+                      }
                     />
-                    Fixed Percentage
+                    Fixed Amount
                   </label>
                   <label className="normal-text">
                     <input
                       type="radio"
-                      name={`changeDistribution.type-${index}`}
+                      name={`durationType-${index}`}
                       value="normal"
-                      checked={lifeEvent.changeDistribution?.type === "normal"}
-                      onChange={(e) => handleLifeEventChange(index, e)}
+                      checked={lifeEvent.durationType === "normal"}
+                      onChange={(e) =>
+                        handleLifeEventChange(index, {
+                          target: { name: "durationType", value: e.target.value },
+                        })
+                      }
                     />
-                    Normal Distribution Percentage
+                    Normal Distribution
+                  </label>
+                  <label className="normal-text">
+                    <input
+                      type="radio"
+                      name={`durationType-${index}`}
+                      value="uniform"
+                      checked={lifeEvent.durationType === "uniform"}
+                      onChange={(e) =>
+                        handleLifeEventChange(index, {
+                          target: { name: "durationType", value: e.target.value },
+                        })
+                      }
+                    />
+                    Uniform Distribution
                   </label>
                 </div>
 
                 <div className="right-side">
-                  {lifeEvent.changeDistribution?.type === "fixed" && (
+                  {lifeEvent.durationType === "fixed" && (
+                    <input
+                      className="input-boxes"
+                      type="text"
+                      name="durationYear"
+                      placeholder="Enter duration in years"
+                      value={lifeEvent.durationYear || ""}
+                      onChange={(e) => handleLifeEventChange(index, e)}
+                    />
+                  )}
+                  {lifeEvent.durationType === "normal" && (
                     <>
-                      <div className="normal-text">Fixed Value (%)</div>
+                      <div className="normal-text">Mean</div>
                       <input
                         className="input-boxes"
-                        type="number"
-                        name="changeDistribution.value"
-                        value={lifeEvent.changeDistribution?.value || ""}
+                        type="text"
+                        name="durationMean"
+                        placeholder="Enter mean..."
+                        value={lifeEvent.durationMean || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
+                      />
+                      <div className="normal-text">Standard Deviation</div>
+                      <input
+                        className="input-boxes"
+                        type="text"
+                        name="durationStdev"
+                        placeholder="Enter stdev..."
+                        value={lifeEvent.durationStdev || ""}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
-
-                  {lifeEvent.changeDistribution?.type === "normal" && (
+                  {lifeEvent.durationType === "uniform" && (
                     <>
-                      <div className="normal-text">Mean (%)</div>
+                      <div className="normal-text">Lower Bound</div>
                       <input
                         className="input-boxes"
-                        type="number"
-                        name="changeDistribution.mean"
-                        value={lifeEvent.changeDistribution?.mean || ""}
+                        type="text"
+                        name="durationLower"
+                        placeholder="Enter lower bound..."
+                        value={lifeEvent.durationLower || ""}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
-                      <div className="normal-text">Standard Deviation (%)</div>
+                      <div className="normal-text">Upper Bound</div>
                       <input
                         className="input-boxes"
-                        type="number"
-                        name="changeDistribution.stdev"
-                        value={lifeEvent.changeDistribution?.stdev || ""}
+                        type="text"
+                        name="durationUpper"
+                        placeholder="Enter upper bound..."
+                        value={lifeEvent.durationUpper || ""}
                         onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
                 </div>
               </div>
+
+
+
+              {/* Inflation */}
+              <div className="normal-text">How would you like to assume inflation? *(Required)*</div>
+              <div className="split-container">
+                <div className="left-side">
+                  <RadioGroup
+                    name="inflationAssumptionType"
+                    selectedValue={formData.inflationAssumptionType}
+                    onChange={handleChange}
+                    options={[
+                      { label: "Fixed Percentage", value: "fixed" },
+                      { label: "Normal Distribution", value: "normal" },
+                      { label: "Uniform Distribution", value: "uniform" },
+                    ]}
+                  />
+                </div>
+
+                <div className="right-side">
+                  {formData.inflationAssumptionType === "fixed" && (
+                    <>
+                      <div className="normal-text">Fixed Inflation Rate (%)</div>
+                      <input
+                        className="input-boxes"
+                        type="number"
+                        name="inflationAssumptionFixed"
+                        value={formData.inflationAssumptionFixed}
+                        onChange={handleChange}
+                      />
+                    </>
+                  )}
+
+                  {formData.inflationAssumptionType === "normal" && (
+                    <>
+                      <div className="normal-text">Mean (%)</div>
+                      <input
+                        className="input-boxes"
+                        type="number"
+                        name="inflationAssumptionMean"
+                        value={formData.inflationAssumptionMean}
+                        onChange={handleChange}
+                      />
+                      <div className="normal-text">Standard Deviation (%)</div>
+                      <input
+                        className="input-boxes"
+                        type="number"
+                        name="inflationAssumptionStdev"
+                        value={formData.inflationAssumptionStdev}
+                        onChange={handleChange}
+                      />
+                    </>
+                  )}
+
+                  {formData.inflationAssumptionType === "uniform" && (
+                    <>
+                      <div className="normal-text">Lower Bound (%)</div>
+                      <input
+                        className="input-boxes"
+                        type="number"
+                        name="inflationAssumptionLower"
+                        value={formData.inflationAssumptionLower}
+                        onChange={handleChange}
+                      />
+                      <div className="normal-text">Upper Bound (%)</div>
+                      <input
+                        className="input-boxes"
+                        type="number"
+                        name="inflationAssumptionUpper"
+                        value={formData.inflationAssumptionUpper}
+                        onChange={handleChange}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
 
             </>
           )}
@@ -2180,39 +2615,44 @@ const handleSubmit = async () => {
             )}
           </div>
         </div>
-        <div className="normal-text" style={{ marginTop: "20px" }}>
-        How would you like to order your Roth Conversion Strategy
-        </div>
-
-        <div className="collapse-container">
-          {formData.investments.filter((inv) => inv.accountType === "pre-tax").length === 0 ? (
-            <div className="normal-text">No pre-tax investments in current plan.</div>
-          ) : (
-            rothOrder.map((selectedId, index) => (
-              <div key={index} style={{ marginBottom: "10px" }}>
-                <div className="normal-text">Roth Conversion Priority #{index + 1}</div>
-                <select
-                  className="collapse-options"
-                  value={selectedId}
-                  onChange={(e) => handleRothOrderChange(index, e.target.value)}
-                >
-                  <option value="">--Select Pre-Tax Investment--</option>
-                  {formData.investments
-                    .filter(
-                      (inv) =>
-                        inv.accountType === "pre-tax" &&
-                        (!rothOrder.includes(inv.id) || inv.id === selectedId)
-                    )
-                    .map((inv) => (
-                      <option key={inv.id} value={inv.id}>
-                        {inv.investmentName || "Unnamed Investment"}
-                      </option>
-                    ))}
-                </select>
-              </div>
-            ))
-          )}
-        </div>
+        {formData.rothConversion === "yes" && (
+          <>
+            <div className="normal-text" style={{ marginTop: "20px" }}>
+            How would you like to order your Roth Conversion Strategy
+            </div>
+    
+            <div className="collapse-container">
+              {formData.investments.filter((inv) => inv.accountType === "pre-tax").length === 0 ? (
+                <div className="normal-text">No pre-tax investments in current plan.</div>
+              ) : (
+                rothOrder.map((selectedId, index) => (
+                  <div key={index} style={{ marginBottom: "10px" }}>
+                    <div className="normal-text">Roth Conversion Priority #{index + 1}</div>
+                    <select
+                      className="collapse-options"
+                      value={selectedId}
+                      onChange={(e) => handleRothOrderChange(index, e.target.value)}
+                    >
+                      <option value="">--Select Pre-Tax Investment--</option>
+                      {formData.investments
+                        .filter(
+                          (inv) =>
+                            inv.accountType === "pre-tax" &&
+                            (!rothOrder.includes(inv.id) || inv.id === selectedId)
+                        )
+                        .map((inv) => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.investmentName || "Unnamed Investment"}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+        
       </div>
 
       {/* Final Save Button */}

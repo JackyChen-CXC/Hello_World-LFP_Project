@@ -4,7 +4,6 @@ import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import './components/css_files/App.css';
 import CreatePlan from "./components/pages/create_plan.tsx";
 import Dashboard from "./components/pages/dashboard.tsx";
-import EditPlan from "./components/pages/edit_plan.tsx";
 import Footer from "./components/pages/Footer.tsx";
 import Help from "./components/pages/help.tsx";
 import Login from "./components/pages/Login.tsx";
@@ -36,7 +35,7 @@ function App() {
             <Route path="/create-plan" element={<CreatePlan />} />
             <Route path="/scenario" element={<Scenario />} />
             <Route path="/scenario/:id" element={<OpenScenario />} />
-            <Route path="/scenario/edit/:id" element={<EditPlan />} />
+            <Route path="/scenario/edit/:id" element={<CreatePlan />} />
             <Route path="/simulate" element={<Simulation />} />
             <Route path="/simulation/:id" element={<OpenSimulation />} />
             <Route path="/help" element={<Help />} />

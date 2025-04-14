@@ -32,12 +32,28 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
           width={50}
           alt="Edit"
           style={{ cursor: "pointer" }}
-          onClick={(e) => {
-            e.stopPropagation(); 
-            navigate(`/scenario/edit/${scenario.id}`, {
-              state: { dateCreated: scenario.dateCreated }
-            });
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              const response = await fetch(`http://localhost:5000/api/plans/${scenario.id}`);
+              if (!response.ok) throw new Error("Failed to fetch plan details");
+              
+              const planData = await response.json(); // shape { data: {...actualPlanObject...} }
+              
+              navigate("/create-plan", {
+                state: {
+                  formData: planData.data, // <-- pass planData.data instead
+                  isEditing: true,
+                  planId: scenario.id
+                }
+              });
+            } catch (err) {
+              console.error("Failed to load plan for editing", err);
+              alert("Could not load the plan for editing.");
+            }
           }}
+          
+          
         />
 
         <img src="/images/share.png" height={50} width={50} alt="Share" />
