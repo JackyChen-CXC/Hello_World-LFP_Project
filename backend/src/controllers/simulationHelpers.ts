@@ -8,6 +8,41 @@ import * as yaml from "js-yaml";
 
 // Helper Functions
 
+// Get percentage of total investments >= financial goal per year
+export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOverTime: number[][]): number[] {
+    const totalProbability: number[] = [];
+    for (let year = 0; year < totalInvestmentsOverTime.length; year++) {
+        totalProbability[year] = 
+            totalInvestmentsOverTime[year].filter(totalValue => totalValue >= financialGoal).length /
+            totalInvestmentsOverTime[year].length;
+    }
+    return totalProbability;
+}
+
+// raw values -> median -> ranges
+// [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
+export function generateRanges(total: number[][]){
+    const avg: number[] = [];
+    const median: number[] = [];
+    const range: number[][] = []; // [min, max], 
+    for (let year = 0; year < total.length; year++) {
+        
+    }
+    return [avg, median, range];
+}
+
+// hash simulated values into total values
+// @number[] sim: array of one number per year
+// @number[][] total: nested array of unsorted simulated numbers per year
+export function hashIntoTotal(total: number[][], sim: number[]) {
+    for (let year = 0; year < sim.length; year++) {
+        if (!total[year]) {
+            total[year] = [];
+        }
+        total[year].push(sim[year]);
+    }
+}
+
 export function getLifeEventsByType(eventSeries: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
     return eventSeries.filter(event => event.type === type);
 }
@@ -26,7 +61,7 @@ export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: num
         if(income.initialAmount){
             // if active
             if(income.start.value && income.duration.value && year >= income.start.value && year < income.start.value+income.duration.value){
-                // depending on death of spouse & userFraction (could change to one time function on spouse death)
+                // depending on death of spouse & userFraction (could fix to one time function for all values on spouse death)
                 if(!deathSpouse){ // no spouse or spouse alive
                     // sum up last year's income liquidity
                     cash+= income.initialAmount;
