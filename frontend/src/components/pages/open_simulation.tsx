@@ -11,12 +11,12 @@ import {
   Line,
   LineChart,
   Tooltip,
-  XAxis, YAxis
+  XAxis,
+  YAxis
 } from "recharts";
 import "../css_files/page_style.css";
 
-//used ChatGPT to help generate some graphs with recharts
-// Simulated probability of retirement success over years
+// Sample data
 const probabilityData = [
   { year: 2025, success: 85 },
   { year: 2030, success: 82 },
@@ -26,7 +26,6 @@ const probabilityData = [
   { year: 2050, success: 72 },
 ];
 
-// Simulated probability range for future success
 const shadedData = [
   { year: 2025, low: 65, mid: 85, high: 95 },
   { year: 2030, low: 63, mid: 82, high: 93 },
@@ -36,7 +35,6 @@ const shadedData = [
   { year: 2050, low: 53, mid: 72, high: 85 },
 ];
 
-// Simulated average values of portfolio components
 const stackedBarData = [
   { year: 2025, principal: 300, interest: 80 },
   { year: 2030, principal: 330, interest: 100 },
@@ -46,6 +44,7 @@ const stackedBarData = [
   { year: 2050, principal: 450, interest: 180 },
 ];
 
+// Charts
 const LineChartGraph = () => (
   <LineChart width={600} height={300} data={probabilityData}>
     <CartesianGrid stroke="#ccc" />
@@ -64,7 +63,6 @@ const LineChartGraph = () => (
     <Line type="monotone" dataKey="success" stroke="#8884d8" strokeWidth={3} />
   </LineChart>
 );
-
 
 const ShadedLineChart = () => (
   <AreaChart width={600} height={300} data={shadedData}>
@@ -112,9 +110,8 @@ const StackedBarChart = () => (
   </BarChart>
 );
 
-
 const OpenSimulation = () => {
-  const { id } = useParams(); 
+  const { id } = useParams();
   const [simulationNum, setSimulationNum] = useState("");
   const [graph, setGraph] = useState("line");
 
@@ -123,28 +120,28 @@ const OpenSimulation = () => {
     if (graph === "shaded") return <ShadedLineChart />;
     if (graph === "stacked") return <StackedBarChart />;
   };
+
   const username = localStorage.getItem("name");
-  const name = localStorage.getItem("given_name");
-  const picture = localStorage.getItem("picture")
+  const picture = localStorage.getItem("picture");
 
   const handleRunSimulation = async () => {
     if (!id || !simulationNum) {
       alert("Please enter the number of simulations.");
       return;
     }
-  
+
     try {
       const response = await fetch("http://localhost:5000/api/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: id,
-          simulations: parseInt(simulationNum)
+          simulations: parseInt(simulationNum),
         }),
       });
-  
+
       const result = await response.json();
-  
+
       if (result.status === "OK") {
         alert("Simulation started successfully!");
         console.log("Simulation ID:", result.simulationId);
@@ -156,80 +153,83 @@ const OpenSimulation = () => {
       alert("An error occurred while starting the simulation.");
     }
   };
-  
+
   return (
     <div className="page-container">
       <div className="header" style={{ marginBottom: "5%" }}>
         <div>Simulate</div>
-        <div style={{
-          display: "flex", justifyContent: "center",
-          alignItems: "center", position: "absolute", right: "40px"
-        }}>
-         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "absolute", right: "40px" }}>
-        {username ? (
-            <>
-              <div style={{ margin: 20 }}>{username}</div>
-              <img src={picture} height={60} width={60} alt="User" 
-              style={{ cursor: "pointer",borderRadius: "50%" }} 
-              className="transparent-hover"
-               />
-            </>
-          ) : (
-            <div>Guest</div>
-          )}
-        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            position: "absolute",
+            right: "40px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              position: "absolute",
+              right: "40px",
+            }}
+          >
+            {username ? (
+              <>
+                <div style={{ margin: 20 }}>{username}</div>
+                <img
+                  src={picture}
+                  height={60}
+                  width={60}
+                  alt="User"
+                  style={{ cursor: "pointer", borderRadius: "50%" }}
+                  className="transparent-hover"
+                />
+              </>
+            ) : (
+              <div>Guest</div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
-        <div className="split-container">
-          <div className="simulation-left" >
-            <div className="normal-text" style ={{marginTop:"10%"}}> Number of Simulations:</div>
-            <input
-              className="input-boxes"
-              style={{ width: "200px" }}
-              type="number"
-              name="simulationNum"
-              value={simulationNum}
-              onChange={(e) => setSimulationNum(e.target.value)}
-            />
-            
-            <div className="normal-text"> Select a Chart Type:</div>
-            <select
-              className="input-boxes"
-              style={{ width: "200px", marginBottom: "20px", borderRadius: "0" }}
-              value={graph}
-              onChange={(e) => setGraph(e.target.value)}
-            >
-              <option value="shaded">Shaded Line Chart</option>
-              <option value="line">Line Chart</option>
-              <option value="stacked">Stacked Bar Chart</option>
-            </select>
-            <button className="page-buttons" 
-              style={{marginLeft:"0px", width:"200px"}}
-              onClick={handleRunSimulation}> 
-              Run Simulation
-            </button>
+        <div className="normal-text">How Many Simulations Would You Like To Run?</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="simulationNum"
+          value={simulationNum}
+          onChange={(e) => setSimulationNum(e.target.value)}
+        />
 
-          </div>
-          <div className="simulation-right">
-
-          </div>
-        </div>
+        <button
+          className="page-buttons"
+          style={{ marginLeft: "0px", width: "200px" }}
+          onClick={handleRunSimulation}
+        >
+          Run Simulation
+        </button>
 
         {/**
-         * 
+         * Toggle chart view buttons and display chart
+         */}
         <div style={{ marginBottom: "20px" }}>
-          <button style={{marginTop:"2%"}} onClick={() => setGraph("line")}>Line Chart</button>
-          <button style={{marginTop:"2%"}} onClick={() => setGraph("shaded")}>Shaded Line Chart</button>
-          <button style={{marginTop:"2%"}} onClick={() => setGraph("stacked")}>Stacked Bar Chart</button>
+          <button style={{ marginTop: "2%" }} onClick={() => setGraph("line")}>
+            Line Chart
+          </button>
+          <button style={{ marginTop: "2%" }} onClick={() => setGraph("shaded")}>
+            Shaded Line Chart
+          </button>
+          <button style={{ marginTop: "2%" }} onClick={() => setGraph("stacked")}>
+            Stacked Bar Chart
+          </button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          {renderGraph()}
-        </div>
-         */}
+        <div style={{ display: "flex", justifyContent: "center" }}>{renderGraph()}</div>
       </div>
     </div>
   );
