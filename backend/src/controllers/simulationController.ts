@@ -185,8 +185,10 @@ export const runSimulation = async (req: any, res: any) => {
                 calculateInvestmentValue(plan, curYearIncome);
                 
                 // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
-                const status = spouseAlive ? "married" : "single";
-                performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, [])
+                if (plan.RothConversionOpt == true && startingYear+year >= plan.RothConversionStart && startingYear+year < plan.RothConversionEnd){
+                    const status = spouseAlive ? "married" : "single";
+                    performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, standard_deduction_bracket);
+                }
                 
                 // 6. Pay non-discretionary expenses and the previous year’s taxes
 
