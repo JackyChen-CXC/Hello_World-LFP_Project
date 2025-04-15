@@ -62,6 +62,7 @@ interface InvestmentTypeData {
 }
 
 const OpenScenario = () => {
+  const [simulationNum, setSimulationNum] = useState("");
   const { id } = useParams();
   const [scenario, setScenario] = useState<ScenarioData | null>(null);
   const [investmentDetails, setInvestmentDetails] = useState<InvestmentTypeData[]>([]);
@@ -159,6 +160,36 @@ const OpenScenario = () => {
   const username = localStorage.getItem("name");
   const name = localStorage.getItem("given_name");
   const picture = localStorage.getItem("picture")
+  
+  const handleRunSimulation = async () => {
+    if (!id || !simulationNum) {
+      alert("Please enter the number of simulations.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:5000/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: id,
+          simulations: parseInt(simulationNum),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.status === "OK") {
+        alert("Simulation started successfully!");
+        console.log("Simulation ID:", result.simulationId);
+      } else {
+        alert("Simulation failed: " + result.message);
+      }
+    } catch (error) {
+      console.error("Error starting simulation:", error);
+      alert("An error occurred while starting the simulation.");
+    }
+  };
   return (
     <div className="page-container">
       <div className="header">
@@ -189,6 +220,26 @@ const OpenScenario = () => {
       </div>
 
       {/**-----------------------------------Title------------------------------------------------------ */}
+      <div style={{display:"flex", justifyContent:"center", flexDirection: "column", marginLeft:"60%", marginTop:"5%",alignItem:"center"}}>
+        <div className="normal-text">How Many Simulations Would You Like To Run?</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="simulationNum"
+          value={simulationNum}
+          onChange={(e) => setSimulationNum(e.target.value)}
+        />
+
+        <button
+          className="page-buttons"
+          style={{ marginLeft: "0px", width: "200px" }}
+          onClick={handleRunSimulation}
+        >
+          Run Simulation
+        </button>
+
+      </div>
+
       <div className="scenario-container" style={{ width: "70%", height: "auto" }}>
         <div className="split-container">
           <div className="left-container">

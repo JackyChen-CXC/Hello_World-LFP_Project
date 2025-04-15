@@ -343,7 +343,6 @@ const StackedBarChart = () => (
 
 const OpenSimulation = () => {
   const { id } = useParams();
-  const [simulationNum, setSimulationNum] = useState("");
   const [lineChartMetric, setLineChartMetric] = useState("investments");
   const [graph, setGraph] = useState("line");
 
@@ -360,36 +359,6 @@ const OpenSimulation = () => {
 
   const username = localStorage.getItem("name");
   const picture = localStorage.getItem("picture");
-
-  const handleRunSimulation = async () => {
-    if (!id || !simulationNum) {
-      alert("Please enter the number of simulations.");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:5000/api/simulate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: id,
-          simulations: parseInt(simulationNum),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.status === "OK") {
-        alert("Simulation started successfully!");
-        console.log("Simulation ID:", result.simulationId);
-      } else {
-        alert("Simulation failed: " + result.message);
-      }
-    } catch (error) {
-      console.error("Error starting simulation:", error);
-      alert("An error occurred while starting the simulation.");
-    }
-  };
 
   return (
     <div className="page-container">
@@ -434,22 +403,6 @@ const OpenSimulation = () => {
 
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
-        <div className="normal-text">How Many Simulations Would You Like To Run?</div>
-        <input
-          className="input-boxes"
-          type="number"
-          name="simulationNum"
-          value={simulationNum}
-          onChange={(e) => setSimulationNum(e.target.value)}
-        />
-
-        <button
-          className="page-buttons"
-          style={{ marginLeft: "0px", width: "200px" }}
-          onClick={handleRunSimulation}
-        >
-          Run Simulation
-        </button>
 
         {/**
          * Toggle chart view buttons and display chart
