@@ -1224,9 +1224,65 @@ const handleCreateInvestmentTypeClick = async (index) => {
 };
 
 const handleSubmit = async () => {
+  if (formData.financialGoal === "" ||
+    isNaN(parseFloat(formData.financialGoal)) ||
+    parseFloat(formData.financialGoal) <= 0
+  ) {
+    alert("Financial Goal must be a valid number greater than 0.");
+    return;
+  }
+  if (formData.name === ""){
+    alert("Financial Plan Name cannot be empty");
+  }
+
+  for (const [i, inv] of formData.investments.entries()) {
+    if (inv.investmentValue === "" || isNaN(parseFloat(inv.investmentValue)) ||
+    (parseFloat(inv.investmentValue)) <= 0) {
+      alert(`Investment ${i + 1}: Value must be a valid number.`);
+      return;
+    }
+    if (!inv.investmentName || inv.investmentName.trim() === "") {
+      alert(`Investment ${i + 1}: Name can't be empty.`);
+      return;
+    }
+  }
+
+  if (
+    formData.lifeExpectancyRadio === "yes" &&
+    isNaN(parseFloat(formData.lifeExpectancyYears))
+  ) {
+    alert("Life Expectancy (fixed): must be a valid number.");
+    return;
+  }
+  if (
+    formData.lifeExpectancyRadio === "no" &&
+    (isNaN(parseFloat(formData.lifeExpectancyMean)) ||
+     isNaN(parseFloat(formData.lifeExpectancyStd)))
+  ) {
+    alert("Life Expectancy (normal): mean and std must be valid numbers.");
+    return;
+  }
+ 
+  if (formData.planType === "joint") {
+    if (
+      formData.spouseLifeExpectancyRadio === "yes" &&
+      isNaN(parseFloat(formData.spouseLifeExpectancyYears))
+    ) {
+      alert("Spouse Life Expectancy (fixed): must be a valid number.");
+      return;
+    }
+    if (
+      formData.spouseLifeExpectancyRadio === "no" &&
+      (isNaN(parseFloat(formData.spouseLifeExpectancyMean)) ||
+       isNaN(parseFloat(formData.spouseLifeExpectancyStd)))
+    ) {
+      alert("Spouse Life Expectancy (normal): mean and std must be valid numbers.");
+      return;
+    }
+  }
+  
   try {
     const transformedData = transformFormData(formData, rmdOrder, expenseOrder, spendingOrder, rothOrder);
-    // Find all used investment type IDs from formData
     const usedTypeIds = new Set(
       formData.investments.map((inv) => String(inv.createdTypeId || inv.investmentType))
     );
@@ -1261,7 +1317,6 @@ const handleSubmit = async () => {
 
     };
     
-
     const endpoint = isEditMode
       ? `http://localhost:5000/api/plans/${editingPlanId}`
       : "http://localhost:5000/api/plans";

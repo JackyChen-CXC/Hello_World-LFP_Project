@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -113,6 +113,7 @@ const StackedBarChart = () => (
 
 
 const OpenSimulation = () => {
+  const [simulationNum, setSimulationNum] = useState("");
   const [graph, setGraph] = useState("line");
 
   const renderGraph = () => {
@@ -149,7 +150,24 @@ const OpenSimulation = () => {
 
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
+        <div className="split-container">
+          <div className="left-side">
+            <div className="normal-text"> Number of Simulations:</div>
+            <input
+              className="input-boxes"
+              style={{ width: "200px" }}
+              type="number"
+              name="simulationNum"
+              value={simulationNum}
+              onChange={(e) => setSimulationNum(e.target.value)}
+            />
 
+            <button className="page-buttons" style={{marginLeft:"0px", width:"200px"}}> Run Simulation</button>
+          </div>
+        </div>
+
+        {/**
+         * 
         <div style={{ marginBottom: "20px" }}>
           <button style={{marginTop:"2%"}} onClick={() => setGraph("line")}>Line Chart</button>
           <button style={{marginTop:"2%"}} onClick={() => setGraph("shaded")}>Shaded Line Chart</button>
@@ -159,6 +177,7 @@ const OpenSimulation = () => {
         <div style={{ display: "flex", justifyContent: "center" }}>
           {renderGraph()}
         </div>
+         */}
       </div>
     </div>
   );
