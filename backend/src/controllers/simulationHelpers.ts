@@ -797,49 +797,88 @@ export async function updateStandardDeductionUniformDistributionInflation(mean: 
 //
 //
 //calculate the rmd
+// export async function calculateRMD(financialPlan: IFinancialPlan, age: number, curYearIncome: number): Promise<number> {    
+//     try{
+//         const db = getDB();
+//         const currentYear = new Date().getFullYear();
+//         const collectionName = `rmd_${currentYear}`;
+//         const dis = db.collection(collectionName);
+
+//         // Find distribution period (D)
+//         dis.findOne({ age: age })
+//             .then(doc => {
+//                 if (doc && doc.distribution_period) {
+//                     const distribution: number = doc.distribution_period;
+
+//                     // Find sum of pre-tax investments (S)
+//                     let sum = 0;
+//                     financialPlan.investments.forEach(investment => {
+//                         if (investment.taxStatus === "pre-tax") {
+//                             sum += investment.value;
+//                         }
+//                     });
+
+//                     // Calculate RMD
+//                     const rmd = sum / distribution;
+
+//                     // Add RMD to current year income
+//                     curYearIncome += rmd;
+
+//                     return rmd;
+//                 } else {
+//                     throw new Error("Distribution period not found for the given age");
+//                 }
+//             })
+//             .catch(err => {
+//                 console.error("Error calculating RMD:", err);
+//                 return -1; // Return current income if there's an error
+//             });
+        
+
+//         return -1; // Return the income as a fallback
+//     } catch (err) {
+//         console.error("Error calculating RMD:", err);
+//         return -1;
+//     }
+// }
 export async function calculateRMD(financialPlan: IFinancialPlan, age: number, curYearIncome: number): Promise<number> {    
-    try{
-        const db = getDB();
-        const currentYear = new Date().getFullYear();
-        const collectionName = `rmd_${currentYear}`;
-        const dis = db.collection(collectionName);
+  try {
+      //console.log("Starting RMD calculation function")
+      const db = getDB();
+      const currentYear = new Date().getFullYear();
+      const collectionName = `rmd_${currentYear}`;
+      const dis = db.collection(collectionName);
 
-        // Find distribution period (D)
-        dis.findOne({ age: age })
-            .then(doc => {
-                if (doc && doc.distribution_period) {
-                    const distribution: number = doc.distribution_period;
+      // Find distribution period (D) with await to handle async operation
+      const doc = await dis.findOne({ age: age });
 
-                    // Find sum of pre-tax investments (S)
-                    let sum = 0;
-                    financialPlan.investments.forEach(investment => {
-                        if (investment.taxStatus === "pre-tax") {
-                            sum += investment.value;
-                        }
-                    });
+      if (doc && doc.distribution_period) {
+          const distribution: number = doc.distribution_period;
 
-                    // Calculate RMD
-                    const rmd = sum / distribution;
+          // Find sum of pre-tax investments (S)
+          let sum = 0;
+          financialPlan.investments.forEach(investment => {
+              if (investment.taxStatus === "pre-tax") {
+                  sum += investment.value;
+              }
+          });
 
-                    // Add RMD to current year income
-                    curYearIncome += rmd;
+          // Calculate RMD
+          const rmd = sum / distribution;
 
-                    return rmd;
-                } else {
-                    throw new Error("Distribution period not found for the given age");
-                }
-            })
-            .catch(err => {
-                console.error("Error calculating RMD:", err);
-                return -1; // Return current income if there's an error
-            });
+          // Add RMD to current year income
+          curYearIncome += rmd;
 
-        return -1; // Return the income as a fallback
-    } catch (err) {
-        console.error("Error calculating RMD:", err);
-        return -1;
-    }
+          return rmd; // Return the calculated RMD
+      } else {
+          throw new Error("Distribution period not found for the given age");
+      }
+  } catch (err) {
+      console.error("Error calculating RMD:", err);
+      return -1; // Return -1 if there's an error
+  }
 }
+
 
 
 
@@ -911,20 +950,27 @@ export function performRothOptimizer(
     taxBrackets: any[],
     standardDeduction: any
   ): number {
+    console.log("starting roth optimizer-----------------")
     const allInvestments = financialPlan.investments;
     const rothStrategy = financialPlan.RothConversionStrategy;
   
     // Find the applicable upper bracket limit
+    const sortedBrackets = taxBrackets
+      .filter(b => b[marriedStatus])
+      .sort((a, b) => (a.min_value ?? 0) - (b.min_value ?? 0));
+
     let u = Infinity;
-    for (const bracket of taxBrackets) {
-      const min = bracket.min_value ?? -Infinity;
-      const max = bracket.max_value ?? Infinity;
-  
-      if (bracket[marriedStatus] && currentYearIncome >= min && currentYearIncome <= max) {
+    for (const bracket of sortedBrackets) {
+      const min = Number(bracket.min_value ?? -Infinity);
+      const max = Number(bracket.max_value ?? Infinity);
+        
+      if (currentYearIncome >= min && currentYearIncome <= max) {
+        console.log("Match found!");
         u = max;
         break;
       }
     }
+    
   
     const fedTaxableIncome = currentYearIncome - 0.15 * currentYearSocialSecurityIncome;
   
@@ -932,8 +978,13 @@ export function performRothOptimizer(
     const deductionValue = standardDeduction[marriedStatus] ?? 0;
     
     let rc = u - (fedTaxableIncome - deductionValue);
-    currentYearIncome += rc;
-  
+
+    // console.log("current year income: ",currentYearIncome)
+    // console.log("current year ss: ",currentYearSocialSecurityIncome)
+    // console.log("deduction: ", deductionValue)
+    // console.log("federal bracket: ", u)
+    // console.log("rc value: ",rc)
+
     for (const investId of rothStrategy) {
       const investment = allInvestments.find((inv) => inv.id === investId);
       if (!investment) continue;
@@ -945,6 +996,7 @@ export function performRothOptimizer(
         rc -= investValue;
         investment.value = 0;
         movedValue = investValue;
+        // console.log("here we are moving everything---------")
       } else {
         investment.value -= rc;
         movedValue = rc;
@@ -973,6 +1025,7 @@ export function performRothOptimizer(
       if (rc === 0) break;
     }
   
+    currentYearIncome += rc;
     return currentYearIncome;
   }
 
@@ -987,6 +1040,7 @@ export function performRothOptimizer(
 //
 //Helper function for part 4 of simulation
 export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
+    console.log("Start Helper Function 4")
     const investments = financialplan.investments;
     const investmentTypesMap = new Map<string, IInvestmentType>(
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
@@ -1069,7 +1123,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         investment.value = Math.round(investment.value * 100) / 100;
     }
 
-    console.log(investments);
+    //console.log(investments);
     console.log(currentYearIncome, taxable_income, non_taxable_income);
 
     return [currentYearIncome, taxable_income, non_taxable_income];
