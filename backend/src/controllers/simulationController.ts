@@ -174,7 +174,7 @@ export const runSimulation = async (req: any, res: any) => {
 
                 // 3. perform RMD for last year if simulated age == 74
                 if(age+year >= 74){
-                    const rmd = calculateRMD(plan, age + year, curYearIncome);
+                    const rmd = await calculateRMD(plan, age + year, curYearIncome);
                     if ( rmd == -1 ){
                         console.log("Error in calculateRMD()");
                         return res.status(404).json({ error: 'Error in calculateRMD()' });

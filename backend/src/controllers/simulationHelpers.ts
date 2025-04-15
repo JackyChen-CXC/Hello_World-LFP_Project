@@ -797,43 +797,48 @@ export async function updateStandardDeductionUniformDistributionInflation(mean: 
 //
 //
 //calculate the rmd
-export function calculateRMD(financialPlan: IFinancialPlan, age: number, curYearIncome: number): number {
-    const db = getDB();
-    const currentYear = new Date().getFullYear();
-    const collectionName = `rmd_${currentYear}`;
-    const dis = db.collection(collectionName);
+export async function calculateRMD(financialPlan: IFinancialPlan, age: number, curYearIncome: number): Promise<number> {    
+    try{
+        const db = getDB();
+        const currentYear = new Date().getFullYear();
+        const collectionName = `rmd_${currentYear}`;
+        const dis = db.collection(collectionName);
 
-    // Find distribution period (D)
-    dis.findOne({ age: age })
-        .then(doc => {
-            if (doc && doc.distribution_period) {
-                const distribution: number = doc.distribution_period;
+        // Find distribution period (D)
+        dis.findOne({ age: age })
+            .then(doc => {
+                if (doc && doc.distribution_period) {
+                    const distribution: number = doc.distribution_period;
 
-                // Find sum of pre-tax investments (S)
-                let sum = 0;
-                financialPlan.investments.forEach(investment => {
-                    if (investment.taxStatus === "pre-tax") {
-                        sum += investment.value;
-                    }
-                });
+                    // Find sum of pre-tax investments (S)
+                    let sum = 0;
+                    financialPlan.investments.forEach(investment => {
+                        if (investment.taxStatus === "pre-tax") {
+                            sum += investment.value;
+                        }
+                    });
 
-                // Calculate RMD
-                const rmd = sum / distribution;
+                    // Calculate RMD
+                    const rmd = sum / distribution;
 
-                // Add RMD to current year income
-                curYearIncome += rmd;
+                    // Add RMD to current year income
+                    curYearIncome += rmd;
 
-                return rmd;
-            } else {
-                throw new Error("Distribution period not found for the given age");
-            }
-        })
-        .catch(err => {
-            console.error("Error calculating RMD:", err);
-            return -1; // Return current income if there's an error
-        });
+                    return rmd;
+                } else {
+                    throw new Error("Distribution period not found for the given age");
+                }
+            })
+            .catch(err => {
+                console.error("Error calculating RMD:", err);
+                return -1; // Return current income if there's an error
+            });
 
-    return -1; // Return the income as a fallback
+        return -1; // Return the income as a fallback
+    } catch (err) {
+        console.error("Error calculating RMD:", err);
+        return -1;
+    }
 }
 
 
