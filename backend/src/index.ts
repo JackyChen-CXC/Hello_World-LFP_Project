@@ -9,6 +9,7 @@ import modelRouter from "./routes/modelRoutes";
 import testingRouter from "./routes/testingRoutes";
 import stateTaxRouter from "./routes/stateTaxUploadRoutes";
 import uploadUserFileRouter from "./routes/uploadUserFileRoutes";
+import simulationRouter from "./routes/simulationRoutes";
 
 dotenv.config();
 const mongoose = require('mongoose');
@@ -40,7 +41,9 @@ app.use('/api', stateTaxRouter);
 
 app.use('/api', uploadUserFileRouter);
 
-app.get("/", (req, res) => {
+app.use('/api', simulationRouter);
+
+app.get("/", (_, res) => {
   res.send("API is running...");
 });
 
