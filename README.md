@@ -31,19 +31,22 @@ To start -
 
 To end - End task in task manager ("MongoDB Database Server")
 
-#### Webscraping Backend (Ignore Library warnings, it uses the libraries stored in the Virtual Environment )
+#### Scraping Backend (Ignore Library warnings, it uses the libraries stored in the Virtual Environment )
 To setup - 
 1. cd backend
 2. python -m venv venv
 3.  Windows     - venv\Scripts\Activate
     Mac/Linux   - source venv/bin/activate
-3. pip install numpy pandas scipy beautifulsoup4 flask flask-cors requests pymongo
+3. pip install numpy pandas scipy beautifulsoup4 flask flask-cors requests pymongo dotenv
 
-To start (Connected to npm install )- 
-1. cd backend
-2. npm install 
+To run webscrape - 
+1. Open Command Prompt (cmd)
+2. curl -X POST http://localhost:5000/api/webscrape -H "Content-Type: application/json" -d "{}"
 
-To end - CTRL+C / kill terminal
+
+To run rmdscrape - 
+1. Open Command Prompt (cmd)
+2. curl -X POST http://localhost:5000/api/rmdscrape -H "Content-Type: application/json" -d "{}"
 
 #### Typescript Backend
 To setup -
