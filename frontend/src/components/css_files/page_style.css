@@ -39,13 +39,29 @@
 
 .open-simulation{
   display: flex;
-  background-color: #B9D0C0;
   padding: 2%;
   border-radius: 2%;
   width: 90%;
   flex-direction: column;
   align-items: center;
   min-height: 60%;
+}
+
+.simulation-left{
+  flex: 1; 
+  display: flex;
+  flex-direction: column;
+  gap: 10px; 
+  background-color: #B9D0C0;
+  align-items: center;
+  border-radius: 5%;
+  min-height: 600px;
+}
+.simulation-right{
+  flex: 3; 
+  display: flex;
+  flex-direction: column;
+  gap: 10px; 
 }
 
 /* container for the questions on each page*/

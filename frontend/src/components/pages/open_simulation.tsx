@@ -184,7 +184,7 @@ const OpenSimulation = () => {
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
         <div className="split-container">
-          <div className="left-side" >
+          <div className="simulation-left" >
             <div className="normal-text" style ={{marginTop:"10%"}}> Number of Simulations:</div>
             <input
               className="input-boxes"
@@ -194,13 +194,26 @@ const OpenSimulation = () => {
               value={simulationNum}
               onChange={(e) => setSimulationNum(e.target.value)}
             />
+            
+            <div className="normal-text"> Select a Chart Type:</div>
+            <select
+              className="input-boxes"
+              style={{ width: "200px", marginBottom: "20px", borderRadius: "0" }}
+              value={graph}
+              onChange={(e) => setGraph(e.target.value)}
+            >
+              <option value="shaded">Shaded Line Chart</option>
+              <option value="line">Line Chart</option>
+              <option value="stacked">Stacked Bar Chart</option>
+            </select>
             <button className="page-buttons" 
               style={{marginLeft:"0px", width:"200px"}}
               onClick={handleRunSimulation}> 
               Run Simulation
             </button>
+
           </div>
-          <div className="right-side">
+          <div className="simulation-right">
 
           </div>
         </div>
