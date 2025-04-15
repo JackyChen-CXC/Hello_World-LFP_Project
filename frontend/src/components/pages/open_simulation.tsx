@@ -113,107 +113,192 @@ const ShadedLineChart = ({
     earlyTax: "Early Withdrawal Tax ($)",
     discretionaryPct: "% of Total Discretionary Expenses",
   };
-  const metricKeyMap: Record<string, { low: string; mid: string; high: string }> = {
-    investments: { low: "low", mid: "mid", high: "high" },
-    income: { low: "low", mid: "mid", high: "high" },
-    expenses: { low: "low", mid: "mid", high: "high" },
-    earlyTax: { low: "low", mid: "mid", high: "high" },
-    discretionaryPct: { low: "low", mid: "mid", high: "high" },
-  };
 
-  // Dummy datasets for different metrics (replace with real ones later)
   const metricDataMap: Record<string, any[]> = {
+    
     investments: [
-      { year: 2025, low: 300, mid: 400, high: 500, median: 420 },
-      { year: 2030, low: 320, mid: 430, high: 540, median: 440 },
-      { year: 2035, low: 340, mid: 460, high: 580, median: 460 },
-      { year: 2040, low: 360, mid: 490, high: 620, median: 480 },
-      { year: 2045, low: 380, mid: 520, high: 660, median: 500 },
-    ],
-    income: [
-      { year: 2025, low: 40, mid: 60, high: 80, median: 58 },
-      { year: 2030, low: 35, mid: 55, high: 75, median: 53 },
-      { year: 2035, low: 30, mid: 50, high: 70, median: 50 },
-      { year: 2040, low: 28, mid: 48, high: 68, median: 48 },
-      { year: 2045, low: 26, mid: 46, high: 66, median: 46 },
+      { year: 2025, p10: 400, p25: 400, p40: 400, median: 400, p60: 400, p75: 400, p90: 400 },
+      { year: 2030, p10: 385, p25: 390, p40: 395, median: 390, p60: 405, p75: 410, p90: 420 },
+      { year: 2035, p10: 375, p25: 380, p40: 390, median: 380, p60: 400, p75: 410, p90: 425 },
+      { year: 2040, p10: 370, p25: 375, p40: 387, median: 390, p60: 410, p75: 420, p90: 435 },
+      { year: 2045, p10: 365, p25: 370, p40: 385, median: 400, p60: 420, p75: 430, p90: 445 },
+      { year: 2050, p10: 360, p25: 368, p40: 383, median: 410, p60: 430, p75: 440, p90: 455 },
+      { year: 2055, p10: 355, p25: 365, p40: 382, median: 420, p60: 440, p75: 450, p90: 465 },
+      { year: 2060, p10: 350, p25: 363, p40: 380, median: 425, p60: 445, p75: 455, p90: 470 },
+      { year: 2065, p10: 345, p25: 360, p40: 378, median: 430, p60: 450, p75: 460, p90: 475 },
+      { year: 2070, p10: 340, p25: 358, p40: 376, median: 432, p60: 455, p75: 465, p90: 480 },
+      { year: 2075, p10: 335, p25: 355, p40: 375, median: 435, p60: 460, p75: 470, p90: 485 },
     ],
     
+    income: [
+      { year: 2025, p10: 58, p25: 58, p40: 58, median: 58, p60: 58, p75: 58, p90: 58 },
+      { year: 2030, p10: 50, p25: 52, p40: 54, median: 54, p60: 55, p75: 58, p90: 60 },
+      { year: 2035, p10: 50, p25: 52, p40: 54, median: 55, p60: 57, p75: 60, p90: 64 },
+      { year: 2040, p10: 46, p25: 48, p40: 50, median: 52, p60: 55, p75: 57, p90: 59 },
+      { year: 2045, p10: 44, p25: 46, p40: 48, median: 50, p60: 56, p75: 59, p90: 61 },
+      { year: 2050, p10: 42, p25: 44, p40: 46, median: 52, p60: 58, p75: 60, p90: 63 },
+      { year: 2055, p10: 40, p25: 42, p40: 44, median: 54, p60: 60, p75: 62, p90: 65 },
+      { year: 2060, p10: 38, p25: 40, p40: 42, median: 55, p60: 61, p75: 63, p90: 66 },
+      { year: 2065, p10: 36, p25: 38, p40: 40, median: 56, p60: 62, p75: 64, p90: 67 },
+      { year: 2070, p10: 34, p25: 36, p40: 38, median: 57, p60: 63, p75: 65, p90: 68 },
+      { year: 2075, p10: 32, p25: 34, p40: 36, median: 58, p60: 64, p75: 66, p90: 70 },
+    ],
+    
+  
     expenses: [
-      { year: 2025, low: 25, mid: 35, high: 45, median: 34 },
-      { year: 2030, low: 30, mid: 40, high: 50, median: 38 },
-      { year: 2035, low: 35, mid: 45, high: 55, median: 42 },
-      { year: 2040, low: 38, mid: 48, high: 58, median: 44 },
-      { year: 2045, low: 40, mid: 50, high: 60, median: 46 },
+      { year: 2025, p10: 34, p25: 34, p40: 34, median: 34, p60: 34, p75: 34, p90: 34 },
+      { year: 2030, p10: 31, p25: 32, p40: 33, median: 36, p60: 39, p75: 41, p90: 43 },
+      { year: 2035, p10: 30, p25: 31, p40: 32, median: 38, p60: 41, p75: 43, p90: 45 },
+      { year: 2040, p10: 29, p25: 30, p40: 31, median: 39, p60: 42, p75: 44, p90: 46 },
+      { year: 2045, p10: 28, p25: 29, p40: 30, median: 40, p60: 43, p75: 45, p90: 47 },
+      { year: 2050, p10: 27, p25: 28, p40: 29, median: 41, p60: 44, p75: 46, p90: 48 },
+      { year: 2055, p10: 26, p25: 27, p40: 28, median: 42, p60: 45, p75: 47, p90: 49 },
+      { year: 2060, p10: 25, p25: 26, p40: 27, median: 43, p60: 46, p75: 48, p90: 50 },
+      { year: 2065, p10: 24, p25: 25, p40: 26, median: 44, p60: 47, p75: 49, p90: 51 },
+      { year: 2070, p10: 23, p25: 24, p40: 25, median: 45, p60: 48, p75: 50, p90: 52 },
+      { year: 2075, p10: 22, p25: 23, p40: 24, median: 46, p60: 49, p75: 51, p90: 53 },
     ],
+    
+  
     earlyTax: [
-      { year: 2025, low: 5, mid: 8, high: 11, median: 7.5 },
-      { year: 2030, low: 6, mid: 9, high: 12, median: 8 },
-      { year: 2035, low: 7, mid: 10, high: 13, median: 8.5 },
-      { year: 2040, low: 8, mid: 11, high: 14, median: 9 },
-      { year: 2045, low: 9, mid: 12, high: 15, median: 9.5 },
+      { year: 2025, p10: 7.5, p25: 7.5, p40: 7.5, median: 7.5, p60: 7.5, p75: 7.5, p90: 7.5 },
+      { year: 2030, p10: 7, p25: 7.2, p40: 7.5, median: 8.2, p60: 8.9, p75: 9.2, p90: 9.5 },
+      { year: 2035, p10: 6.8, p25: 7.1, p40: 7.4, median: 8.8, p60: 9.5, p75: 9.9, p90: 10.3 },
+      { year: 2040, p10: 6.7, p25: 7.1, p40: 7.5, median: 9.2, p60: 10, p75: 10.4, p90: 10.8 },
+      { year: 2045, p10: 6.6, p25: 7.2, p40: 7.6, median: 9.6, p60: 10.4, p75: 10.9, p90: 11.3 },
+      { year: 2050, p10: 6.5, p25: 7.2, p40: 7.7, median: 10, p60: 10.8, p75: 11.3, p90: 11.8 },
+      { year: 2055, p10: 6.5, p25: 7.3, p40: 7.8, median: 10.3, p60: 11.2, p75: 11.7, p90: 12.2 },
+      { year: 2060, p10: 6.6, p25: 7.4, p40: 7.9, median: 10.6, p60: 11.5, p75: 12, p90: 12.5 },
+      { year: 2065, p10: 6.7, p25: 7.5, p40: 8, median: 10.8, p60: 11.8, p75: 12.3, p90: 12.8 },
+      { year: 2070, p10: 6.8, p25: 7.6, p40: 8.1, median: 11, p60: 12, p75: 12.5, p90: 13 },
+      { year: 2075, p10: 6.9, p25: 7.7, p40: 8.2, median: 11.2, p60: 12.2, p75: 12.7, p90: 13.2 },
     ],
+  
     discretionaryPct: [
-      { year: 2025, low: 20, mid: 30, high: 40, median: 29 },
-      { year: 2030, low: 18, mid: 28, high: 38, median: 27 },
-      { year: 2035, low: 16, mid: 26, high: 36, median: 25 },
-      { year: 2040, low: 14, mid: 24, high: 34, median: 23 },
-      { year: 2045, low: 12, mid: 22, high: 32, median: 21 },
-    ],    
+      { year: 2025, p10: 29, p25: 29, p40: 29, median: 29, p60: 29, p75: 29, p90: 29 },
+      { year: 2030, p10: 25, p25: 26, p40: 27, median: 26, p60: 30, p75: 32, p90: 34 },
+      { year: 2035, p10: 23, p25: 25, p40: 26, median: 25, p60: 30, p75: 32, p90: 35 },
+      { year: 2040, p10: 22, p25: 24, p40: 25, median: 26, p60: 31, p75: 33, p90: 36 },
+      { year: 2045, p10: 21, p25: 23, p40: 24, median: 27, p60: 32, p75: 34, p90: 37 },
+      { year: 2050, p10: 20, p25: 22, p40: 23, median: 28, p60: 33, p75: 35, p90: 38 },
+      { year: 2055, p10: 19, p25: 21, p40: 22, median: 29, p60: 34, p75: 36, p90: 39 },
+      { year: 2060, p10: 18, p25: 20, p40: 21, median: 30, p60: 35, p75: 37, p90: 40 },
+      { year: 2065, p10: 17, p25: 19, p40: 20, median: 31, p60: 36, p75: 38, p90: 41 },
+      { year: 2070, p10: 16, p25: 18, p40: 19, median: 32, p60: 37, p75: 39, p90: 42 },
+      { year: 2075, p10: 15, p25: 17, p40: 18, median: 33, p60: 38, p75: 40, p90: 43 },
+    ],
+
   };
+    
 
-  const selectedData = metricDataMap[metric];
-  const { mid } = metricKeyMap[metric];
+  const rawData = metricDataMap[metric] || [];
 
+  // Build stacked “difference” fields for each band
+  const selectedData = rawData.map((d) => ({
+    ...d,
+    // p10..p90
+    band10_90_bottom: d.p10,
+    band10_90_top: d.p90 - d.p10,
+
+    // p25..p75
+    band25_75_bottom: d.p25,
+    band25_75_top: d.p75 - d.p25,
+
+    // p40..p60
+    band40_60_bottom: d.p40,
+    band40_60_top: d.p60 - d.p40,
+  }));
+ 
   return (
-    <ComposedChart width={600} height={300} data={selectedData}>
-      <defs>
-        <linearGradient id="colorMid" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-          <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
-        </linearGradient>
-      </defs>
+    <ComposedChart width={700} height={400} data={selectedData}>
       <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="year">
-        <Label value="Year" offset={-5} position="insideBottom" />
-      </XAxis>
-      <YAxis >
-        <Label
-          value={metricLabels[metric]}
-          angle={-90}
-          position="insideLeft"
-          style={{ textAnchor: "middle" }}
-        />
-      </YAxis>
+      <XAxis dataKey="year" />
+      <YAxis />
       <Tooltip />
+
+      {/* 
+        1) The widest band: p10..p90
+           We do two Areas with the same stackId="band10_90".
+           First one is "bottom" line only (fill="none"),
+           second is the difference (p90 - p10). 
+      */}
       <Area
         type="monotone"
-        dataKey="mid"
-        stroke="#82ca9d"
-        fillOpacity={1}
-        fill="url(#colorMid)"
+        dataKey="band10_90_bottom"
+        stackId="band10_90"
+        stroke="none"
+        fill="none"
+      />
+      <Area
+        type="monotone"
+        dataKey="band10_90_top"
+        stackId="band10_90"
+        stroke="none"
+        fill="#5792c2"
+        fillOpacity={0.5}
       />
 
-      {/* Median line */}
+      {/*
+        2) Middle band: p25..p75
+      */}
+      <Area
+        type="monotone"
+        dataKey="band25_75_bottom"
+        stackId="band25_75"
+        stroke="none"
+        fill="none"
+      />
+      <Area
+        type="monotone"
+        dataKey="band25_75_top"
+        stackId="band25_75"
+        stroke="none"
+        fill="#4682b4"
+        fillOpacity={0.5}
+      />
+
+      {/*
+        3) Inner band: p40..p60
+      */}
+      <Area
+        type="monotone"
+        dataKey="band40_60_bottom"
+        stackId="band40_60"
+        stroke="none"
+        fill="none"
+      />
+      <Area
+        type="monotone"
+        dataKey="band40_60_top"
+        stackId="band40_60"
+        stroke="none"
+        fill="#034780"
+        fillOpacity={0.5}
+      />
+
+      {/* Median line on top */}
       <Line
         type="monotone"
         dataKey="median"
         stroke="#000"
         strokeWidth={2}
         dot={false}
-        name="Median"
-        legendType="line"
       />
 
-      {metric === "investments" && financialGoal !== undefined && (
+      {/* Optional: Draw financial goal as a reference line */}
+      {financialGoal && (
         <ReferenceLine
           y={financialGoal}
           stroke="red"
           strokeDasharray="3 3"
-          label={{ value: "Financial Goal", position: "top", fill: "red" }}
+          label={{
+            value: "Financial Goal",
+            position: "top",
+            fill: "red",
+          }}
         />
       )}
     </ComposedChart>
-
   );
 };
 
