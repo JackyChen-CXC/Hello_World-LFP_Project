@@ -1,7 +1,7 @@
 import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -93,6 +93,8 @@ export const runSimulation = async (req: any, res: any) => {
             let previousYearEarlyWithdrawals = 0;
             let currentYearGain = 0;
             let currentYearEarlyWithdrawal = 0;
+            let glidePathValue = true;
+            
 
             // get number of loops (start -> user's death)
             const lifeExpectancy = generateFromDistribution(plan.lifeExpectancy[0]);
@@ -207,11 +209,19 @@ export const runSimulation = async (req: any, res: any) => {
 
 
                 // 8. Run the invest event scheduled for the current year
-                runInvestEvents(plan, true);
+                runInvestEvents(plan, glidePathValue);
+                glidePathValue = !glidePathValue;
 
                 // 9. Run rebalance events scheduled for the current year
-                
+                runRebalance(plan, currentYearGain, status, capital_tax_bracket);
+
                 // change curr to previous, curr to 0 
+                previousYearIncome = curYearIncome;
+                previousYearSocialSecurityIncome = socialSecurity;
+                previousYearGain = currentYearGain;
+                previousYearEarlyWithdrawals = currentYearEarlyWithdrawal;
+                currentYearGain = 0;
+                currentYearEarlyWithdrawal = 0;
             }
             // reset financial plan
             plan = await FinancialPlan.findById(id);
