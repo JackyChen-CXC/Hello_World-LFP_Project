@@ -111,6 +111,9 @@ export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: num
             }
         }
     }
+    console.log("updated income events");
+    console.log(incomeEvents);
+    console.log("output of part 2:", income, socialSecurity);
     return [income, socialSecurity];
 }
 
@@ -231,7 +234,7 @@ interface TaxData {
     states: Record<string, StateTaxInfo>;
 }
 
-function loadStateTaxData(filePath = "tax/state_tax.yaml"): TaxData | null {
+function loadStateTaxData(filePath = "src/tax/state_tax.yaml"): TaxData | null {
     try {
         const file = fs.readFileSync(filePath, 'utf8');
         return yaml.load(file) as TaxData;
@@ -483,7 +486,7 @@ function generateUniform(bot: number, top: number): number {
 //
 //state tax for flat inflation
 export function updateStateTaxForInflation(inflationRate: number): void {
-    const inputFilePath = "tax/state_tax.yaml";
+    const inputFilePath = "src/tax/state_tax.yaml";
     const outputFilePath = path.join(path.dirname(inputFilePath), "inflated_state_tax.yaml");
 
     try {
@@ -524,7 +527,7 @@ export function updateStateTaxForInflation(inflationRate: number): void {
 //
 //state tax normal distribution
 export function updateStateTaxForNormalDistributionInflation(mean: number, std: number): void {
-    const inputFilePath = "tax/state_tax.yaml";
+    const inputFilePath = "src/tax/state_tax.yaml";
     const outputFilePath = path.join(path.dirname(inputFilePath), "inflated_state_tax.yaml");
 
     try {
@@ -568,7 +571,7 @@ export function updateStateTaxForNormalDistributionInflation(mean: number, std: 
 //
 //state tax uniform distribution
 export function updateStateTaxForUniformDistributionInflation(bot: number, top: number): void {
-    const inputFilePath = "tax/state_tax.yaml";
+    const inputFilePath = "src/tax/state_tax.yaml";
     const outputFilePath = path.join(path.dirname(inputFilePath), "inflated_state_tax.yaml");
 
     try {

@@ -3,18 +3,19 @@ import * as path from 'path';
 
 export function writeLog(user: string, log: string, type: 'csv' | 'log') {
   const now = new Date();
-  const datetime = now.toISOString().replace(/[:.]/g, '-').split('T').join('_');
+  const date = now.toISOString().split('T')[0]; // e.g., '2025-04-14'
   const logDir = path.join(__dirname, '..', 'logs');
 
   if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir);
+    fs.mkdirSync(logDir, { recursive: true });
   }
 
-  const filename = `${user}_${datetime}.${type}`;
+  const filename = `${user}_${date}.${type}`;
   const filepath = path.join(logDir, filename);
 
   fs.appendFileSync(filepath, log + (type === 'csv' ? '\n' : '\n\n'), 'utf8');
 }
+
 
 
 if (require.main === module) {
