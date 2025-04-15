@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -113,6 +114,7 @@ const StackedBarChart = () => (
 
 
 const OpenSimulation = () => {
+  const { id } = useParams(); 
   const [simulationNum, setSimulationNum] = useState("");
   const [graph, setGraph] = useState("line");
 
@@ -124,6 +126,37 @@ const OpenSimulation = () => {
   const username = localStorage.getItem("name");
   const name = localStorage.getItem("given_name");
   const picture = localStorage.getItem("picture")
+
+  const handleRunSimulation = async () => {
+    if (!id || !simulationNum) {
+      alert("Please enter the number of simulations.");
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:5000/api/simulation/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: id,
+          simulations: parseInt(simulationNum)
+        }),
+      });
+  
+      const result = await response.json();
+  
+      if (result.status === "OK") {
+        alert("Simulation started successfully!");
+        console.log("Simulation ID:", result.simulationId);
+      } else {
+        alert("Simulation failed: " + result.message);
+      }
+    } catch (error) {
+      console.error("Error starting simulation:", error);
+      alert("An error occurred while starting the simulation.");
+    }
+  };
+  
   return (
     <div className="page-container">
       <div className="header" style={{ marginBottom: "5%" }}>
@@ -151,8 +184,8 @@ const OpenSimulation = () => {
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
         <div className="split-container">
-          <div className="left-side">
-            <div className="normal-text"> Number of Simulations:</div>
+          <div className="left-side" >
+            <div className="normal-text" style ={{marginTop:"10%"}}> Number of Simulations:</div>
             <input
               className="input-boxes"
               style={{ width: "200px" }}
@@ -161,8 +194,14 @@ const OpenSimulation = () => {
               value={simulationNum}
               onChange={(e) => setSimulationNum(e.target.value)}
             />
+            <button className="page-buttons" 
+              style={{marginLeft:"0px", width:"200px"}}
+              onClick={handleRunSimulation}> 
+              Run Simulation
+            </button>
+          </div>
+          <div className="right-side">
 
-            <button className="page-buttons" style={{marginLeft:"0px", width:"200px"}}> Run Simulation</button>
           </div>
         </div>
 
