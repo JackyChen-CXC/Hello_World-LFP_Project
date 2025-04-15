@@ -1,7 +1,7 @@
 import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, hashIntoTotal, performRothOptimizer, probabilityOfSuccess, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -87,6 +87,13 @@ export const runSimulation = async (req: any, res: any) => {
             const percentageTotalDiscretionary: number[] = [];
 
             // Preliminary generation of values
+            let previousYearIncome = 0;
+            let previousYearSocialSecurityIncome = 0;
+            let previousYearGain = 0;
+            let previousYearEarlyWithdrawals = 0;
+            let currentYearGain = 0;
+            let currentYearEarlyWithdrawal = 0;
+
             // get number of loops (start -> user's death)
             const lifeExpectancy = generateFromDistribution(plan.lifeExpectancy[0]);
             if(!lifeExpectancy){
@@ -108,7 +115,7 @@ export const runSimulation = async (req: any, res: any) => {
                     spouseYears = spouseExpectancy - (startingYear - plan.birthYears[1]);
                 }
             }
-
+            
             // fix all start & duration attribute of Events
             plan.eventSeries = standardizeTimeRangesForEventSeries(plan.eventSeries);
 
@@ -185,19 +192,26 @@ export const runSimulation = async (req: any, res: any) => {
                 calculateInvestmentValue(plan, curYearIncome);
                 
                 // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
+                const status = spouseAlive ? "married" : "single";
                 if (plan.RothConversionOpt == true && startingYear+year >= plan.RothConversionStart && startingYear+year < plan.RothConversionEnd){
-                    const status = spouseAlive ? "married" : "single";
-                    performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, standard_deduction_bracket);
+                    performRothOptimizer(plan, previousYearIncome, previousYearSocialSecurityIncome, status, federal_tax_bracket, standard_deduction_bracket);
                 }
                 
-                // 6. Pay non-discretionary expenses and the previous year’s taxes
+                // 6. Pay non-discretionary expenses and the previous year’s taxes (COMMENT - RETURN VALUES [FIX LATER])
+                payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
+                    previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
+                    standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket);
 
                 // 7. Pay discretionary expenses in the order given by the spending strategy
+                payDiscretionary(plan, 0, currentYearGain, currentYearEarlyWithdrawal,  age + year);
+
 
                 // 8. Run the invest event scheduled for the current year
+                runInvestEvents(plan, true);
 
                 // 9. Run rebalance events scheduled for the current year
-
+                
+                // change curr to previous, curr to 0 
             }
             // reset financial plan
             plan = await FinancialPlan.findById(id);

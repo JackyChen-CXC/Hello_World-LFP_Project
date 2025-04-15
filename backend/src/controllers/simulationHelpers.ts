@@ -1184,7 +1184,7 @@ export function payNonDiscretionary(
     age: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
-    standardDeductionBrackets: any [],
+    standardDeductionBrackets: any, // CHANGE FROM any []
     federalTaxBracket: any [],
     captialGainTaxBracket: any []
 
@@ -1276,7 +1276,7 @@ export function payNonDiscretionary(
 //
 //
 //
-//helper function for part7
+// Helper function for part7
 
 export function payDiscretionary(
     financialplan: IFinancialPlan,
@@ -1396,12 +1396,12 @@ export function payDiscretionary(
 
 
 
-  //
-  ///
-  ///
-  ///
-  ///Helper function for part 8
-  function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: boolean): void {
+//
+///
+///
+///
+///Helper function for part 8
+export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: boolean): void {
     let total_cash =
       financialplan.investments.find((inv) => inv.id === "cash")?.value || 0;
   
@@ -1492,7 +1492,7 @@ export function payDiscretionary(
 ///
 //
 //Helper function for part 9
-function runRebalance(
+export function runRebalance(
     financialplan: IFinancialPlan,
     currentYearGain: number,
     marriedStatus: "single" | "married",
