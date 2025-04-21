@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
+import { inflate } from "zlib";
 
 // Helper Functions
 
@@ -218,76 +219,32 @@ export function getStandardDeduction(status: 'single' | 'married', data: any[]):
 //
 //
 //Calculate stateTax
-interface TaxBracket {
-    min: number;
-    max: number;
-    base_tax: number;
-    rate: number;
-}
+type TaxBracket = {
+  min: number;
+  max: number | null;
+  base_tax: number;
+  rate: number;
+};
 
-interface StateTaxInfo {
-    single?: TaxBracket[];
-    married?: TaxBracket[];
-}
+type TaxData = {
+  single: TaxBracket[];
+  married: TaxBracket[];
+};
+export function calculateStateTax(income: number, marriedStatus: "single" | "married", adjusted: TaxData | number): number {
+    //adjusted is 0 meaning it's one of the taxless states
+    if (adjusted === 0) return 0;
 
-interface TaxData {
-    states: Record<string, StateTaxInfo>;
-}
+    const brackets = (adjusted as TaxData)[marriedStatus];
 
-function loadStateTaxData(filePath = "src/tax/state_tax.yaml"): TaxData | null {
-    try {
-        const file = fs.readFileSync(filePath, 'utf8');
-        return yaml.load(file) as TaxData;
-    } catch (error) {
-        console.error("Error loading tax data:", error);
-        return null;
-    }
-}
-
-export function calculateStateTax(income: number, marriedStatus: string, state: string): number | void {
-    const taxData = loadStateTaxData();
-    if (!taxData) return;
-
-    const normalizedState = state.toLowerCase().replace(/\s+/g, "_");
-
-    if (!(normalizedState in taxData.states)) {
-        console.error(`No tax data found for ${normalizedState}. Please upload it.`);
-        return;
-    }
-    //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
-    const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
-    if (noTaxStates.includes(normalizedState)) {
-        return 0;
+    for (const bracket of brackets) {
+      if (income >= bracket.min && (bracket.max === null || income <= bracket.max)) {
+        console.log("state tax amount: ",bracket.base_tax + parseFloat((bracket.rate * income).toFixed(2)));
+        return bracket.base_tax + parseFloat((bracket.rate * income).toFixed(2));
+      }
     }
 
-    const stateTaxInfo = taxData.states[normalizedState];
-    const rates: TaxBracket[] = stateTaxInfo[marriedStatus as "single" | "married"] || [];
-
-    if (income <= 0) {
-        console.log("No tax");
-        return 0;
-    }
-
-    let tax = 0;
-    for (const bracket of rates) {
-        const { min, max, base_tax, rate } = bracket;
-
-        if (income > min) {
-            if (normalizedState === "ny") {
-                const taxableAmount = Math.min(income, max) - min;
-                tax = base_tax + (taxableAmount * rate);
-            } else {
-                tax = base_tax + (income * rate);
-            }
-        }
-
-        if (income <= max) {
-            break;
-        }
-    }
-
-    console.log(`Tax amount: ${tax}`);
-    return tax;
+    console.log(`Tax amount not found`);
+    return 0;
 }
 
 
@@ -485,36 +442,64 @@ function generateUniform(bot: number, top: number): number {
 //
 //
 //state tax for flat inflation
-export function updateStateTaxForInflation(inflationRate: number): void {
-    const inputFilePath = "src/tax/state_tax.yaml";
-    const outputFilePath = path.join(path.dirname(inputFilePath), "inflated_state_tax.yaml");
+export function updateStateTaxForInflation(inflation: number, state: string) {
+    state = state.toLowerCase();
+//                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
+    const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
+    if (noTaxStates.includes(state)) {
+      console.log("no state tax");
+      return 0;
+    }
 
+    const inputFilePath = "src/tax/state_tax.yaml";
+    const adjusted = {
+      single: [] as {
+        min: number;
+        max: number | null;
+        base_tax: number;
+        rate: number;
+      }[],
+      married: [] as {
+        min: number;
+        max: number | null;
+        base_tax: number;
+        rate: number;
+      }[],
+    };
     try {
         const fileContents = fs.readFileSync(inputFilePath, "utf8");
         const data = yaml.load(fileContents) as any;
 
-        if (!data.states) {
-            console.error("No 'states' key found in tax data");
-            return;
+        let state_data = data.states[state];      
+        
+        if (!state_data) {
+          const fallbackFilePath = "src/tax/imported_state_tax.yaml"; 
+          const fallbackContents = fs.readFileSync(fallbackFilePath, "utf8");
+          const fallbackData = yaml.load(fallbackContents) as any;
+
+          state_data = fallbackData.states[state];
         }
 
-        for (const state in data.states) {
-            const categories = data.states[state];
-            for (const category in categories) {
-                const brackets = categories[category];
-                for (const bracket of brackets) {
-                    bracket.min *= (1 + inflationRate);
-                    if (bracket.max !== null && bracket.max !== undefined) {
-                        bracket.max *= (1 + inflationRate);
-                    }
-                    bracket.base_tax *= (1 + inflationRate);
-                }
-            }
+
+        for (const single of state_data.single) {
+          adjusted.single.push({
+            min: parseFloat((single.min * (1 + inflation)).toFixed(2)),
+            max: single.max !== undefined ? parseFloat((single.max * (1 + inflation)).toFixed(2)) : null,
+            base_tax: parseFloat((single.base_tax * (1+inflation)).toFixed(2)),
+            rate: single.rate,
+          });
         }
 
-        const updatedYaml = yaml.dump(data, { flowLevel: -1 });
-        fs.writeFileSync(outputFilePath, updatedYaml, "utf8");
-        console.log(`Inflated state tax data saved to ${outputFilePath}`);
+        for (const married of state_data.married) {
+          adjusted.married.push({
+            min: parseFloat((married.min * (1 + inflation)).toFixed(2)),
+            max: married.max !== undefined ? parseFloat((married.max * (1 + inflation)).toFixed(2)) : null,
+            base_tax: parseFloat((married.base_tax * (1+inflation)).toFixed(2)),
+            rate: married.rate,
+          });
+        }
+        
+        return adjusted;
     } catch (err) {
         console.error("Error processing state tax YAML:", err);
     }
@@ -526,41 +511,69 @@ export function updateStateTaxForInflation(inflationRate: number): void {
 //
 //
 //state tax normal distribution
-export function updateStateTaxForNormalDistributionInflation(mean: number, std: number): void {
-    const inputFilePath = "src/tax/state_tax.yaml";
-    const outputFilePath = path.join(path.dirname(inputFilePath), "inflated_state_tax.yaml");
+export function updateStateTaxForNormalDistributionInflation(mean: number, std: number, state: string) {
+  state = state.toLowerCase();
+//                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
+  const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
+  if (noTaxStates.includes(state)) {
+    console.log("no state tax");
+    return 0;
+  }
 
-    try {
-        const fileContents = fs.readFileSync(inputFilePath, "utf8");
-        const data = yaml.load(fileContents) as any;
+  const inputFilePath = "src/tax/state_tax.yaml";
+  const adjusted = {
+    single: [] as {
+      min: number;
+      max: number | null;
+      base_tax: number;
+      rate: number;
+    }[],
+    married: [] as {
+      min: number;
+      max: number | null;
+      base_tax: number;
+      rate: number;
+    }[],
+  };
+  try {
+      const fileContents = fs.readFileSync(inputFilePath, "utf8");
+      const data = yaml.load(fileContents) as any;
 
-        const inflationRate = generateNormal(mean, std);
+      const inflation = generateNormal(mean,std);
 
-        if (!data.states) {
-            console.error("No 'states' key found in tax data");
-            return;
-        }
+      let state_data = data.states[state];  
+      if (!state_data) {
 
-        for (const state in data.states) {
-            const categories = data.states[state];
-            for (const category in categories) {
-                const brackets = categories[category];
-                for (const bracket of brackets) {
-                    bracket.min *= (1 + inflationRate);
-                    if (bracket.max !== null && bracket.max !== undefined) {
-                        bracket.max *= (1 + inflationRate);
-                    }
-                    bracket.base_tax *= (1 + inflationRate);
-                }
-            }
-        }
+        const fallbackFilePath = "src/tax/imported_state_tax.yaml"; 
+        const fallbackContents = fs.readFileSync(fallbackFilePath, "utf8");
+        const fallbackData = yaml.load(fallbackContents) as any;
 
-        const updatedYaml = yaml.dump(data, { flowLevel: -1 });
-        fs.writeFileSync(outputFilePath, updatedYaml, "utf8");
-        console.log(`Inflated state tax data (normal dist) saved to ${outputFilePath}`);
-    } catch (err) {
-        console.error("Error processing state tax YAML:", err);
-    }
+        state_data = fallbackData.states[state];
+      }
+     
+          
+      for (const single of state_data.single) {
+        adjusted.single.push({
+          min: parseFloat((single.min * (1 + inflation)).toFixed(2)),
+          max: single.max !== undefined ? parseFloat((single.max * (1 + inflation)).toFixed(2)) : null,
+          base_tax: parseFloat((single.base_tax * (1+inflation)).toFixed(2)),
+          rate: single.rate,
+        });
+      }
+
+      for (const married of state_data.married) {
+        adjusted.married.push({
+          min: parseFloat((married.min * (1 + inflation)).toFixed(2)),
+          max: married.max !== undefined ? parseFloat((married.max * (1 + inflation)).toFixed(2)) : null,
+          base_tax: parseFloat((married.base_tax * (1+inflation)).toFixed(2)),
+          rate: married.rate,
+        });
+      }
+      
+      return adjusted;
+  } catch (err) {
+      console.error("Error processing state tax YAML:", err);
+  }
 }
 
 
@@ -570,41 +583,68 @@ export function updateStateTaxForNormalDistributionInflation(mean: number, std: 
 //
 //
 //state tax uniform distribution
-export function updateStateTaxForUniformDistributionInflation(bot: number, top: number): void {
-    const inputFilePath = "src/tax/state_tax.yaml";
-    const outputFilePath = path.join(path.dirname(inputFilePath), "inflated_state_tax.yaml");
+export function updateStateTaxForUniformDistributionInflation(bot: number, top: number, state: string){
+  state = state.toLowerCase();
+//                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
+  const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
+  if (noTaxStates.includes(state)) {
+    console.log("no state tax");
+    return 0;
+  }
 
-    try {
-        const fileContents = fs.readFileSync(inputFilePath, "utf8");
-        const data = yaml.load(fileContents) as any;
+  const inputFilePath = "src/tax/state_tax.yaml";
+  const adjusted = {
+    single: [] as {
+      min: number;
+      max: number | null;
+      base_tax: number;
+      rate: number;
+    }[],
+    married: [] as {
+      min: number;
+      max: number | null;
+      base_tax: number;
+      rate: number;
+    }[],
+  };
+  try {
+      const fileContents = fs.readFileSync(inputFilePath, "utf8");
+      const data = yaml.load(fileContents) as any;
 
-        const inflationRate = generateUniform(bot, top);
+      const inflation = generateUniform(bot,top);
+      let state_data = data.states[state];  
+      if (!state_data) {
+        const fallbackFilePath = "src/tax/imported_state_tax.yaml"; 
+        const fallbackContents = fs.readFileSync(fallbackFilePath, "utf8");
+        const fallbackData = yaml.load(fallbackContents) as any;
 
-        if (!data.states) {
-            console.error("No 'states' key found in tax data");
-            return;
-        }
+        state_data = fallbackData.states[state];
+      }
+     
+          
+      for (const single of state_data.single) {
+        adjusted.single.push({
+          min: parseFloat((single.min * (1 + inflation)).toFixed(2)),
+          max: single.max !== undefined ? parseFloat((single.max * (1 + inflation)).toFixed(2)) : null,
+          base_tax: parseFloat((single.base_tax * (1+inflation)).toFixed(2)),
+          rate: single.rate,
+        });
+      }
 
-        for (const state in data.states) {
-            const categories = data.states[state];
-            for (const category in categories) {
-                const brackets = categories[category];
-                for (const bracket of brackets) {
-                    bracket.min *= (1 + inflationRate);
-                    if (bracket.max !== null && bracket.max !== undefined) {
-                        bracket.max *= (1 + inflationRate);
-                    }
-                    bracket.base_tax *= (1 + inflationRate);
-                }
-            }
-        }
+      for (const married of state_data.married) {
+        adjusted.married.push({
+          min: parseFloat((married.min * (1 + inflation)).toFixed(2)),
+          max: married.max !== undefined ? parseFloat((married.max * (1 + inflation)).toFixed(2)) : null,
+          base_tax: parseFloat((married.base_tax * (1+inflation)).toFixed(2)),
+          rate: married.rate,
+        });
+      }
+      
 
-        const updatedYaml = yaml.dump(data, { flowLevel: -1 });
-        fs.writeFileSync(outputFilePath, updatedYaml, "utf8");
-        console.log(`Inflated state tax data (uniform dist) saved to ${outputFilePath}`);
-    } catch (err) {
-        console.error("Error processing state tax YAML:", err);
-    }
+      return adjusted;
+  } catch (err) {
+      console.error("Error processing state tax YAML:", err);
+  }
 }
 
 
@@ -1189,7 +1229,8 @@ export function payNonDiscretionary(
     currentYearEarlyWithdrawal: number,
     standardDeductionBrackets: any, // CHANGE FROM any []
     federalTaxBracket: any [],
-    captialGainTaxBracket: any []
+    captialGainTaxBracket: any [],
+    stateTaxBracket: TaxData
 
 ): void {
 
@@ -1198,7 +1239,7 @@ export function payNonDiscretionary(
     // part a
     const total_taxable_income = total_income - (getStandardDeduction(married_status,standardDeductionBrackets) ?? 0);
     const federal_tax = getFederalTaxRate(total_taxable_income ?? 0,married_status,federalTaxBracket);
-    const state_tax = calculateStateTax(total_taxable_income ?? 0, married_status, state);
+    const state_tax = calculateStateTax(total_taxable_income ?? 0, married_status, stateTaxBracket);
 
     // part b
     const capital_gain_tax = previousYearGain > 0
