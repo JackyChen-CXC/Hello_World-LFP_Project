@@ -84,7 +84,7 @@ export const getAllInvestmentTypes = async (req: any, res: any) => {
 export const getInvestmentTypeById = async (req:any, res:any) => {
   try {
 	const { id } = req.params;
-	const investmentType = await InvestmentType.findById(id);
+	const investmentType = await InvestmentType.findOne({ name : id });
 	if (!investmentType) return res.status(404).json({ error: "Not found" });
 	return res.status(200).json(investmentType);
   } catch (err) {

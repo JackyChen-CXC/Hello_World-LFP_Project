@@ -214,9 +214,9 @@ export const runSimulation = async (req: any, res: any) => {
                 }
                 
                 // 6. Pay non-discretionary expenses and the previous year’s taxes (COMMENT - RETURN VALUES [FIX LATER])
-                payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
-                    previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
-                    standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
+                // payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
+                //     previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
+                //     standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
                 
                 writeLog(username, "Pay non-discretionary expenses and the previous year’s taxes ", "log");
 

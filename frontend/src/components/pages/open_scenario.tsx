@@ -104,12 +104,15 @@ const OpenScenario = () => {
         const results = await Promise.all(promises);
   
         // Map results by _id for quick lookup
+        // if (!scenario.investmentTypes.length) return;
+        // console.log(scenario.investmentTypes);
         const investmentMap: Record<string, InvestmentTypeData> = {};
-        results.forEach((item) => {
+        scenario.investmentTypes.forEach((item) => {
           investmentMap[item._id] = item;
         });
-  
         setInvestmentDetails(Object.values(investmentMap));
+
+        console.log(scenario.investmentTypes);
       } catch (error) {
         console.error("Failed to load investment types:", error);
       }
@@ -304,14 +307,15 @@ const OpenScenario = () => {
         <hr/>
         {/**-----------------------------------Investment Types------------------------------------------------------ */}
         <div className="normal-text" style={{ fontWeight: "bold" }}>Investment Types:</div>
-        {scenario.investments.length === 0 ? (
+        {scenario.investmentTypes.length === 0 ? (
           <div className="normal-text">No investment type data available.</div>
         ) : (
-          scenario.investments.map((meta, index) => {
-            const inv = investmentDetails.find(
-              (item) => item._id === meta.investmentType
-            );
-
+          scenario.investmentTypes.map((meta, index) => {
+            // const inv = investmentDetails.find(
+            //   (item) => item._id === meta.investmentType
+            // );
+            const inv = scenario.investmentTypes[index];
+            console.log(inv);
             return (
               <div key={meta.investmentType + index} style={{ marginBottom: "1rem" }}>
                 <div className="normal-text" style={{ fontWeight: "bold" }}>
