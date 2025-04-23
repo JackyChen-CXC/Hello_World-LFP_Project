@@ -65,13 +65,22 @@ const UserProfile = () => {
 
   // Upload file when user clicks the upload button
   const uploadUserFile = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !userId) {
+      alert("Missing file or user ID");
+      return;
+    }
+    
     const formData = new FormData();
-    formData.append("userFile", selectedFile);
+    // Important: append userId first
     formData.append("userId", userId);
+    formData.append("userFile", selectedFile);
+    
     try {
       const response = await fetch("http://localhost:5000/api/upload-user-file", {
         method: "POST",
+        headers: {
+          // Remove Content-Type header to let the browser set it with the boundary
+        },
         body: formData,
       });
       const result = await response.json();
@@ -99,6 +108,10 @@ const UserProfile = () => {
     try {
       const response = await fetch(`http://localhost:5000/api/delete-user-file/${id}`, {
         method: "DELETE",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
       });
       const result = await response.json();
       if (response.ok) {
