@@ -508,7 +508,7 @@ const CreatePlan = () => {
         // store the chosen \_id in investmentType
         investmentType: value,          
         isCreatingNewType: false,
-        // set the investmentTypeName to the existing type’s name if found
+        // set the investmentTypeName to the existing type's name if found
         investmentTypeName: chosenType ? chosenType.name : "", 
       };
     
@@ -595,10 +595,16 @@ const CreatePlan = () => {
     }
   };
   const uploadUserFile = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !userId) {
+      alert("Missing file or user ID");
+      return;
+    }
+    
     const formData = new FormData();
-    formData.append("userFile", selectedFile);
+    // Important: append userId first
     formData.append("userId", userId);
+    formData.append("userFile", selectedFile);
+    
     try {
       const response = await fetch("http://localhost:5000/api/upload-user-file", {
         method: "POST",
