@@ -4,6 +4,15 @@ import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
 import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, getLifeEventsByType, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
+// new function that uses console.log with typed rest parameters
+const createLog = (username: string, ...args: unknown[]): void => {
+    const logInfo = args.map(arg =>
+      typeof arg === 'string' ? arg : JSON.stringify(arg)
+    ).join(' ') + '\n';
+    writeLog(username, logInfo, "log");
+    console.log.apply(console, args); // Optionally keep original logging
+  };
+
 // Main Functions for making the simulation
 
 // Create Simulation object using Financial Plan object
@@ -54,9 +63,10 @@ export const createSimulation = async (req: any, res: any) => {
 
 // Oversee Simulation algorithm and configure SimulationResult
 export const runSimulation = async (req: any, res: any) => {
+    // Get financial plan, simulation & create simulationResult
+    const { state_tax_file, username, id, simulations } = req.body;
+    
     try {
-        // Get financial plan, simulation & create simulationResult
-        const { state_tax_file, username, id, simulations } = req.body;
         let plan = await FinancialPlan.findById(id);
         const simulation = await Simulation.findOne({ planId : id });
         const result = await SimulationResult.findById(simulation?.resultsId);
@@ -69,7 +79,7 @@ export const runSimulation = async (req: any, res: any) => {
         const totalPercentageTotalDiscretionary: number[][] = [];
         // Check if everything is there
         if (!plan || ! simulation || ! result) {
-            console.log('Items not found.');
+            createLog(username, 'Items not found.');
             return res.status(404).json({ error: 'Items not found.' });
         }
 
@@ -102,7 +112,7 @@ export const runSimulation = async (req: any, res: any) => {
             // get number of loops (start -> user's death)
             const lifeExpectancy = generateFromDistribution(plan.lifeExpectancy[0]);
             if(!lifeExpectancy){
-                console.log("User Life expectancy not found.");
+                createLog(username, "User Life expectancy not found.");
                 return res.status(200).json({
                     status: "ERROR",
                     error: true,
@@ -127,6 +137,7 @@ export const runSimulation = async (req: any, res: any) => {
             // Simulate (loop by year, starts in the current year)
             // get exact year using startingYear+year
             for(let year = 0; year <= num_years; year++){
+                createLog(username, "year", startingYear+year);
                 // 1. preliminary
                 // true if spouse exists and is alive
                 const spouseAlive = spouseYears !== undefined && spouseYears > year;
@@ -134,7 +145,7 @@ export const runSimulation = async (req: any, res: any) => {
                 // get this year's InflationAssumption
                 const inflationRate = generateFromDistribution(plan.inflationAssumption);
                 if(!inflationRate){
-                    console.log('inflationRate not found.');
+                    createLog(username, 'inflationRate not found.');
                     return res.status(404).json({ error: 'inflationRate not found.' });
                 }
                 // inflate tax brackets
@@ -170,17 +181,18 @@ export const runSimulation = async (req: any, res: any) => {
                         }
                 }
                 if(!federal_tax_bracket || !capital_tax_bracket || !standard_deduction_bracket || !state_tax_bracket){
-                    console.log("ERROR, Brackets did not update correctly.")
+                    createLog(username, "ERROR, Brackets did not update correctly.")
                     return res.status(404).json({ error: '"ERROR, Brackets did not update correctly.' });
                 }
                 // compute & store inflation-adjusted annual limits on retirement account contributions
                 if(plan.afterTaxContributionLimit){
                     plan.afterTaxContributionLimit *= (1 + inflationRate);
                 }
+                writeLog(username, "Finished updating Preliminary values", "log");
                 
                 // 2. run all income events
                 const cash = getCash(plan.investments);
-                console.log("b4 2, cash:", cash, "\nincome events:",getLifeEventsByType(plan.eventSeries, "income"));
+                createLog(username, "b4 2, cash:", cash, "\nincome events:",getLifeEventsByType(plan.eventSeries, "income"));
                 // retrieve previous year income and updates the incomeEvents after
                 let [incomeEvents, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, spouseAlive);
                 // Add the total income to the cash investment
@@ -188,53 +200,67 @@ export const runSimulation = async (req: any, res: any) => {
                 let curYearIncome = incomeEvents.reduce((sum: number, val: number) => sum + val, 0);
                 cash.value += curYearIncome;
 
-                console.log("after 2, cash:", cash, "\nsocial security", socialSecurity,"\nincome events:",getLifeEventsByType(plan.eventSeries, "income"));
-                writeLog(username, "ran all income events", "log");
+                createLog(username, "after 2, cash:", cash, "\nsocial security", socialSecurity,"\nincome events:",getLifeEventsByType(plan.eventSeries, "income"));
+                writeLog(username, "Ran all income events", "log");
 
                 // 3. perform RMD for last year if simulated age == 74
                 if(age+year >= 74){
+                    createLog(username, "b4 3, investments:", plan.investments);
                     const rmd = await calculateRMD(plan, age + year, curYearIncome);
                     if ( rmd == -1 ){
-                        console.log("Error in calculateRMD()");
+                        createLog(username, "Error in calculateRMD()");
                         return res.status(404).json({ error: 'Error in calculateRMD()' });
                     }
                     calculateRMD_Investment(plan, rmd);
-
-                    writeLog(username, "perform RMD for last year", "log");
+                    createLog(username, "after 3, investments:", plan.investments);
+                    writeLog(username, "performed RMD for last year", "log");
                 }
 
                 // 4. Update investments, expected annual return, reinvestment of income, then expenses.
-                calculateInvestmentValue(plan, curYearIncome);
-                
+                createLog(username, `b4 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}`);
+                // return [currentYearIncome, taxable_income, non_taxable_income];
+                const incomes = calculateInvestmentValue(plan, curYearIncome);
+                curYearIncome += incomes[0];
+                const taxable_income = incomes[1];
+                const non_taxable_income = incomes[2];
+                createLog(username, `after 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}, taxable_income ${taxable_income}, non_taxable_income: ${non_taxable_income}`);
+                writeLog(username, "Updated value of investments", "log");
+
                 // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
                 const status = spouseAlive ? "married" : "single";
                 if (plan.RothConversionOpt == true && startingYear+year >= plan.RothConversionStart && startingYear+year < plan.RothConversionEnd){
-                    performRothOptimizer(plan, previousYearIncome, previousYearSocialSecurityIncome, status, federal_tax_bracket, standard_deduction_bracket);
-                    writeLog(username, "Run the Roth conversion (RC) optimizer", "log");
+                    createLog(username, `b4 5, curYearIncome: ${curYearIncome}, socialSecurity: ${socialSecurity}`);
+                    curYearIncome = performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, standard_deduction_bracket);
+                    createLog(username, `after 5, curYearIncome: ${curYearIncome}`);
+                    writeLog(username, "Ran the Roth conversion (RC) optimizer", "log");
                 }
                 
                 // 6. Pay non-discretionary expenses and the previous year’s taxes (COMMENT - RETURN VALUES [FIX LATER])
-                // payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
-                //     previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
-                //     standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
-                
-                writeLog(username, "Pay non-discretionary expenses and the previous year’s taxes ", "log");
+                createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
+                const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
+                    previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
+                    standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
+                currentYearGain += vals[0];
+                currentYearEarlyWithdrawal += vals[1];
+                createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
+
+                writeLog(username, "Paid non-discretionary expenses and the previous year’s taxes ", "log");
 
                 // 7. Pay discretionary expenses in the order given by the spending strategy
                 payDiscretionary(plan, 0, currentYearGain, currentYearEarlyWithdrawal,  age + year);
                 
-                writeLog(username, "Pay discretionary expenses", "log");
+                writeLog(username, "Paid discretionary expenses", "log");
 
                 // 8. Run the invest events scheduled for the current year
                 runInvestEvents(plan, glidePathValue);
                 glidePathValue = !glidePathValue;
                 
-                writeLog(username, "Run the invest events", "log");
+                writeLog(username, "Ran the invest events", "log");
 
                 // 9. Run rebalance events scheduled for the current year
                 runRebalance(plan, currentYearGain, status, capital_tax_bracket);
                 
-                writeLog(username, "Run rebalance events", "log");
+                writeLog(username, "Ran rebalance events", "log");
                 
                 // writeLog(plan.userId,);
 
@@ -267,7 +293,7 @@ export const runSimulation = async (req: any, res: any) => {
 
     }
     catch (error) {
-        console.log(error);
+        createLog(username, error);
         res.status(200).json({
             status: "ERROR",
             error: true,

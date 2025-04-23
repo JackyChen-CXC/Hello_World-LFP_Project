@@ -112,9 +112,6 @@ export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: num
             }
         }
     }
-    console.log("updated income events");
-    console.log(incomeEvents);
-    console.log("output of part 2:", income, socialSecurity);
     return [income, socialSecurity];
 }
 
@@ -1268,7 +1265,7 @@ export function payNonDiscretionary(
     captialGainTaxBracket: any [],
     stateTaxBracket: TaxData
 
-): void {
+): number[] {
 
     const total_income = previousYearIncome + previousYearSocialSecurityIncome;
 
@@ -1345,6 +1342,7 @@ export function payNonDiscretionary(
             if (total_withdrawal_amount === 0) break;
         }
     }
+    return [currentYearGain, currentYearEarlyWithdrawal];
 }
 
 
