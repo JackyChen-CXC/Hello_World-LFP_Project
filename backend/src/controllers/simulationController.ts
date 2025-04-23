@@ -2,7 +2,7 @@ import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -56,7 +56,7 @@ export const createSimulation = async (req: any, res: any) => {
 export const runSimulation = async (req: any, res: any) => {
     try {
         // Get financial plan, simulation & create simulationResult
-        const { username, id, simulations } = req.body;
+        const { state_tax_file, username, id, simulations } = req.body;
         let plan = await FinancialPlan.findById(id);
         const simulation = await Simulation.findOne({ planId : id });
         const result = await SimulationResult.findById(simulation?.resultsId);
@@ -141,6 +141,9 @@ export const runSimulation = async (req: any, res: any) => {
                 let federal_tax_bracket;
                 let capital_tax_bracket;
                 let standard_deduction_bracket;
+                let state_tax_bracket;
+                // update state tax
+                state_tax_bracket = updateStateTaxForInflation(state_tax_file, inflationRate, plan.residenceState);
                 switch (plan.inflationAssumption.type) {
                     case "fixed":
                         if(plan.inflationAssumption.value){
@@ -166,7 +169,7 @@ export const runSimulation = async (req: any, res: any) => {
                             standard_deduction_bracket = await updateStandardDeductionUniformDistributionInflation(lower, upper);
                         }
                 }
-                if(!federal_tax_bracket || !capital_tax_bracket || !standard_deduction_bracket){
+                if(!federal_tax_bracket || !capital_tax_bracket || !standard_deduction_bracket || !state_tax_bracket){
                     console.log("ERROR, Brackets did not update correctly.")
                     return res.status(404).json({ error: '"ERROR, Brackets did not update correctly.' });
                 }
@@ -211,7 +214,7 @@ export const runSimulation = async (req: any, res: any) => {
                 // 6. Pay non-discretionary expenses and the previous year’s taxes (COMMENT - RETURN VALUES [FIX LATER])
                 payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
                     previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
-                    standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket);
+                    standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
                 
                 writeLog(username, "Pay non-discretionary expenses and the previous year’s taxes ", "log");
 

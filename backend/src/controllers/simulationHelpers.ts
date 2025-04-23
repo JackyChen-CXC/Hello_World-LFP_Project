@@ -442,16 +442,22 @@ function generateUniform(bot: number, top: number): number {
 //
 //
 //state tax for flat inflation
-export function updateStateTaxForInflation(inflation: number, state: string) {
+export function updateStateTaxForInflation(state_tax_file: string,inflation: number, state: string) {
     state = state.toLowerCase();
 //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
     const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
     if (noTaxStates.includes(state)) {
       console.log("no state tax");
-      return 0;
+      return undefined;
     }
-
-    const inputFilePath = "src/tax/state_tax.yaml";
+// if input is "ny", "nj" or "ct" use "src/tax/state_tax.yaml", otherwise use state_tax_file
+    let inputFilePath = "src/tax/";
+    if (state == "ny" || state == "nj" || state == "ct"){
+      inputFilePath+="state_tax.yaml";
+    }
+    else{
+      inputFilePath+=state_tax_file;
+    }
     const adjusted = {
       single: [] as {
         min: number;
