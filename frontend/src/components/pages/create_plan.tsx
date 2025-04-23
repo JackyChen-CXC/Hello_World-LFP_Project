@@ -1239,8 +1239,7 @@ const handleSubmit = async () => {
   }
 
   for (const [i, inv] of formData.investments.entries()) {
-    if (inv.investmentValue === "" || isNaN(parseFloat(inv.investmentValue)) ||
-    (parseFloat(inv.investmentValue)) <= 0) {
+    if (inv.investmentValue === "" || isNaN(parseFloat(inv.investmentValue)) ||(parseFloat(inv.investmentValue)) <= 0) {
       alert(`Investment ${i + 1}: Value must be a valid number.`);
       return;
     }
@@ -1259,8 +1258,7 @@ const handleSubmit = async () => {
   }
   if (
     formData.lifeExpectancyRadio === "no" &&
-    (isNaN(parseFloat(formData.lifeExpectancyMean)) ||
-     isNaN(parseFloat(formData.lifeExpectancyStd)))
+    (isNaN(parseFloat(formData.lifeExpectancyMean)) ||isNaN(parseFloat(formData.lifeExpectancyStd)))
   ) {
     alert("Life Expectancy (normal): mean and std must be valid numbers.");
     return;
@@ -1276,13 +1274,94 @@ const handleSubmit = async () => {
     }
     if (
       formData.spouseLifeExpectancyRadio === "no" &&
-      (isNaN(parseFloat(formData.spouseLifeExpectancyMean)) ||
-       isNaN(parseFloat(formData.spouseLifeExpectancyStd)))
+      (isNaN(parseFloat(formData.spouseLifeExpectancyMean)) ||isNaN(parseFloat(formData.spouseLifeExpectancyStd)))
     ) {
       alert("Spouse Life Expectancy (normal): mean and std must be valid numbers.");
       return;
     }
   }
+
+if (formData.inflationAssumptionType === "fixed" &&
+    isNaN(parseFloat(formData.inflationAssumptionFixed))) {
+  alert("Fixed inflation assumption must be a valid number.");
+  return;
+}
+if (formData.inflationAssumptionType === "normal" &&
+    (isNaN(parseFloat(formData.inflationAssumptionMean)) || isNaN(parseFloat(formData.inflationAssumptionStdev)))) {
+  alert("Normal inflation assumption: mean and std must be valid numbers.");
+  return;
+}
+if (formData.inflationAssumptionType === "uniform" &&
+    (isNaN(parseFloat(formData.inflationAssumptionLower)) || isNaN(parseFloat(formData.inflationAssumptionUpper)))) {
+  alert("Uniform inflation assumption: lower and upper bounds must be valid numbers.");
+  return;
+}
+
+for (const [i, ev] of formData.lifeEvents.entries()) {
+  if (!ev.eventName || ev.eventName.trim() === "") {
+    alert(`Life Event ${i + 1}: Event name is required.`);
+    return;
+  }
+  if (!ev.type) {
+    alert(`Life Event ${i + 1}: Event type is required.`);
+    return;
+  }
+  if (ev.startType === "") {
+    alert(`Life Event ${i + 1}: Start type is required.`);
+    return;
+  }
+
+  if (ev.startType === "startingYear" && isNaN(parseInt(ev.start))) {
+    alert(`Life Event ${i + 1}: Start year must be a valid number.`);
+    return;
+  }
+
+  if (ev.startType === "normal" &&
+    (isNaN(parseFloat(ev.startMean)) || isNaN(parseFloat(ev.startStdev)))) {
+    alert(`Life Event ${i + 1}: Normal start distribution must have valid mean and stdev.`);
+    return;
+  }
+
+  if (ev.startType === "uniform" &&
+    (isNaN(parseFloat(ev.startMin)) || isNaN(parseFloat(ev.startMax)))) {
+    alert(`Life Event ${i + 1}: Uniform start range must have valid min and max.`);
+    return;
+  }
+
+  if ((ev.startType === "startWith" || ev.startType === "startEndEvent") &&
+      !ev.startEvent && !ev.startEndEvent) {
+    alert(`Life Event ${i + 1}: You must select an event to sync with.`);
+    return;
+  }
+
+  if (!ev.durationType) {
+    alert(`Life Event ${i + 1}: Duration type is required.`);
+    return;
+  }
+
+  if (ev.durationType === "fixed" && isNaN(parseInt(ev.durationYear))) {
+    alert(`Life Event ${i + 1}: Duration (fixed) must be a valid number.`);
+    return;
+  }
+
+  if (ev.durationType === "normal" &&
+    (isNaN(parseFloat(ev.durationMean)) || isNaN(parseFloat(ev.durationStdev)))) {
+    alert(`Life Event ${i + 1}: Duration (normal) must have valid mean and stdev.`);
+    return;
+  }
+
+  if (ev.durationType === "uniform" &&
+    (isNaN(parseFloat(ev.durationLower)) || isNaN(parseFloat(ev.durationUpper)))) {
+    alert(`Life Event ${i + 1}: Duration (uniform) must have valid lower and upper bounds.`);
+    return;
+  }
+
+  if ((ev.type === "income" || ev.type === "expense") && isNaN(parseFloat(ev.initialAmount))) {
+    alert(`Life Event ${i + 1}: Initial amount must be a valid number.`);
+    return;
+  }
+}
+
   
   try {
     const transformedData = transformFormData(formData, rmdOrder, expenseOrder, spendingOrder, rothOrder);
@@ -2707,61 +2786,62 @@ const handleSubmit = async () => {
                 </div>
 
                 <div className="right-side">
-                  {formData.inflationAssumptionType === "fixed" && (
+                  {lifeEvent.inflationType === "fixed" && (
                     <>
                       <div className="normal-text">Fixed Inflation Rate (%)</div>
                       <input
                         className="input-boxes"
                         type="number"
-                        name="inflationAssumptionFixed"
-                        value={formData.inflationAssumptionFixed}
-                        onChange={handleChange}
+                        name="inflationFixed"
+                        value={lifeEvent.inflationFixed || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
 
-                  {formData.inflationAssumptionType === "normal" && (
+                  {lifeEvent.inflationType === "normal" && (
                     <>
-                      <div className="normal-text">Mean (%)</div>
+                      <div className="normal-text">Mean Inflation Rate (%)</div>
                       <input
                         className="input-boxes"
                         type="number"
-                        name="inflationAssumptionMean"
-                        value={formData.inflationAssumptionMean}
-                        onChange={handleChange}
+                        name="inflationMean"
+                        value={lifeEvent.inflationMean || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
                       />
                       <div className="normal-text">Standard Deviation (%)</div>
                       <input
                         className="input-boxes"
                         type="number"
-                        name="inflationAssumptionStdev"
-                        value={formData.inflationAssumptionStdev}
-                        onChange={handleChange}
+                        name="inflationStdev"
+                        value={lifeEvent.inflationStdev || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
 
-                  {formData.inflationAssumptionType === "uniform" && (
+                  {lifeEvent.inflationType === "uniform" && (
                     <>
                       <div className="normal-text">Lower Bound (%)</div>
                       <input
                         className="input-boxes"
                         type="number"
-                        name="inflationAssumptionLower"
-                        value={formData.inflationAssumptionLower}
-                        onChange={handleChange}
+                        name="inflationLower"
+                        value={lifeEvent.inflationLower || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
                       />
                       <div className="normal-text">Upper Bound (%)</div>
                       <input
                         className="input-boxes"
                         type="number"
-                        name="inflationAssumptionUpper"
-                        value={formData.inflationAssumptionUpper}
-                        onChange={handleChange}
+                        name="inflationUpper"
+                        value={lifeEvent.inflationUpper || ""}
+                        onChange={(e) => handleLifeEventChange(index, e)}
                       />
                     </>
                   )}
                 </div>
+
               </div>
 
 

@@ -129,44 +129,45 @@ const Scenario: FC = () => {
   const [file, setFile] = useState<File | null>(null); // State to hold the selected file
   const navigate = useNavigate();
 
+  const fetchScenarios = async () => {
+    const userId = localStorage.getItem("userId");
+  
+    if (!userId) {
+      console.warn("No userId found in localStorage");
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:5000/api/plans/all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      });
+  
+      if (!response.ok) throw new Error("Failed to fetch plans");
+  
+      const result = await response.json();
+      const data = result.data;
+      const formatted = data.map((item: any, index: number) => ({
+        id: item._id || index,
+        title: item.name || "Untitled Plan",
+        planType: item.maritalStatus === "couple" ? "Joint" : "Individual",
+        financialGoal: item.financialGoal?.toString() || "N/A",
+        dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
+      }));
+  
+      setScenarios(formatted);
+    } catch (error) {
+      console.error("Error loading scenarios:", error);
+    }
+  };
   useEffect(() => {
-    const fetchScenarios = async () => {
-      const userId = localStorage.getItem("userId");
-
-      if (!userId) {
-        console.warn("No userId found in localStorage");
-        return;
-      }
-
-      try {
-        const response = await fetch("http://localhost:5000/api/plans/all", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ userId }),
-        });
-
-        if (!response.ok) throw new Error("Failed to fetch plans");
-
-        const result = await response.json();
-        const data = result.data;
-        const formatted = data.map((item: any, index: number) => ({
-          id: item._id || index,
-          title: item.name || "Untitled Plan",
-          planType: item.maritalStatus === "couple" ? "Joint" : "Individual",
-          financialGoal: item.financialGoal?.toString() || "N/A",
-          dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
-        }));
-
-        setScenarios(formatted);
-      } catch (error) {
-        console.error("Error loading scenarios:", error);
-      }
-    };
-
     fetchScenarios();
   }, []);
+  
+  
 
   const handleDeleteScenario = async (id: string) => {
     try {
@@ -216,6 +217,7 @@ const Scenario: FC = () => {
           }
           const responseData = await response.json();
           console.log("Response from server:", responseData);
+          await fetchScenarios();
   
         } catch (error) {
           console.error("Error parsing YAML:", error);
