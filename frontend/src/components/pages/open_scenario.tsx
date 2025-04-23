@@ -168,10 +168,21 @@ const OpenScenario = () => {
     }
 
     try {
+      // state tax file
+      const resp = await fetch(`http://localhost:5000/api/user-files?userId=${id}`);
+      const resu = await resp.json();
+      let tax_file;
+      if (resp.ok) {
+        tax_file = resu.data[0];
+      } else {
+        console.error("Failed to fetch user files:", resu.error);
+      }
+
       const response = await fetch("http://localhost:5000/api/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          state_tax_file: tax_file,
           username: username,
           id: id,
           simulations: parseInt(simulationNum),

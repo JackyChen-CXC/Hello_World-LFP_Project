@@ -442,7 +442,7 @@ function generateUniform(bot: number, top: number): number {
 //
 //
 //state tax for flat inflation
-export function updateStateTaxForInflation(state_tax_file: string,inflation: number, state: string) {
+export function updateStateTaxForInflation(state_tax_file: string, inflation: number, state: string) {
     state = state.toLowerCase();
 //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
     const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
@@ -454,8 +454,12 @@ export function updateStateTaxForInflation(state_tax_file: string,inflation: num
     let inputFilePath = "src/tax/";
     if (state == "ny" || state == "nj" || state == "ct"){
       inputFilePath+="state_tax.yaml";
+      // TODO: add a return blank state tax bracket
     }
     else{
+      if(state_tax_file.length!=0){
+        inputFilePath+=state_tax_file;
+      }
       inputFilePath+=state_tax_file;
     }
     const adjusted = {
@@ -479,7 +483,7 @@ export function updateStateTaxForInflation(state_tax_file: string,inflation: num
         let state_data = data.states[state];      
         
         if (!state_data) {
-          const fallbackFilePath = "src/tax/imported_state_tax.yaml"; 
+          const fallbackFilePath = "src/tax/state_tax.yaml"; 
           const fallbackContents = fs.readFileSync(fallbackFilePath, "utf8");
           const fallbackData = yaml.load(fallbackContents) as any;
 
@@ -508,6 +512,8 @@ export function updateStateTaxForInflation(state_tax_file: string,inflation: num
         return adjusted;
     } catch (err) {
         console.error("Error processing state tax YAML:", err);
+        // TODO: add a return blank state tax bracket
+        
     }
 }
 
