@@ -78,7 +78,7 @@ const CreatePlan = () => {
         startMin: "",
         startLower: "",
         startUpper: "",
-        startEvent: "",
+        startWith: "",
         startEndEvent: "",
         durationType: "", // fixed, normal, uniform
         durationYear: "",
@@ -294,7 +294,7 @@ const CreatePlan = () => {
           out.startMax = String(ev.start.upper || "");
         } else if (ev.start.type === "startWith" || ev.start.type === "startEndEvent") {
           out.startType = ev.start.type;
-          out.startEvent = ev.start.eventSeries || "";
+          out.startWith = ev.start.eventSeries || "";
         }
       }
     
@@ -650,6 +650,7 @@ const CreatePlan = () => {
           type: "",
           eventName: "",
           eventDescription: "",
+          eventTypeName: "",
           startType: "",
           start: "",
           startMean: "",
@@ -658,7 +659,7 @@ const CreatePlan = () => {
           startMin: "",
           startLower: "",
           startUpper: "",
-          startEvent: "",
+          startWith: "",
           startEndEvent: "",
           duration: "",
           annualChangeAmtOrPct: "", // "amount" | "percent"
@@ -943,7 +944,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
             };
           }
           if (t === "startWith" || t === "startEndEvent") {
-            return { type: t, eventSeries: event.startEvent || "" };
+            return { type: t, eventSeries: event.startWith || "" };
           }
           return { type: "fixed", value: parseInt(event.start || "0") };
         })(),
@@ -1137,6 +1138,8 @@ function buildDistribution(distType, mean, stdev, fixedValue) {
 const [localInvestmentTypes, setLocalInvestmentTypes] = useState(() =>
   initializeFormData(location.state?.formData)._initialInvestmentTypes || []
 );
+const [localLifeEventTypes, setLocalLifeEventTypes] = useState([]);
+
 
 const combinedTypes = [
   ...existingInvestmentTypes,
@@ -2467,8 +2470,8 @@ const handleSubmit = async () => {
                     <input
                       type="radio"
                       name={`startType-${index}`}
-                      value="startEvent"
-                      checked={lifeEvent.startType === "startEvent"}
+                      value="startWith"
+                      checked={lifeEvent.startType === "startWith"}
                       onChange={(e) => handleLifeEventChange(index, e)}
                     />
                     Start at the Same Time as
@@ -2499,34 +2502,30 @@ const handleSubmit = async () => {
                       />
                     </>
                   )}
-                  {/* If "startEvent" */}
-                  {lifeEvent.startType === "startEvent" && (
-                    <>
-                      <div className="normal-text">Select Event to Match Start</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="startEvent"
-                        placeholder="Which event?"
-                        value={lifeEvent.startEvent}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
-                  {/* If "startEndEvent" */}
-                  {lifeEvent.startType === "startEndEvent" && (
-                    <>
-                      <div className="normal-text">Select Event to Match End</div>
-                      <input
-                        className="input-boxes"
-                        type="text"
-                        name="startEndEvent"
-                        placeholder="Which event?"
-                        value={lifeEvent.startEndEvent}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
+                  {(lifeEvent.startType === "startWith" || lifeEvent.startType === "startEndEvent") && (
+                  <div className="normal-text">
+                    Select Event to Sync Start Time With
+                    <select
+                      className="collapse-options"
+                      name={lifeEvent.startType === "startWith" ? "startWith" : "startEndEvent"}
+                      value={
+                        lifeEvent.startType === "startWith"
+                          ? lifeEvent.startWith
+                          : lifeEvent.startEndEvent
+                      }
+                      onChange={(e) => handleLifeEventChange(index, e)}
+                    >
+                      <option value="">-- Select Event --</option>
+                      {formData.lifeEvents
+                        .filter((_, i) => i !== index)
+                        .map((ev) => (
+                          <option key={ev.eventName} value={ev.eventName}>
+                            {ev.eventName || `Event ${ev.id}`}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
                   {/* If "normal" */}
                   {lifeEvent.startType === "normal" && (
                     <>
@@ -2689,16 +2688,22 @@ const handleSubmit = async () => {
               <div className="normal-text">How would you like to assume inflation? *(Required)*</div>
               <div className="split-container">
                 <div className="left-side">
-                  <RadioGroup
-                    name="inflationAssumptionType"
-                    selectedValue={formData.inflationAssumptionType}
-                    onChange={handleChange}
-                    options={[
-                      { label: "Fixed Percentage", value: "fixed" },
-                      { label: "Normal Distribution", value: "normal" },
-                      { label: "Uniform Distribution", value: "uniform" },
-                    ]}
-                  />
+                <RadioGroup
+                  name={`inflationType-${index}`}
+                  selectedValue={lifeEvent.inflationType || ""}
+                  onChange={(e) => handleLifeEventChange(index, {
+                    target: {
+                      name: "inflationType",
+                      value: e.target.value,
+                    },
+                  })}
+
+                  options={[
+                    { label: "Fixed Percentage", value: "fixed" },
+                    { label: "Normal Distribution", value: "normal" },
+                    { label: "Uniform Distribution", value: "uniform" },
+                  ]}
+                />
                 </div>
 
                 <div className="right-side">
