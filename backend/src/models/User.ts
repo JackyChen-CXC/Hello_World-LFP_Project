@@ -7,7 +7,7 @@ export interface IUser extends Document {
 	googleId?: string;
 	isAnonymous: boolean;
 	plans?: IFinancialPlan[];
-	
+	sharedPlans?: string[]; // Array of plan IDs shared with this user
 }
 
 const userSchema = new Schema<IUser>({
@@ -15,7 +15,8 @@ const userSchema = new Schema<IUser>({
 	email: { type: String, unique: true, sparse: true },
 	googleId: { type: String, unique: true, sparse: true },
 	isAnonymous: { type: Boolean, required: true, default: false },
-	plans: { type: [Schema.Types.ObjectId], ref: 'FinancialPlan', default: [] }
+	plans: { type: [Schema.Types.ObjectId], ref: 'FinancialPlan', default: [] },
+	sharedPlans: { type: [String], default: [] } // Store plan IDs as strings
 });
 
 const User = mongoose.model<IUser>('User', userSchema);

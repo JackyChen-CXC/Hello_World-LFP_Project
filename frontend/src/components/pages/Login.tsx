@@ -10,6 +10,7 @@ const Login = () => {
     console.log("Google login successful:", tokenResponse);
   
     try {
+      // Fetch user info from Google
       const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
         headers: {
           Authorization: `Bearer ${tokenResponse.access_token}`,
@@ -25,6 +26,35 @@ const Login = () => {
       localStorage.setItem("name", userInfo.name);         // Optional for display
       localStorage.setItem("given_name", userInfo.given_name);  
       localStorage.setItem("picture", userInfo.picture);  
+
+      // Also save to MongoDB
+      try {
+        const saveResponse = await fetch("http://localhost:5000/api/adduser", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            googleId: userInfo.sub,
+            email: userInfo.email,
+            name: userInfo.name,
+            given_name: userInfo.given_name,
+            picture: userInfo.picture
+          }),
+        });
+
+        const result = await saveResponse.json();
+        console.log("User saved to database:", result);
+        
+        
+        if (result.status === "SUCCESS" && result.data && result.data.userId) {
+          localStorage.setItem("mongoUserId", result.data.userId);
+        }
+      } catch (dbError) {
+       
+        console.error("Failed to save user to database:", dbError);
+      }
+
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to fetch Google user info:", error);

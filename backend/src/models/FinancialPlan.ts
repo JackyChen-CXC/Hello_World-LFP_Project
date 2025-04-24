@@ -145,7 +145,7 @@ export interface IFinancialPlan extends Document {
     residenceState: string;
     // Sharing Controls
     // for now 2 seperate arrays (not sure if can tuple)
-    sharedUsersId: IUser[];
+    sharedUsersId: string[];
     sharedUserPerms: string[];
     version: number;
 }
@@ -170,7 +170,7 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     RothConversionStrategy: { type: [String], default: [] },
     financialGoal: { type: Number, required: true },
     residenceState: { type: String, required: true },
-    sharedUsersId: { type: [Schema.Types.ObjectId], ref: "User", required: true, default: [] }, 
+    sharedUsersId: { type: [String], required: true, default: [] }, 
     sharedUserPerms: { type: [String], required: true, default: [] },
     version: { type: Number, required: true, default: 1 },
 });

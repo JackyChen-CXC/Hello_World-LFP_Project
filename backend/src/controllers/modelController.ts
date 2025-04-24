@@ -296,14 +296,23 @@ export const rmdWebscrape = async (req: any, res: any) => {
 export const updateFinancialPlan = async (req: any, res: any) => {
 	try {
 		const { id } = req.params;
-		const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, req.body, {
+		
+		// Get the current plan to preserve userId
+		const currentPlan = await FinancialPlan.findById(id);
+		if (!currentPlan) {
+			return res.status(404).json({ error: "Plan not found" });
+		}
+		
+		// Preserve the original userId
+		const updatedData = {
+			...req.body,
+			userId: currentPlan.userId // Ensure the original userId is preserved
+		};
+		
+		const updatedPlan = await FinancialPlan.findByIdAndUpdate(id, updatedData, {
 			new: true,
 			runValidators: true,
 		});
-
-		if (!updatedPlan) {
-			return res.status(404).json({ error: "Plan not found" });
-		}
 
 		return res.status(200).json({ message: "Plan updated", data: updatedPlan });
 	} catch (err) {
