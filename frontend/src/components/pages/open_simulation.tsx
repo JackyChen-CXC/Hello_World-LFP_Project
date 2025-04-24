@@ -871,13 +871,10 @@ const OpenSimulation = () => {
   const [scenarioMetric, setScenarioMetric] = useState("probability");
   const [scenarioView, setScenarioView] = useState("multiLine");
   const [selectedParamValue, setSelectedParamValue] = useState<string | number | null>(null);
-  // Track if we're viewing a specific parameter value's result
   const [viewingParamResult, setViewingParamResult] = useState(false);
 
-  // Load parameter values for the selected parameter
   const paramValues = mockScenarioExplorationData.scenarioParameters[scenarioParam]?.values || [];
   
-  // When parameter changes, reset the selected value to the first available value
   React.useEffect(() => {
     if (paramValues.length > 0) {
       setSelectedParamValue(paramValues[0]);
@@ -886,25 +883,19 @@ const OpenSimulation = () => {
     }
   }, [scenarioParam]);
 
-  // When changing the graph type, reset the parameter view unless going from scenario exploration
-  // with a specific parameter value selected
   React.useEffect(() => {
     if (graph !== 'scenarioExploration' && !viewingParamResult) {
       setSelectedParamValue(null);
     }
   }, [graph]);
 
-  // Get simulation data for a specific parameter value
   const getDataForParamValue = () => {
     if (!selectedParamValue || !viewingParamResult) return null;
     
-    // Get the index for the selected value
     const valueIndex = paramValues.indexOf(selectedParamValue);
     if (valueIndex === -1) return null;
     
-    // Return data for the selected parameter value
     if (scenarioParam === 'RothConversionOpt') {
-      // For boolean options we use the value directly
       return {
         probabilityOverTime: mockScenarioExplorationData.parameterResults.probabilityOverTime[scenarioParam][selectedParamValue].map(p => p * 100),
         medianInvestmentsOverTime: mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[scenarioParam][selectedParamValue],
@@ -912,7 +903,6 @@ const OpenSimulation = () => {
         discretionaryExpensePct: mockScenarioExplorationData.parameterResults.discretionaryExpensePctOverTime[scenarioParam][selectedParamValue].map(p => p * 100)
       };
     } else {
-      // For numeric options we fetch by index
       return {
         probabilityOverTime: mockScenarioExplorationData.parameterResults.probabilityOverTime[scenarioParam][selectedParamValue].map(p => p * 100),
         medianInvestmentsOverTime: mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[scenarioParam][selectedParamValue],
@@ -922,19 +912,16 @@ const OpenSimulation = () => {
     }
   };
 
-  // View results for selected parameter value
   const viewSelectedParameterResults = () => {
     setViewingParamResult(true);
     setGraph("line");
   };
 
-  // Reset to normal view without parameter selection
   const resetToNormalView = () => {
     setViewingParamResult(false);
     setSelectedParamValue(null);
   };
 
-  // Get scenario parameter description
   const getParamValueDescription = () => {
     if (!selectedParamValue) return "";
     
@@ -946,12 +933,88 @@ const OpenSimulation = () => {
   };
 
   const renderGraph = () => {
-    // If we're viewing a specific parameter value result, use that data
     const paramData = getDataForParamValue();
+    
+    if (graph === "combined") {
+      return (
+        <div>
+          <div style={{ marginBottom: "40px" }}>
+            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>Probability of Success</h3>
+            {viewingParamResult && paramData ? (
+              <LineChart width={700} height={350} data={paramData.probabilityOverTime.map((prob, index) => ({
+                year: 2025 + index,
+                success: prob
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year">
+                  <Label value="Year" offset={-5} position="insideBottom" />
+                </XAxis>
+                <YAxis domain={[0, 100]}>
+                  <Label
+                    value="Probability of Success (%)"
+                    angle={-90}
+                    position="insideLeft"
+                    style={{ textAnchor: "middle" }}
+                  />
+                </YAxis>
+                <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+                <Line 
+                  type="monotone" 
+                  dataKey="success" 
+                  stroke="#8884d8"
+                  strokeWidth={3}
+                  dot={{ fill: "#8884d8" }}
+                />
+              </LineChart>
+            ) : (
+              <LineChartGraph />
+            )}
+          </div>
+          
+          <div style={{ marginBottom: "40px" }}>
+            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>Investment Range</h3>
+            <ShadedLineChart
+              metric="investments"
+              financialGoal={mockSimulationResult.financialGoal}
+            />
+          </div>
+          
+          <div>
+            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>
+              {useMedianValues ? 'Median' : 'Average'} Values by Category
+            </h3>
+            {viewingParamResult && paramData ? (
+              <StackedBarChart useMedian={useMedianValues} customData={paramData} />
+            ) : (
+              <StackedBarChart useMedian={useMedianValues} />
+            )}
+            <div style={{ textAlign: "center", marginTop: "10px" }}>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="valueType"
+                  checked={useMedianValues}
+                  onChange={() => setUseMedianValues(true)}
+                />
+                Median Values
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="valueType"
+                  checked={!useMedianValues}
+                  onChange={() => setUseMedianValues(false)}
+                />
+                Average Values
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    }
     
     if (graph === "line") {
       if (viewingParamResult && paramData) {
-        // Create a modified version of LineChartGraph that uses parameter-specific data
         return (
           <LineChart width={700} height={400} data={paramData.probabilityOverTime.map((prob, index) => ({
             year: 2025 + index,
@@ -984,11 +1047,9 @@ const OpenSimulation = () => {
     }
     
     if (graph === "shaded") {
-      // Currently not showing parameter-specific data in shaded chart
-      // Could be extended in the future
       return (
-      <ShadedLineChart
-        metric={lineChartMetric}
+        <ShadedLineChart
+          metric={lineChartMetric}
           financialGoal={lineChartMetric === 'investments' ? mockSimulationResult.financialGoal : undefined}
         />
       );
@@ -996,7 +1057,6 @@ const OpenSimulation = () => {
     
     if (graph === "stacked") {
       if (viewingParamResult && paramData) {
-        // Create a modified version of StackedBarChart that uses parameter-specific data
         return <StackedBarChart useMedian={useMedianValues} customData={paramData} />;
       }
       return <StackedBarChart useMedian={useMedianValues} />;
@@ -1023,7 +1083,6 @@ const OpenSimulation = () => {
     }
   };
 
-  // Additional UI for showing selected parameter values
   const renderParamValueSelector = () => {
     if (!paramValues.length) return null;
     
@@ -1095,31 +1154,112 @@ const OpenSimulation = () => {
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
 
-        <div style={{ marginBottom: "20px" }}>
-          <button style={{ marginTop: "2%" }} onClick={() => {
-            setGraph("line");
-            setViewingParamResult(false);
-          }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center",
+          flexWrap: "wrap",
+          gap: "15px",
+          marginBottom: "30px" 
+        }}>
+          <button 
+            style={{ 
+              padding: "12px 20px", 
+              fontSize: "16px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: graph === "line" ? "#7EC995" : "#e9ecef",
+              color: graph === "line" ? "white" : "#495057",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              transition: "all 0.3s ease",
+              fontWeight: graph === "line" ? "bold" : "normal"
+            }} 
+            onClick={() => {
+              setGraph("line");
+              setViewingParamResult(false);
+            }}
+          >
             Line Chart
           </button>
-          <button style={{ marginTop: "2%" }} onClick={() => {
-            setGraph("shaded");
-            setViewingParamResult(false);
-          }}>
+          <button 
+            style={{ 
+              padding: "12px 20px", 
+              fontSize: "16px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: graph === "shaded" ? "#7EC995" : "#e9ecef",
+              color: graph === "shaded" ? "white" : "#495057",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              transition: "all 0.3s ease",
+              fontWeight: graph === "shaded" ? "bold" : "normal"
+            }}
+            onClick={() => {
+              setGraph("shaded");
+              setViewingParamResult(false);
+            }}
+          >
             Shaded Line Chart
           </button>
-          <button style={{ marginTop: "2%" }} onClick={() => {
-            setGraph("stacked");
-            setViewingParamResult(false);
-          }}>
+          <button 
+            style={{ 
+              padding: "12px 20px", 
+              fontSize: "16px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: graph === "stacked" ? "#7EC995" : "#e9ecef",
+              color: graph === "stacked" ? "white" : "#495057",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              transition: "all 0.3s ease",
+              fontWeight: graph === "stacked" ? "bold" : "normal"
+            }}
+            onClick={() => {
+              setGraph("stacked");
+              setViewingParamResult(false);
+            }}
+          >
             Stacked Bar Chart
           </button>
-          <button style={{ marginTop: "2%" }} onClick={() => setGraph("scenarioExploration")}>
+          <button 
+            style={{ 
+              padding: "12px 20px", 
+              fontSize: "16px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: graph === "combined" ? "#7EC995" : "#e9ecef",
+              color: graph === "combined" ? "white" : "#495057",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              transition: "all 0.3s ease",
+              fontWeight: graph === "combined" ? "bold" : "normal"
+            }}
+            onClick={() => {
+              setGraph("combined");
+              setViewingParamResult(false);
+            }}
+          >
+            Combined View
+          </button>
+          <button 
+            style={{ 
+              padding: "12px 20px", 
+              fontSize: "16px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: graph === "scenarioExploration" ? "#7EC995" : "#e9ecef",
+              color: graph === "scenarioExploration" ? "white" : "#495057",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              transition: "all 0.3s ease",
+              fontWeight: graph === "scenarioExploration" ? "bold" : "normal"
+            }}
+            onClick={() => setGraph("scenarioExploration")}
+          >
             Scenario Exploration
           </button>
         </div>
 
-        {/* Only show parameter value banner when actually viewing parameter results */}
         {viewingParamResult && selectedParamValue !== null && (
           <div style={{ marginBottom: "15px", padding: "10px", backgroundColor: "#f8f9fa", borderRadius: "5px" }}>
             <div className="normal-text" style={{ marginBottom: "5px" }}>
@@ -1141,7 +1281,7 @@ const OpenSimulation = () => {
           </div>
         )}
 
-        {graph === "stacked" && (
+        {graph === "stacked" && graph !== "combined" && (
           <div style={{ marginBottom: "20px" }}>
             <label style={{ marginRight: "20px" }}>
               <input
@@ -1351,15 +1491,13 @@ const OpenSimulation = () => {
               </div>
             )}
             
-            {/* Parameter value selector */}
             {renderParamValueSelector()}
             
-            {/* View Selected Parameter Button */}
             <div style={{ marginBottom: "20px" }}>
               <button 
                 style={{ 
                   padding: "5px 15px", 
-                  backgroundColor: "#4682b4", 
+                  backgroundColor: "#7EC995", 
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
