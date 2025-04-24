@@ -88,6 +88,193 @@ const mockSimulationResult = {
   ]
 };
 
+// Mock data for scenario exploration
+const mockScenarioExplorationData = {
+  // Parameter definitions
+  scenarioParameters: {
+    RothConversionOpt: {
+      type: "boolean",
+      description: "Enable Roth Conversion Optimization",
+      values: [false, true]
+    },
+    retirementStart: {
+      type: "numeric",
+      description: "Retirement Start Year",
+      min: 55,
+      max: 70,
+      step: 5,
+      values: [55, 60, 65, 70]
+    },
+    salaryInitialAmount: {
+      type: "numeric",
+      description: "Initial Salary Amount",
+      min: 50000,
+      max: 200000,
+      step: 50000,
+      values: [50000, 100000, 150000, 200000]
+    },
+    stockBondAllocation: {
+      type: "numeric",
+      description: "Stock Allocation (%)",
+      min: 20,
+      max: 80,
+      step: 20,
+      values: [20, 40, 60, 80]
+    }
+  },
+  
+  
+  parameterResults: {
+    
+    probabilityOverTime: {
+      // Retirement start year
+      retirementStart: {
+        55: [0.65, 0.68, 0.70, 0.72, 0.75],
+        60: [0.75, 0.78, 0.80, 0.82, 0.85],
+        65: [0.85, 0.86, 0.88, 0.89, 0.90],
+        70: [0.92, 0.93, 0.94, 0.95, 0.96]
+      },
+      // Initial salary amount
+      salaryInitialAmount: {
+        50000: [0.72, 0.74, 0.75, 0.76, 0.78],
+        100000: [0.80, 0.82, 0.83, 0.84, 0.85],
+        150000: [0.87, 0.88, 0.89, 0.90, 0.91],
+        200000: [0.92, 0.93, 0.94, 0.95, 0.96]
+      },
+      // Stock allocation percentage
+      stockBondAllocation: {
+        20: [0.82, 0.81, 0.80, 0.79, 0.78],
+        40: [0.84, 0.84, 0.85, 0.86, 0.87],
+        60: [0.86, 0.87, 0.88, 0.88, 0.89],
+        80: [0.84, 0.85, 0.86, 0.86, 0.87]
+      },
+      // Roth conversion optimization
+      RothConversionOpt: {
+        false: [0.82, 0.83, 0.84, 0.85, 0.86],
+        true: [0.86, 0.87, 0.88, 0.89, 0.90]
+      }
+    },
+    
+    // Median investments by year for each parameter value
+    medianInvestmentsOverTime: {
+      // Retirement start year
+      retirementStart: {
+        55: [80000, 90000, 100000, 110000, 120000],
+        60: [90000, 110000, 130000, 150000, 170000],
+        65: [100000, 130000, 160000, 190000, 220000],
+        70: [110000, 150000, 190000, 230000, 270000]
+      },
+      // Initial salary amount
+      salaryInitialAmount: {
+        50000: [70000, 80000, 90000, 100000, 110000],
+        100000: [100000, 120000, 140000, 160000, 180000],
+        150000: [130000, 160000, 190000, 220000, 250000],
+        200000: [160000, 200000, 240000, 280000, 320000]
+      },
+      // Stock allocation percentage
+      stockBondAllocation: {
+        20: [85000, 90000, 95000, 100000, 105000],
+        40: [90000, 105000, 120000, 135000, 150000],
+        60: [100000, 125000, 150000, 175000, 200000],
+        80: [110000, 145000, 180000, 215000, 250000]
+      },
+      // Roth conversion optimization
+      RothConversionOpt: {
+        false: [90000, 105000, 120000, 135000, 150000],
+        true: [100000, 125000, 150000, 175000, 200000]
+      }
+    },
+    
+    // Average investments by year for each parameter value
+    avgInvestmentsOverTime: {
+      // Retirement start year
+      retirementStart: {
+        55: [85000, 95000, 105000, 115000, 125000],
+        60: [95000, 115000, 135000, 155000, 175000],
+        65: [105000, 135000, 165000, 195000, 225000],
+        70: [115000, 155000, 195000, 235000, 275000]
+      },
+      // Initial salary amount
+      salaryInitialAmount: {
+        50000: [75000, 85000, 95000, 105000, 115000],
+        100000: [105000, 125000, 145000, 165000, 185000],
+        150000: [135000, 165000, 195000, 225000, 255000],
+        200000: [165000, 205000, 245000, 285000, 325000]
+      },
+      // Stock allocation percentage
+      stockBondAllocation: {
+        20: [90000, 95000, 100000, 105000, 110000],
+        40: [95000, 110000, 125000, 140000, 155000],
+        60: [105000, 130000, 155000, 180000, 205000],
+        80: [115000, 150000, 185000, 220000, 255000]
+      },
+      // Roth conversion optimization
+      RothConversionOpt: {
+        false: [95000, 110000, 125000, 140000, 155000],
+        true: [105000, 130000, 155000, 180000, 205000]
+      }
+    },
+    
+    // Discretionary expense percentage by year for each parameter value
+    discretionaryExpensePctOverTime: {
+      // Retirement start year
+      retirementStart: {
+        55: [0.70, 0.72, 0.75, 0.78, 0.80],
+        60: [0.80, 0.82, 0.85, 0.87, 0.90],
+        65: [0.90, 0.91, 0.92, 0.93, 0.95],
+        70: [0.95, 0.96, 0.97, 0.98, 0.99]
+      },
+      // Initial salary amount
+      salaryInitialAmount: {
+        50000: [0.60, 0.65, 0.70, 0.75, 0.80],
+        100000: [0.75, 0.80, 0.85, 0.90, 0.95],
+        150000: [0.85, 0.87, 0.90, 0.92, 0.95],
+        200000: [0.90, 0.92, 0.94, 0.96, 0.98]
+      },
+      // Stock allocation percentage
+      stockBondAllocation: {
+        20: [0.85, 0.86, 0.87, 0.88, 0.89],
+        40: [0.80, 0.83, 0.86, 0.89, 0.92],
+        60: [0.75, 0.80, 0.85, 0.90, 0.95],
+        80: [0.70, 0.78, 0.86, 0.94, 0.96]
+      },
+      // Roth conversion optimization
+      RothConversionOpt: {
+        false: [0.80, 0.82, 0.84, 0.86, 0.88],
+        true: [0.85, 0.87, 0.89, 0.91, 0.93]
+      }
+    }
+  },
+  
+  // Final values as function of parameter value
+  finalValues: {
+    retirementStart: {
+      probabilityOfSuccess: [0.75, 0.85, 0.90, 0.96],
+      medianInvestments: [120000, 170000, 220000, 270000],
+      avgInvestments: [125000, 175000, 225000, 275000],
+      discretionaryExpensePct: [0.80, 0.90, 0.95, 0.99]
+    },
+    salaryInitialAmount: {
+      probabilityOfSuccess: [0.78, 0.85, 0.91, 0.96],
+      medianInvestments: [110000, 180000, 250000, 320000],
+      avgInvestments: [115000, 185000, 255000, 325000],
+      discretionaryExpensePct: [0.80, 0.95, 0.95, 0.98]
+    },
+    stockBondAllocation: {
+      probabilityOfSuccess: [0.78, 0.87, 0.89, 0.87],
+      medianInvestments: [105000, 150000, 200000, 250000],
+      avgInvestments: [110000, 155000, 205000, 255000],
+      discretionaryExpensePct: [0.89, 0.92, 0.95, 0.96]
+    },
+    RothConversionOpt: {
+      probabilityOfSuccess: [0.86, 0.90],
+      medianInvestments: [150000, 200000],
+      avgInvestments: [155000, 205000],
+      discretionaryExpensePct: [0.88, 0.93]
+    }
+  }
+};
+
 // Sample data
 const probabilityData = mockSimulationResult.probabilityOverTime.map((prob, index) => ({
   year: 2025 + index,
@@ -231,10 +418,10 @@ const ShadedLineChart = ({
   // Build stacked "difference" fields for each band
   const selectedData = rawData.map((d) => {
     const baseData = {
-      ...d,
-      // p10..p90
-      band10_90_bottom: d.p10,
-      band10_90_top: d.p90 - d.p10,
+    ...d,
+    // p10..p90
+    band10_90_bottom: d.p10,
+    band10_90_top: d.p90 - d.p10,
 
       // p20..p80
       band20_80_bottom: d.p20,
@@ -244,9 +431,9 @@ const ShadedLineChart = ({
       band30_70_bottom: d.p30,
       band30_70_top: d.p70 - d.p30,
 
-      // p40..p60
-      band40_60_bottom: d.p40,
-      band40_60_top: d.p60 - d.p40,
+    // p40..p60
+    band40_60_bottom: d.p40,
+    band40_60_top: d.p60 - d.p40,
     };
 
     // Add display values for tooltip
@@ -260,7 +447,7 @@ const ShadedLineChart = ({
 
     return baseData;
   });
-
+ 
   return (
     <ComposedChart width={700} height={400} data={selectedData}>
       <CartesianGrid strokeDasharray="3 3" />
@@ -399,10 +586,36 @@ const ShadedLineChart = ({
   );
 };
 
-const StackedBarChart = ({ useMedian = true }) => {
+const StackedBarChart = ({ useMedian = true, customData = null }: { useMedian?: boolean, customData?: any }) => {
   // Transform the data based on selected metric (median or average)
   const getStackedData = () => {
     const years = [2025, 2026, 2027, 2028, 2029];
+    
+    // If custom data is provided (for a specific parameter value), use it
+    if (customData) {
+      const values = useMedian ? 
+        customData.medianInvestmentsOverTime :
+        customData.avgInvestmentsOverTime;
+
+      return years.map((year, index) => ({
+        year,
+        // Tax-Advantaged Accounts (40% of investment amounts)
+        "401k": values[index] * 0.25,
+        "RothIRA": values[index] * 0.15,
+        
+        // Taxable Accounts (60% of investment amounts)
+        "Brokerage": values[index] * 0.6,
+        
+        // Use the standard values for income and expenses as customData doesn't have detailed breakdown
+        "Job": mockSimulationResult.medianIncomeOverTime[index][0],
+        "Pension": mockSimulationResult.medianIncomeOverTime[index][1],
+        "Housing": mockSimulationResult.medianExpensesOverTime[index][0],
+        "Food": mockSimulationResult.medianExpensesOverTime[index][1],
+        "Other": 0  // For values below threshold
+      }));
+    }
+    
+    // Otherwise use the standard simulation results
     const values = useMedian ? 
       mockSimulationResult.medianInvestmentsOverTime :
       mockSimulationResult.avgInvestmentsOverTime;
@@ -429,20 +642,20 @@ const StackedBarChart = ({ useMedian = true }) => {
 
   return (
     <BarChart width={700} height={400} data={getStackedData()}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="year">
-        <Label value="Year" offset={-5} position="insideBottom" />
-      </XAxis>
-      <YAxis>
-        <Label
+    <CartesianGrid strokeDasharray="3 3" />
+    <XAxis dataKey="year">
+      <Label value="Year" offset={-5} position="insideBottom" />
+    </XAxis>
+    <YAxis>
+      <Label
           value={`${useMedian ? 'Median' : 'Average'} Values ($)`}
-          angle={-90}
-          position="insideLeft"
-          style={{ textAnchor: "middle" }}
-        />
-      </YAxis>
-      <Tooltip />
-      <Legend />
+        angle={-90}
+        position="insideLeft"
+        style={{ textAnchor: "middle" }}
+      />
+    </YAxis>
+    <Tooltip />
+    <Legend />
 
       {/* Tax-Advantaged Accounts */}
       <Bar dataKey="401k" stackId="a" fill="#4b3f72" name="401(k)" />      
@@ -459,7 +672,193 @@ const StackedBarChart = ({ useMedian = true }) => {
       <Bar dataKey="Housing" stackId="a" fill="#7f9c00" name="Housing" />
       <Bar dataKey="Food" stackId="a" fill="#3f9142" name="Food" />
       <Bar dataKey="Other" stackId="a" fill="#666666" name="Other" />
-    </BarChart>
+  </BarChart>
+);
+};
+
+// Multi-line chart for scenario exploration
+const ScenarioMultiLineChart = ({ 
+  paramName,
+  metric,
+  useMedian = true
+}: { 
+  paramName: string,
+  metric: string,
+  useMedian?: boolean 
+}) => {
+  const years = [2025, 2026, 2027, 2028, 2029];
+  const paramValues = mockScenarioExplorationData.scenarioParameters[paramName]?.values || [];
+  
+  // Get data for the selected metric and parameter
+  let dataByParamValue = {};
+  
+  if (metric === "probability") {
+    dataByParamValue = mockScenarioExplorationData.parameterResults.probabilityOverTime[paramName];
+  } else if (metric === "investments") {
+    dataByParamValue = useMedian 
+      ? mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[paramName]
+      : mockScenarioExplorationData.parameterResults.avgInvestmentsOverTime[paramName];
+  } else if (metric === "discretionaryPct") {
+    dataByParamValue = mockScenarioExplorationData.parameterResults.discretionaryExpensePctOverTime[paramName];
+  }
+  
+  // Transform data for recharts
+  const chartData = years.map((year, yearIndex) => {
+    const dataPoint: any = { year };
+    
+    // Add a data point for each parameter value
+    paramValues.forEach(paramValue => {
+      const values = dataByParamValue[paramValue];
+      if (values && values[yearIndex] !== undefined) {
+        // Format the value based on the metric
+        if (metric === "probability" || metric === "discretionaryPct") {
+          dataPoint[`param_${paramValue}`] = values[yearIndex] * 100; // Convert to percentage
+        } else {
+          dataPoint[`param_${paramValue}`] = values[yearIndex];
+        }
+      }
+    });
+    
+    return dataPoint;
+  });
+  
+  // Get appropriate label for Y-axis
+  const getYAxisLabel = () => {
+    if (metric === "probability") return "Probability of Success (%)";
+    if (metric === "investments") return `${useMedian ? 'Median' : 'Average'} Total Investments ($)`;
+    if (metric === "discretionaryPct") return "Discretionary Expenses (%)";
+    return "";
+  };
+  
+  // Define colors for lines
+  const colors = ["#8884d8", "#82ca9d", "#ff7300", "#0088FE", "#00C49F"];
+  
+  return (
+    <LineChart width={700} height={400} data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="year">
+        <Label value="Year" offset={-5} position="insideBottom" />
+      </XAxis>
+      <YAxis>
+        <Label
+          value={getYAxisLabel()}
+          angle={-90}
+          position="insideLeft"
+          style={{ textAnchor: "middle" }}
+        />
+      </YAxis>
+      <Tooltip formatter={(value, name) => {
+        const paramValue = name.replace('param_', '');
+        return [
+          typeof value === 'number' ? 
+            (metric === "probability" || metric === "discretionaryPct" ? 
+              `${value.toFixed(1)}%` : 
+              `$${value.toLocaleString()}`) 
+            : value,
+          `${mockScenarioExplorationData.scenarioParameters[paramName].description}: ${
+            paramName === 'RothConversionOpt' ? 
+              (paramValue === 'true' ? 'Enabled' : 'Disabled') : 
+              paramValue
+          }`
+        ];
+      }} />
+      <Legend formatter={(value) => {
+        const paramValue = value.replace('param_', '');
+        return `${paramName === 'RothConversionOpt' ? (paramValue === 'true' ? 'Enabled' : 'Disabled') : paramValue}`;
+      }} />
+      
+      {paramValues.map((value, index) => (
+        <Line
+          key={value}
+          type="monotone"
+          dataKey={`param_${value}`}
+          stroke={colors[index % colors.length]}
+          activeDot={{ r: 8 }}
+          name={`param_${value}`}
+        />
+      ))}
+    </LineChart>
+  );
+};
+
+// Parameter value chart - shows final values vs parameter values
+const ParameterValueChart = ({ 
+  paramName, 
+  metric,
+  useMedian = true 
+}: { 
+  paramName: string, 
+  metric: string,
+  useMedian?: boolean
+}) => {
+  if (!mockScenarioExplorationData.finalValues[paramName]) {
+    return <div>No data available for {paramName}</div>;
+  }
+  
+  let values;
+  if (metric === "probability") {
+    values = mockScenarioExplorationData.finalValues[paramName].probabilityOfSuccess;
+  } else if (metric === "investments") {
+    values = useMedian
+      ? mockScenarioExplorationData.finalValues[paramName].medianInvestments
+      : mockScenarioExplorationData.finalValues[paramName].avgInvestments;
+  } else if (metric === "discretionaryPct") {
+    values = mockScenarioExplorationData.finalValues[paramName].discretionaryExpensePct;
+  }
+  
+  const paramValues = mockScenarioExplorationData.scenarioParameters[paramName]?.values || [];
+  
+  // Transform data for recharts
+  const chartData = paramValues.map((paramValue, index) => {
+    let value = values[index];
+    
+    // Format values based on metric
+    if (metric === "probability" || metric === "discretionaryPct") {
+      value = value * 100; // Convert to percentage
+    }
+    
+    return {
+      paramValue: paramName === 'RothConversionOpt' 
+        ? (paramValue ? 'Enabled' : 'Disabled') 
+        : paramValue,
+      value
+    };
+  });
+  
+  // Get appropriate label for Y-axis
+  const getYAxisLabel = () => {
+    if (metric === "probability") return "Final Probability of Success (%)";
+    if (metric === "investments") return `Final ${useMedian ? 'Median' : 'Average'} Investments ($)`;
+    if (metric === "discretionaryPct") return "Final Discretionary Expenses (%)";
+    return "";
+  };
+  
+  // Get appropriate label for X-axis
+  const getXAxisLabel = () => {
+    return mockScenarioExplorationData.scenarioParameters[paramName]?.description || paramName;
+  };
+  
+  return (
+    <LineChart width={700} height={400} data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="paramValue">
+        <Label value={getXAxisLabel()} offset={-5} position="insideBottom" />
+      </XAxis>
+      <YAxis>
+        <Label
+          value={getYAxisLabel()}
+          angle={-90}
+          position="insideLeft"
+          style={{ textAnchor: "middle" }}
+        />
+      </YAxis>
+      <Tooltip formatter={(value) => {
+        return metric === "probability" || metric === "discretionaryPct" 
+          ? `${value.toFixed(1)}%` 
+          : `$${value.toLocaleString()}`;
+      }} />
+      <Line type="monotone" dataKey="value" stroke="#8884d8" activeDot={{ r: 8 }} />
+    </LineChart>
   );
 };
 
@@ -468,16 +867,185 @@ const OpenSimulation = () => {
   const [lineChartMetric, setLineChartMetric] = useState("investments");
   const [graph, setGraph] = useState("line");
   const [useMedianValues, setUseMedianValues] = useState(true);
+  const [scenarioParam, setScenarioParam] = useState("retirementStart");
+  const [scenarioMetric, setScenarioMetric] = useState("probability");
+  const [scenarioView, setScenarioView] = useState("multiLine");
+  const [selectedParamValue, setSelectedParamValue] = useState<string | number | null>(null);
+  // Track if we're viewing a specific parameter value's result
+  const [viewingParamResult, setViewingParamResult] = useState(false);
+
+  // Load parameter values for the selected parameter
+  const paramValues = mockScenarioExplorationData.scenarioParameters[scenarioParam]?.values || [];
+  
+  // When parameter changes, reset the selected value to the first available value
+  React.useEffect(() => {
+    if (paramValues.length > 0) {
+      setSelectedParamValue(paramValues[0]);
+    } else {
+      setSelectedParamValue(null);
+    }
+  }, [scenarioParam]);
+
+  // When changing the graph type, reset the parameter view unless going from scenario exploration
+  // with a specific parameter value selected
+  React.useEffect(() => {
+    if (graph !== 'scenarioExploration' && !viewingParamResult) {
+      setSelectedParamValue(null);
+    }
+  }, [graph]);
+
+  // Get simulation data for a specific parameter value
+  const getDataForParamValue = () => {
+    if (!selectedParamValue || !viewingParamResult) return null;
+    
+    // Get the index for the selected value
+    const valueIndex = paramValues.indexOf(selectedParamValue);
+    if (valueIndex === -1) return null;
+    
+    // Return data for the selected parameter value
+    if (scenarioParam === 'RothConversionOpt') {
+      // For boolean options we use the value directly
+      return {
+        probabilityOverTime: mockScenarioExplorationData.parameterResults.probabilityOverTime[scenarioParam][selectedParamValue].map(p => p * 100),
+        medianInvestmentsOverTime: mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[scenarioParam][selectedParamValue],
+        avgInvestmentsOverTime: mockScenarioExplorationData.parameterResults.avgInvestmentsOverTime[scenarioParam][selectedParamValue],
+        discretionaryExpensePct: mockScenarioExplorationData.parameterResults.discretionaryExpensePctOverTime[scenarioParam][selectedParamValue].map(p => p * 100)
+      };
+    } else {
+      // For numeric options we fetch by index
+      return {
+        probabilityOverTime: mockScenarioExplorationData.parameterResults.probabilityOverTime[scenarioParam][selectedParamValue].map(p => p * 100),
+        medianInvestmentsOverTime: mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[scenarioParam][selectedParamValue],
+        avgInvestmentsOverTime: mockScenarioExplorationData.parameterResults.avgInvestmentsOverTime[scenarioParam][selectedParamValue],
+        discretionaryExpensePct: mockScenarioExplorationData.parameterResults.discretionaryExpensePctOverTime[scenarioParam][selectedParamValue].map(p => p * 100)
+      };
+    }
+  };
+
+  // View results for selected parameter value
+  const viewSelectedParameterResults = () => {
+    setViewingParamResult(true);
+    setGraph("line");
+  };
+
+  // Reset to normal view without parameter selection
+  const resetToNormalView = () => {
+    setViewingParamResult(false);
+    setSelectedParamValue(null);
+  };
+
+  // Get scenario parameter description
+  const getParamValueDescription = () => {
+    if (!selectedParamValue) return "";
+    
+    if (scenarioParam === 'RothConversionOpt') {
+      return `${selectedParamValue ? 'Enabled' : 'Disabled'}`;
+    }
+    
+    return `${selectedParamValue}`;
+  };
 
   const renderGraph = () => {
-    if (graph === "line") return <LineChartGraph />;
-    if (graph === "shaded") return (
+    // If we're viewing a specific parameter value result, use that data
+    const paramData = getDataForParamValue();
+    
+    if (graph === "line") {
+      if (viewingParamResult && paramData) {
+        // Create a modified version of LineChartGraph that uses parameter-specific data
+        return (
+          <LineChart width={700} height={400} data={paramData.probabilityOverTime.map((prob, index) => ({
+            year: 2025 + index,
+            success: prob
+          }))}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="year">
+              <Label value="Year" offset={-5} position="insideBottom" />
+            </XAxis>
+            <YAxis domain={[0, 100]}>
+              <Label
+                value="Probability of Success (%)"
+                angle={-90}
+                position="insideLeft"
+                style={{ textAnchor: "middle" }}
+              />
+            </YAxis>
+            <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+            <Line 
+              type="monotone" 
+              dataKey="success" 
+              stroke="#8884d8"
+              strokeWidth={3}
+              dot={{ fill: "#8884d8" }}
+            />
+          </LineChart>
+        );
+      }
+      return <LineChartGraph />;
+    }
+    
+    if (graph === "shaded") {
+      // Currently not showing parameter-specific data in shaded chart
+      // Could be extended in the future
+      return (
       <ShadedLineChart
         metric={lineChartMetric}
-        financialGoal={lineChartMetric === 'investments' ? mockSimulationResult.financialGoal : undefined}
-      />
+          financialGoal={lineChartMetric === 'investments' ? mockSimulationResult.financialGoal : undefined}
+        />
+      );
+    }
+    
+    if (graph === "stacked") {
+      if (viewingParamResult && paramData) {
+        // Create a modified version of StackedBarChart that uses parameter-specific data
+        return <StackedBarChart useMedian={useMedianValues} customData={paramData} />;
+      }
+      return <StackedBarChart useMedian={useMedianValues} />;
+    }
+    
+    if (graph === "scenarioExploration") {
+      if (scenarioView === "multiLine") {
+        return (
+          <ScenarioMultiLineChart 
+            paramName={scenarioParam} 
+            metric={scenarioMetric} 
+            useMedian={useMedianValues}
+          />
+        );
+      } else if (scenarioView === "parameterValue") {
+        return (
+          <ParameterValueChart 
+            paramName={scenarioParam} 
+            metric={scenarioMetric} 
+            useMedian={useMedianValues}
+          />
+        );
+      }
+    }
+  };
+
+  // Additional UI for showing selected parameter values
+  const renderParamValueSelector = () => {
+    if (!paramValues.length) return null;
+    
+    return (
+      <div style={{ marginBottom: "20px" }}>
+        <div className="normal-text">Select Parameter Value:</div>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {paramValues.map((value) => (
+            <label key={value} style={{ marginRight: "15px", marginBottom: "10px" }}>
+              <input
+                type="radio"
+                name="paramValue"
+                value={value.toString()}
+                checked={selectedParamValue === value}
+                onChange={() => setSelectedParamValue(value)}
+              />
+              {scenarioParam === 'RothConversionOpt' ? (value ? 'Enabled' : 'Disabled') : value}
+            </label>
+          ))}
+        </div>
+      </div>
     );
-    if (graph === "stacked") return <StackedBarChart useMedian={useMedianValues} />;
   };
 
   const username = localStorage.getItem("name");
@@ -528,16 +1096,50 @@ const OpenSimulation = () => {
         <div className="subheading">Simulation Results and Graphs</div>
 
         <div style={{ marginBottom: "20px" }}>
-          <button style={{ marginTop: "2%" }} onClick={() => setGraph("line")}>
+          <button style={{ marginTop: "2%" }} onClick={() => {
+            setGraph("line");
+            setViewingParamResult(false);
+          }}>
             Line Chart
           </button>
-          <button style={{ marginTop: "2%" }} onClick={() => setGraph("shaded")}>
+          <button style={{ marginTop: "2%" }} onClick={() => {
+            setGraph("shaded");
+            setViewingParamResult(false);
+          }}>
             Shaded Line Chart
           </button>
-          <button style={{ marginTop: "2%" }} onClick={() => setGraph("stacked")}>
+          <button style={{ marginTop: "2%" }} onClick={() => {
+            setGraph("stacked");
+            setViewingParamResult(false);
+          }}>
             Stacked Bar Chart
           </button>
+          <button style={{ marginTop: "2%" }} onClick={() => setGraph("scenarioExploration")}>
+            Scenario Exploration
+          </button>
         </div>
+
+        {/* Only show parameter value banner when actually viewing parameter results */}
+        {viewingParamResult && selectedParamValue !== null && (
+          <div style={{ marginBottom: "15px", padding: "10px", backgroundColor: "#f8f9fa", borderRadius: "5px" }}>
+            <div className="normal-text" style={{ marginBottom: "5px" }}>
+              <span>Viewing results for: </span>
+              <strong>{mockScenarioExplorationData.scenarioParameters[scenarioParam].description}: {getParamValueDescription()}</strong>
+              <button 
+                style={{ marginLeft: "10px", padding: "2px 8px", fontSize: "12px" }}
+                onClick={() => setGraph("scenarioExploration")}
+              >
+                Edit
+              </button>
+              <button 
+                style={{ marginLeft: "10px", padding: "2px 8px", fontSize: "12px" }}
+                onClick={resetToNormalView}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
 
         {graph === "stacked" && (
           <div style={{ marginBottom: "20px" }}>
@@ -619,6 +1221,156 @@ const OpenSimulation = () => {
               />
               % of Total Discretionary Expenses
             </label>
+          </div>
+        )}
+
+        {graph === "scenarioExploration" && (
+          <div style={{ marginTop: "20px" }}>
+            <div style={{ marginBottom: "20px" }}>
+              <div className="normal-text">Select View Type:</div>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="scenarioView"
+                  value="multiLine"
+                  checked={scenarioView === "multiLine"}
+                  onChange={() => setScenarioView("multiLine")}
+                />
+                Multiple Lines Over Time
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="scenarioView"
+                  value="parameterValue"
+                  checked={scenarioView === "parameterValue"}
+                  onChange={() => setScenarioView("parameterValue")}
+                />
+                Parameter Value Chart
+              </label>
+            </div>
+            
+            <div style={{ marginBottom: "20px" }}>
+              <div className="normal-text">Select Scenario Parameter:</div>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="scenarioParam"
+                  value="retirementStart"
+                  checked={scenarioParam === "retirementStart"}
+                  onChange={() => setScenarioParam("retirementStart")}
+                />
+                Retirement Start Year
+              </label>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="scenarioParam"
+                  value="salaryInitialAmount"
+                  checked={scenarioParam === "salaryInitialAmount"}
+                  onChange={() => setScenarioParam("salaryInitialAmount")}
+                />
+                Initial Salary Amount
+              </label>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="scenarioParam"
+                  value="stockBondAllocation"
+                  checked={scenarioParam === "stockBondAllocation"}
+                  onChange={() => setScenarioParam("stockBondAllocation")}
+                />
+                Stock Allocation (%)
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="scenarioParam"
+                  value="RothConversionOpt"
+                  checked={scenarioParam === "RothConversionOpt"}
+                  onChange={() => setScenarioParam("RothConversionOpt")}
+                />
+                Roth Conversion Optimization
+              </label>
+            </div>
+            
+            <div style={{ marginBottom: "20px" }}>
+              <div className="normal-text">Select Metric to Display:</div>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="scenarioMetric"
+                  value="probability"
+                  checked={scenarioMetric === "probability"}
+                  onChange={() => setScenarioMetric("probability")}
+                />
+                Probability of Success
+              </label>
+              <label style={{ marginRight: "20px" }}>
+                <input
+                  type="radio"
+                  name="scenarioMetric"
+                  value="investments"
+                  checked={scenarioMetric === "investments"}
+                  onChange={() => setScenarioMetric("investments")}
+                />
+                Total Investments
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="scenarioMetric"
+                  value="discretionaryPct"
+                  checked={scenarioMetric === "discretionaryPct"}
+                  onChange={() => setScenarioMetric("discretionaryPct")}
+                />
+                % of Discretionary Expenses
+              </label>
+            </div>
+
+            {scenarioMetric === "investments" && (
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ marginRight: "20px" }}>
+                  <input
+                    type="radio"
+                    name="scenarioValueType"
+                    checked={useMedianValues}
+                    onChange={() => setUseMedianValues(true)}
+                  />
+                  Median Values
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="scenarioValueType"
+                    checked={!useMedianValues}
+                    onChange={() => setUseMedianValues(false)}
+                  />
+                  Average Values
+                </label>
+              </div>
+            )}
+            
+            {/* Parameter value selector */}
+            {renderParamValueSelector()}
+            
+            {/* View Selected Parameter Button */}
+            <div style={{ marginBottom: "20px" }}>
+              <button 
+                style={{ 
+                  padding: "5px 15px", 
+                  backgroundColor: "#4682b4", 
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer" 
+                }}
+                onClick={viewSelectedParameterResults}
+                disabled={selectedParamValue === null}
+              >
+                View Selected Parameter Value Results
+              </button>
+            </div>
           </div>
         )}
 
