@@ -10,7 +10,7 @@ const createLog = (username: string, ...args: unknown[]): void => {
       typeof arg === 'string' ? arg : JSON.stringify(arg)
     ).join(' ') + '\n';
     writeLog(username, logInfo, "log");
-    console.log.apply(console, args); // Optionally keep original logging
+    // console.log.apply(console, args); // Optionally keep original logging
   };
 
 // Main Functions for making the simulation
@@ -120,7 +120,8 @@ export const runSimulation = async (req: any, res: any) => {
                 });
             }
 
-            const num_years = lifeExpectancy - age;
+            const num_years = 1;
+            //const num_years = lifeExpectancy - age;
             // get specified spouse year of death if spouse exists
             let spouseExpectancy: number | undefined;
             let spouseYears: number | undefined;
@@ -226,41 +227,41 @@ export const runSimulation = async (req: any, res: any) => {
                 createLog(username, `after 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}, taxable_income ${taxable_income}, non_taxable_income: ${non_taxable_income}`);
                 writeLog(username, "Updated value of investments", "log");
 
-                // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
-                const status = spouseAlive ? "married" : "single";
-                if (plan.RothConversionOpt == true && startingYear+year >= plan.RothConversionStart && startingYear+year < plan.RothConversionEnd){
-                    createLog(username, `b4 5, curYearIncome: ${curYearIncome}, socialSecurity: ${socialSecurity}`);
-                    curYearIncome = performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, standard_deduction_bracket);
-                    createLog(username, `after 5, curYearIncome: ${curYearIncome}`);
-                    writeLog(username, "Ran the Roth conversion (RC) optimizer", "log");
-                }
+                // // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
+                // const status = spouseAlive ? "married" : "single";
+                // if (plan.RothConversionOpt == true && startingYear+year >= plan.RothConversionStart && startingYear+year < plan.RothConversionEnd){
+                //     createLog(username, `b4 5, curYearIncome: ${curYearIncome}, socialSecurity: ${socialSecurity}`);
+                //     curYearIncome = performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, standard_deduction_bracket);
+                //     createLog(username, `after 5, curYearIncome: ${curYearIncome}`);
+                //     writeLog(username, "Ran the Roth conversion (RC) optimizer", "log");
+                // }
                 
-                // 6. Pay non-discretionary expenses and the previous year’s taxes (COMMENT - RETURN VALUES [FIX LATER])
-                createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
-                const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
-                    previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
-                    standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
-                currentYearGain += vals[0];
-                currentYearEarlyWithdrawal += vals[1];
-                createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
+                // // 6. Pay non-discretionary expenses and the previous year’s taxes (COMMENT - RETURN VALUES [FIX LATER])
+                // createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
+                // const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
+                //     previousYearGain, previousYearEarlyWithdrawals, age + year, currentYearGain, currentYearEarlyWithdrawal,
+                //     standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
+                // currentYearGain += vals[0];
+                // currentYearEarlyWithdrawal += vals[1];
+                // createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
 
-                writeLog(username, "Paid non-discretionary expenses and the previous year’s taxes ", "log");
+                // writeLog(username, "Paid non-discretionary expenses and the previous year’s taxes ", "log");
 
-                // 7. Pay discretionary expenses in the order given by the spending strategy
-                payDiscretionary(plan, 0, currentYearGain, currentYearEarlyWithdrawal,  age + year);
+                // // 7. Pay discretionary expenses in the order given by the spending strategy
+                // payDiscretionary(plan, 0, currentYearGain, currentYearEarlyWithdrawal,  age + year);
                 
-                writeLog(username, "Paid discretionary expenses", "log");
+                // writeLog(username, "Paid discretionary expenses", "log");
 
-                // 8. Run the invest events scheduled for the current year
-                runInvestEvents(plan, glidePathValue);
-                glidePathValue = !glidePathValue;
+                // // 8. Run the invest events scheduled for the current year
+                // runInvestEvents(plan, glidePathValue);
+                // glidePathValue = !glidePathValue;
                 
-                writeLog(username, "Ran the invest events", "log");
+                // writeLog(username, "Ran the invest events", "log");
 
-                // 9. Run rebalance events scheduled for the current year
-                runRebalance(plan, currentYearGain, status, capital_tax_bracket);
+                // // 9. Run rebalance events scheduled for the current year
+                // runRebalance(plan, currentYearGain, status, capital_tax_bracket);
                 
-                writeLog(username, "Ran rebalance events", "log");
+                // writeLog(username, "Ran rebalance events", "log");
                 
                 // writeLog(plan.userId,);
 
