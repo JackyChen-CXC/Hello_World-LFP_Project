@@ -1,6 +1,6 @@
 import { IDistribution } from "../models/Distribution";
 import { IInvestment, ILifeEvent, IFinancialPlan } from "../models/FinancialPlan";
-import { IInvestmentType } from "../models/InvestmentType";
+import InvestmentType, { IInvestmentType } from "../models/InvestmentType";
 import mongoose from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
@@ -1120,7 +1120,6 @@ export function performRothOptimizer(
 //
 //Helper function for part 4 of simulation
 export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
-    console.log("Start Helper Function 4")
     const investments = financialplan.investments;
     const investmentTypesMap = new Map<string, IInvestmentType>(
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
@@ -1135,78 +1134,81 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         const investType = investmentTypesMap.get(investment.investmentType);
         if (!investType) continue;
 
-        const value = investment.value;
-        const dist = investType.incomeDistribution;
-        const distType = dist.type;
-        const distParam = Object.entries(dist)
-            .filter(([key]) => key !== "type")
-            .map(([_, v]) => v);
 
-        let incomeVal = 0;
-        if (distType === "fixed") {
-            incomeVal = distParam[0] ?? 0;
-        } else if (distType === "normal") {
-            incomeVal = generateNormal(distParam[0], distParam[1]);
-        } else if (distType === "uniform") {
-            incomeVal = generateUniform(distParam[0], distParam[1]);
+        //part 4 step A
+        const value = investment.value;
+        const income_dist = investType.incomeDistribution;
+        const income_distType = income_dist.type;
+        
+
+        let incomeVal;
+        if (income_distType === "fixed") {
+            incomeVal = income_dist.value
+        } else if (income_distType === "normal") {
+            incomeVal = generateNormal((income_dist.mean ?? 0), (income_dist.stdev ?? 0));
+        } else if (income_distType === "uniform") {
+            //might cause a bug here since it might not be mean or stdev for uniform but something else
+            incomeVal = generateUniform((income_dist.lower ?? 0), (income_dist.upper ?? 0));
         } else {
             continue;
         }
-        console.log("income value:", incomeVal);
+
+        incomeVal = incomeVal ?? 0;
         let income: number;
         if (investType.incomeAmtOrPct === "percent") {
-            console.log("income", incomeVal);
             income = value * incomeVal;
         } else {
-            console.log("income", incomeVal);
             income = incomeVal;
         }
 
+        //total income of the investment for the year
+        income = Number(income.toFixed(2));
+
+        
+        //part 4 step B
         if (investType.taxability) {
             if (investment.taxStatus === "non-retirement") {
                 currentYearIncome += income;
+                taxable_income += income;
             } else if (investment.taxStatus === "pre-tax") {
+                currentYearIncome += income;
                 taxable_income += income;
             } else if (investment.taxStatus === "after-tax") {
+                currentYearIncome += income;
                 non_taxable_income += income;
             }
         }
 
-        // Handle return distribution logic
+        // Handle return distribution logic part 4 D and C
         const returnDist = investType.returnDistribution;
         const returnType = returnDist.type;
-        const returnParams = Object.entries(returnDist)
-            .filter(([key]) => key !== "type")
-            .map(([_, v]) => v);
 
         if (returnType === "fixed") {
-            incomeVal = returnParams[0] ?? 0;
+            incomeVal = returnDist.value;
         } else if (returnType === "normal") {
-            incomeVal = generateNormal(returnParams[0], returnParams[1]);
+            incomeVal = generateNormal(returnDist.mean ?? 0, returnDist.stdev ?? 0);
         } else if (returnType === "uniform") {
-            incomeVal = generateUniform(returnParams[0], returnParams[1]);
+            incomeVal = generateUniform(returnDist.lower ?? 0, returnDist.upper ?? 0);
         } else {
             continue;
         }
 
-        console.log("part 4 starting income distribution should add value")
+        incomeVal = incomeVal ?? 0;
         if (investType.incomeAmtOrPct === "percent") {
             income = value * incomeVal;
+            income = Number(income.toFixed(2));
             investment.value += income;
-            console.log("distribution income: ",income);
         } else {
             income = incomeVal;
+            income = Number(income.toFixed(2));
             investment.value += income;
-            console.log("distribution income: ",income);
         }
 
-        // Calculate expense
-        console.log("should subtract expense here")
+        // Calculate expense part 4 part e
         const expenseRatio = investType.expenseRatio ?? 0;
         const expense = expenseRatio * ((value + investment.value) / 2);
         investment.value -= expense;
-        console.log("expense: ",expense)
-        investment.value = Math.round(investment.value * 100) / 100;
+        investment.value = Number(investment.value.toFixed(2));;
     }
 
     //console.log(investments);
@@ -1268,6 +1270,7 @@ export function payNonDiscretionary(
     previousYearGain: number,
     previousYearEarlyWithdrawals: number,
     age: number,
+    currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
     standardDeductionBrackets: any, // CHANGE FROM any []
@@ -1315,7 +1318,6 @@ export function payNonDiscretionary(
 
             const invest_value = investment.value || 0;
             let early_withdrawal_total = 0;
-
             if (invest_value <= total_withdrawal_amount) {
                 total_withdrawal_amount -= invest_value;
                 investment.value = 0;
@@ -1329,6 +1331,10 @@ export function payNonDiscretionary(
 
                 if ((investment.taxStatus === "pre-tax" || investment.taxStatus === "after-tax") && age < 59) {
                     early_withdrawal_total += invest_value;
+                }
+                
+                if (investment.taxStatus === "pre-tax") {
+                  currYearIncome += invest_value;
                 }
             } else {
                 investment.value -= total_withdrawal_amount;
@@ -1345,6 +1351,10 @@ export function payNonDiscretionary(
                     early_withdrawal_total += total_withdrawal_amount;
                 }
 
+                if (investment.taxStatus === "pre-tax") {
+                  currYearIncome += total_withdrawal_amount;
+                }
+
                 total_withdrawal_amount = 0;
             }
 
@@ -1352,7 +1362,7 @@ export function payNonDiscretionary(
             if (total_withdrawal_amount === 0) break;
         }
     }
-    return [currentYearGain, currentYearEarlyWithdrawal];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
 }
 
 
@@ -1369,10 +1379,11 @@ export function payNonDiscretionary(
 export function payDiscretionary(
     financialplan: IFinancialPlan,
     total_asset: number,
+    currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
     age: number
-  ): void {
+  ): number[] {
     const all_events = financialplan.eventSeries ?? [];
     const spending_strategy = financialplan.spendingStrategy ?? [];
   
@@ -1445,6 +1456,11 @@ export function payDiscretionary(
             if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
               early_withdrawal_total += invest_value;
             }
+
+            if (investment.taxStatus === "pre-tax") {
+              currYearIncome += invest_value;
+            }
+
           } else {
             // Sells part of investment
             investment.value -= total_event_cost;
@@ -1463,6 +1479,10 @@ export function payDiscretionary(
             if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
               early_withdrawal_total += total_event_cost;
             }
+
+            if (investment.taxStatus === "pre-tax") {
+              currYearIncome += total_event_cost;
+            }
   
             total_event_cost = 0;
           }
@@ -1475,6 +1495,7 @@ export function payDiscretionary(
         }
       }
     }
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
   }
 
 
