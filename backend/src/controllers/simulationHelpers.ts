@@ -1,6 +1,6 @@
 import { IDistribution } from "../models/Distribution";
 import { IInvestment, ILifeEvent, IFinancialPlan } from "../models/FinancialPlan";
-import { IInvestmentType } from "../models/InvestmentType";
+import InvestmentType, { IInvestmentType } from "../models/InvestmentType";
 import mongoose from "mongoose";
 import * as fs from "fs";
 import * as path from "path";
@@ -1120,12 +1120,12 @@ export function performRothOptimizer(
 //
 //Helper function for part 4 of simulation
 export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
-    console.log("Start Helper Function 4")
     const investments = financialplan.investments;
     const investmentTypesMap = new Map<string, IInvestmentType>(
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
     );
 
+  
     let taxable_income = 0;
     let non_taxable_income = 0;
 
@@ -1134,76 +1134,81 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         const investType = investmentTypesMap.get(investment.investmentType);
         if (!investType) continue;
 
-        const value = investment.value;
-        const dist = investType.incomeDistribution;
-        const distType = dist.type;
-        const distParam = Object.entries(dist)
-            .filter(([key]) => key !== "type")
-            .map(([_, v]) => v);
 
-        let incomeVal = 0;
-        if (distType === "fixed") {
-            incomeVal = distParam[0] ?? 0;
-        } else if (distType === "normal") {
-            incomeVal = generateNormal(distParam[0], distParam[1]);
-        } else if (distType === "uniform") {
-            incomeVal = generateUniform(distParam[0], distParam[1]);
+        //part 4 step A
+        const value = investment.value;
+        const income_dist = investType.incomeDistribution;
+        const income_distType = income_dist.type;
+        
+
+        let incomeVal;
+        if (income_distType === "fixed") {
+            incomeVal = income_dist.value
+        } else if (income_distType === "normal") {
+            incomeVal = generateNormal((income_dist.mean ?? 0), (income_dist.stdev ?? 0));
+        } else if (income_distType === "uniform") {
+            //might cause a bug here since it might not be mean or stdev for uniform but something else
+            incomeVal = generateUniform((income_dist.lower ?? 0), (income_dist.upper ?? 0));
         } else {
             continue;
         }
-        console.log("income value:", incomeVal);
+
+        incomeVal = incomeVal ?? 0;
         let income: number;
         if (investType.incomeAmtOrPct === "percent") {
-            console.log("income", incomeVal);
             income = value * incomeVal;
         } else {
-            console.log("income", incomeVal);
             income = incomeVal;
         }
 
+        //total income of the investment for the year
+        income = Number(income.toFixed(2));
+
+        
+        //part 4 step B
         if (investType.taxability) {
             if (investment.taxStatus === "non-retirement") {
                 currentYearIncome += income;
+                taxable_income += income;
             } else if (investment.taxStatus === "pre-tax") {
+                currentYearIncome += income;
                 taxable_income += income;
             } else if (investment.taxStatus === "after-tax") {
+                currentYearIncome += income;
                 non_taxable_income += income;
             }
         }
 
-        // Handle return distribution logic
+        // Handle return distribution logic part 4 D and C
         const returnDist = investType.returnDistribution;
         const returnType = returnDist.type;
-        const returnParams = Object.entries(returnDist)
-            .filter(([key]) => key !== "type")
-            .map(([_, v]) => v);
 
         if (returnType === "fixed") {
-            incomeVal = returnParams[0] ?? 0;
+            incomeVal = returnDist.value;
         } else if (returnType === "normal") {
-            incomeVal = generateNormal(returnParams[0], returnParams[1]);
+            incomeVal = generateNormal(returnDist.mean ?? 0, returnDist.stdev ?? 0);
         } else if (returnType === "uniform") {
-            incomeVal = generateUniform(returnParams[0], returnParams[1]);
+            incomeVal = generateUniform(returnDist.lower ?? 0, returnDist.upper ?? 0);
         } else {
             continue;
         }
 
+        incomeVal = incomeVal ?? 0;
         if (investType.incomeAmtOrPct === "percent") {
             income = value * incomeVal;
+            income = Number(income.toFixed(2));
             investment.value += income;
-            console.log("distribution income: ",income);
         } else {
             income = incomeVal;
+            income = Number(income.toFixed(2));
             investment.value += income;
-            console.log("distribution income: ",income);
         }
 
-        // Calculate expense
+        // Calculate expense part 4 part e
         const expenseRatio = investType.expenseRatio ?? 0;
         const expense = expenseRatio * ((value + investment.value) / 2);
         investment.value -= expense;
-        console.log("expense: ",expense)
-        investment.value = Math.round(investment.value * 100) / 100;
+        investment.value = Number(investment.value.toFixed(2));;
     }
 
     //console.log(investments);
