@@ -1270,6 +1270,7 @@ export function payNonDiscretionary(
     previousYearGain: number,
     previousYearEarlyWithdrawals: number,
     age: number,
+    currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
     standardDeductionBrackets: any, // CHANGE FROM any []
@@ -1317,7 +1318,6 @@ export function payNonDiscretionary(
 
             const invest_value = investment.value || 0;
             let early_withdrawal_total = 0;
-
             if (invest_value <= total_withdrawal_amount) {
                 total_withdrawal_amount -= invest_value;
                 investment.value = 0;
@@ -1331,6 +1331,10 @@ export function payNonDiscretionary(
 
                 if ((investment.taxStatus === "pre-tax" || investment.taxStatus === "after-tax") && age < 59) {
                     early_withdrawal_total += invest_value;
+                }
+                
+                if (investment.taxStatus === "pre-tax") {
+                  currYearIncome += invest_value;
                 }
             } else {
                 investment.value -= total_withdrawal_amount;
@@ -1347,6 +1351,10 @@ export function payNonDiscretionary(
                     early_withdrawal_total += total_withdrawal_amount;
                 }
 
+                if (investment.taxStatus === "pre-tax") {
+                  currYearIncome += total_withdrawal_amount;
+                }
+
                 total_withdrawal_amount = 0;
             }
 
@@ -1354,7 +1362,7 @@ export function payNonDiscretionary(
             if (total_withdrawal_amount === 0) break;
         }
     }
-    return [currentYearGain, currentYearEarlyWithdrawal];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
 }
 
 
@@ -1371,10 +1379,11 @@ export function payNonDiscretionary(
 export function payDiscretionary(
     financialplan: IFinancialPlan,
     total_asset: number,
+    currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
     age: number
-  ): void {
+  ): number[] {
     const all_events = financialplan.eventSeries ?? [];
     const spending_strategy = financialplan.spendingStrategy ?? [];
   
@@ -1447,6 +1456,11 @@ export function payDiscretionary(
             if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
               early_withdrawal_total += invest_value;
             }
+
+            if (investment.taxStatus === "pre-tax") {
+              currYearIncome += invest_value;
+            }
+
           } else {
             // Sells part of investment
             investment.value -= total_event_cost;
@@ -1465,6 +1479,10 @@ export function payDiscretionary(
             if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
               early_withdrawal_total += total_event_cost;
             }
+
+            if (investment.taxStatus === "pre-tax") {
+              currYearIncome += total_event_cost;
+            }
   
             total_event_cost = 0;
           }
@@ -1477,6 +1495,7 @@ export function payDiscretionary(
         }
       }
     }
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
   }
 
 
