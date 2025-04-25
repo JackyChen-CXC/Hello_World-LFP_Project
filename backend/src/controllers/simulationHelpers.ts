@@ -64,6 +64,11 @@ export function getCash(investments: IInvestment[]): IInvestment {
     return investments.filter(investment => investment.id === "cash")[0];
 }
 
+// Get total value of assets (investments)
+export function getTotalAssetValue(investments: IInvestment[]): number {
+  return investments.reduce((total, investment) => total + investment.value, 0);
+}
+
 // Helper for 2, Parameters: eventSeries, inflationRate, SpouseDeath
 // @Output = array of income amounts by order of income events
 export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): any[] {
@@ -1127,8 +1132,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
 
     for (const investment of investments) {
         // Assuming investment.investmentType is a string (the name of the investment type)
-        const investType = investmentTypesMap.get(investment.investmentType.name);
-        console.log("type: ",investType)
+        const investType = investmentTypesMap.get(investment.investmentType);
         if (!investType) continue;
 
         const value = investment.value;
@@ -1148,7 +1152,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         } else {
             continue;
         }
-
+        console.log("income value:", incomeVal);
         let income: number;
         if (investType.incomeAmtOrPct === "percent") {
             console.log("income", incomeVal);

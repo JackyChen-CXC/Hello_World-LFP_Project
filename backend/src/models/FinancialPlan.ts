@@ -7,7 +7,7 @@ import { IInvestmentType, investmentTypeSchema } from "./InvestmentType";
 
 // Investments individual to Financial Plan (Unlike InvestmentType)
 export interface IInvestment extends Document {
-    investmentType: IInvestmentType;
+    investmentType: string;
     value: number;
     taxStatus: "non-retirement" | "pre-tax" | "after-tax";
     id: string
