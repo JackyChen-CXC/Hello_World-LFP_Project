@@ -483,14 +483,14 @@ export function updateStateTaxForInflation(state_tax_file: string, inflation: nu
     if(state_tax_file.length!=0){
       inputFilePath+=state_tax_file;
     }
-    inputFilePath+=state_tax_file;
   }
   try {
       const fileContents = fs.readFileSync(inputFilePath, "utf8");
       const data = yaml.load(fileContents) as any;
 
       let state_data = data.states[state];      
-      
+
+
       if (!state_data) {
         const fallbackFilePath = "src/tax/state_tax.yaml"; 
         const fallbackContents = fs.readFileSync(fallbackFilePath, "utf8");
@@ -498,7 +498,6 @@ export function updateStateTaxForInflation(state_tax_file: string, inflation: nu
 
         state_data = fallbackData.states[state];
       }
-
 
       for (const single of state_data.single) {
         adjusted.single.push({
@@ -1187,15 +1186,18 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         if (investType.incomeAmtOrPct === "percent") {
             income = value * incomeVal;
             investment.value += income;
+            console.log("distribution income: ",income);
         } else {
             income = incomeVal;
             investment.value += income;
+            console.log("distribution income: ",income);
         }
 
         // Calculate expense
         const expenseRatio = investType.expenseRatio ?? 0;
         const expense = expenseRatio * ((value + investment.value) / 2);
         investment.value -= expense;
+        console.log("expense: ",expense)
         investment.value = Math.round(investment.value * 100) / 100;
     }
 

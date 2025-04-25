@@ -1,5 +1,5 @@
 states:
-  new_york:
+  ny:
     single: 
       - {min: 0, max: 8500, base_tax: 0, rate: 0.04}
       - {min: 8500, max: 11700, base_tax: 340, rate: 0.045}
@@ -21,7 +21,7 @@ states:
       - {min: 5000000, max: 25000000, base_tax: 418263, rate: 0.103}
       - {min: 25000000, max: null, base_tax: 2478263, rate: 0.109}
 
-  new_jersey:
+  nj:
     single: 
       - {min: 0, max: 20000, base_tax: 0, rate: 0.014}
       - {min: 20000, max: 35000, base_tax: 0, rate: 0.0175}
@@ -40,7 +40,7 @@ states:
       - {min: 500000, max: 1000000, base_tax: 0, rate: 0.0897}
       - {min: 1000000, max: null, base_tax: 0, rate: 0.1075}
 
-  connecticut:
+  ct:
     single:
       - {min: 0, max: 10000, base_tax: 0, rate: 0.02}
       - {min: 10001, max: 50000, base_tax: 0, rate: 0.045}
