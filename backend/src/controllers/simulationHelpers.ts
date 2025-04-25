@@ -1121,12 +1121,14 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
     );
 
+  
     let taxable_income = 0;
     let non_taxable_income = 0;
 
     for (const investment of investments) {
         // Assuming investment.investmentType is a string (the name of the investment type)
         const investType = investmentTypesMap.get(investment.investmentType.name);
+        console.log("type: ",investType)
         if (!investType) continue;
 
         const value = investment.value;
@@ -1183,6 +1185,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
             continue;
         }
 
+        console.log("part 4 starting income distribution should add value")
         if (investType.incomeAmtOrPct === "percent") {
             income = value * incomeVal;
             investment.value += income;
@@ -1194,6 +1197,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         }
 
         // Calculate expense
+        console.log("should subtract expense here")
         const expenseRatio = investType.expenseRatio ?? 0;
         const expense = expenseRatio * ((value + investment.value) / 2);
         investment.value -= expense;
