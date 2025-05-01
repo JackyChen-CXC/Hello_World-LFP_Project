@@ -26,21 +26,39 @@ export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOver
 
 // raw values -> median -> ranges
 // @input = [year][simulation][number || items]
+// @output = [year] range = [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
 // [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
 export function generateRange(total: any[][]){
-    const range: number[][] = []; // [min, max],
-    // check if need to convert from 3D to 2D array
-    const check = Array.isArray(total[0][0]);
-    if(check){
-        total = total.map(year =>
-            year.map(sim => sim.reduce((sum: number, val: number) => sum + val, 0)));
-    }
-    // calculate ranges for each year 
-    for (let year = 0; year < total.length; year++) {
-        const sorted = total[year].sort((a, b) => a - b);
-        
-    }
-    return range;
+  const range: number[][] = []; // [min, max],
+  // check if need to convert from 3D to 2D array
+  const check = Array.isArray(total[0][0]);
+  if(check){ // reduce simulation numbers into one simulation number
+      total = total.map(year =>
+          year.map(sim => sim.reduce((sum: number, val: number) => sum + val, 0)));
+  }
+  // calculate ranges for each year 
+  for (let year = 0; year < total.length; year++) {
+    const sorted = [...total[year]].sort((a, b) => a - b);
+
+    const getPercentile = (p: number) => {
+      const idx = (sorted.length - 1) * p;
+      const lower = Math.floor(idx);
+      const upper = Math.ceil(idx);
+      if (lower === upper) return sorted[lower];
+      return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
+    };
+    const r10_90 = [getPercentile(0.1), getPercentile(0.9)];
+    const r20_80 = [getPercentile(0.2), getPercentile(0.8)];
+    const r30_70 = [getPercentile(0.3), getPercentile(0.7)];
+    const r40_60 = [getPercentile(0.4), getPercentile(0.6)];
+    const median = getPercentile(0.5);
+    range.push([r10_90[0], r10_90[1]]);
+    range.push([r20_80[0], r20_80[1]]);
+    range.push([r30_70[0], r30_70[1]]);
+    range.push([r40_60[0], r40_60[1]]);
+    range.push([median, median]);
+  }
+  return range;
 }
 
 

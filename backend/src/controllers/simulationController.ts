@@ -2,7 +2,7 @@ import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // new function that uses console.log with typed rest parameters
 const createLog = (username: string, ...args: unknown[]): void => {
@@ -260,6 +260,7 @@ export const runSimulation = async (req: any, res: any) => {
                 const total_asset = getTotalAssetValue(plan.investments);
                 // currYearIncome, currentYearGain, currentYearEarlyWithdrawal
                 const vals2 = payDiscretionary(plan, total_asset, curYearIncome, currentYearGain, currentYearEarlyWithdrawal, age, year, startingYear);
+                // TODO - OUTPUT expense output didn't add taxes
                 curYearIncome = vals2[0];
                 currentYearGain = vals2[1];
                 currentYearEarlyWithdrawal = vals2[2];
@@ -318,9 +319,20 @@ export const runSimulation = async (req: any, res: any) => {
             hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
             hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
         }
-        // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean values)
-        // result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);
-        
+        // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean/median values)
+        // 4.1 probability of success
+        result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);
+        // 4.2 range
+        result.financialGoal = plan.financialGoal;
+        result.investmentOrder // TODO - incomplete
+        result.investmentsRange = generateRange(totalInvestmentsOverTime);
+        result.investmentOrder // TODO - incomplete
+        result.incomeRange = generateRange(totalYealyIncome);
+        result.expensesOrder // TODO - incomplete
+        result.expensesRange = generateRange(totalYearlyExpenses);
+        result.earlyWithdrawTaxRange = generateRange(totalEarlyWithdrawalTax);
+        result.percentageDiscretionaryRange = generateRange(totalPercentageTotalDiscretionary);
+        // 4.3 mean + median values TODO - incomplete
 
         // await result.save();
 

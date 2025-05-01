@@ -5,14 +5,12 @@ import { DistributionSchema, IDistribution } from "./Distribution";
 export interface ISimulationResult extends Document {
     _id: mongoose.Types.ObjectId;
     simulationId: string;
-    // Add all variables required for chart creation? (+ Scenario Exploration?)
-    inflationAssumption: IDistribution; // For displaying items in future dollars? (All charts can be shown in future dollars)
-    
+    // Add all variables required for chart creation? (+ Scenario Exploration?)    
     // 4.1 Line chart of probability of success over time
     probabilityOverTime: number[]; // % of simulations that reached the financial goal in year & previous years. Good range is 75-90% zone. Aiming for 85% is ideal.
 
     // 4.2 Shaded line chart of probability ranges for a selected quantity over time
-    // Median -> range [10%-90%, 20%-80%, 30%-70%, 40%-60%]
+    // Median -> range [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
     // range = [min val, max val]
     financialGoal: number;
     investmentsRange: number[][];
@@ -41,7 +39,6 @@ export interface ISimulationResult extends Document {
 
 const simulationResultSchema = new Schema<ISimulationResult>({
     simulationId: { type: String, required: true },
-    inflationAssumption: { type: DistributionSchema, required: true },
     financialGoal: { type: Number, required: true },
     probabilityOverTime: { type: [Number], required: true, default: [] },
     
