@@ -2,7 +2,7 @@ import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // new function that uses console.log with typed rest parameters
 const createLog = (username: string, ...args: unknown[]): void => {
@@ -263,6 +263,7 @@ export const runSimulation = async (req: any, res: any) => {
                 curYearIncome = vals2[0];
                 currentYearGain = vals2[1];
                 currentYearEarlyWithdrawal = vals2[2];
+                percentageTotalDiscretionary.push(vals2[3]);
                 writeLog(username, "Paid discretionary expenses", "log");
 
                 // // 8. Run the invest events scheduled for the current year
@@ -283,8 +284,16 @@ export const runSimulation = async (req: any, res: any) => {
                 
                 // investments
                 InvestmentsOverTime.push(getValueOfInvestments(plan.investments));
+                // incomes alr pushed
                 // total income
                 yearlyIncome.push(curYearIncome);
+                // expenses
+                ExpensesOverTime.push(getValueOfExpenses(plan.eventSeries, year, startingYear));
+                // total expenses
+                yearlyExpenses.push(curYearExpenses);
+                // early withdraw tax
+                earlyWithdrawalTax.push(currentYearEarlyWithdrawal);
+                // percentageTotalDiscretionary alr pushed
 
                 // Update between years, change curr to previous, curr to 0 
                 previousYearIncome = curYearIncome;
@@ -304,9 +313,10 @@ export const runSimulation = async (req: any, res: any) => {
             hashIntoTotal(totalInvestmentsOverTime, InvestmentsOverTime);
             hashIntoTotal(totalIncomeOverTime, IncomeOverTime);
             hashIntoTotal(totalYealyIncome, yearlyIncome);
-            // hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
-            // hashIntoTotal(totalEarlyWithdrawalTaxOverTime, earlyWithdrawalTaxOverTime);
-            // hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
+            hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
+            hashIntoTotal(totalYearlyExpenses, yearlyExpenses);
+            hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
+            hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
         }
         // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean values)
         // result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);

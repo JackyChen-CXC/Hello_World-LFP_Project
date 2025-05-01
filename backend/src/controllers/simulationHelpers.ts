@@ -60,14 +60,20 @@ export function getValueOfInvestments(investments: IInvestment[]): number[] {
   return investments.map(investment => investment.value);
 }
 
-export function getValueOfDistExpenses(eventSeries: ILifeEvent[]): number[] {
-  const events = getLifeEventsByType(eventSeries, "expense").filter(event => event.discretionary);
+export function getValueOfExpenses(eventSeries: ILifeEvent[], year: number, startingYear: number): number[] {
+  const events = getLifeEventsByType(eventSeries, "expense");
+  const output: number[] = [];
   if(events){
-    let vals = events.map(investment => investment.initialAmount);
-    let output = vals.filter(val => val!=undefined)
-    return output;
+    for(const event of events){
+      if (event && event.start.value && event.duration.value && 
+      startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){
+        output.push(event.initialAmount ?? 0);
+      } else{
+        output.push(0); // presevere order
+      }
+    }
   }
-  return [];
+  return output;
 }
 
 export function getLifeEventsByType(eventSeries: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
@@ -1424,6 +1430,7 @@ export function payDiscretionary(
       if (event && event.discretionary && event.start.value && event.duration.value && 
         startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){ // check
         events.push(event);
+        total_disc_cost += event.initialAmount ?? 0;
       }
     }
   
@@ -1531,7 +1538,7 @@ export function payDiscretionary(
         }
       }
     }
-    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_cost_paid/total_disc_cost];
   }
 
 
