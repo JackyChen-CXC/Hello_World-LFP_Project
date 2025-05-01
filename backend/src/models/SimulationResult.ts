@@ -16,7 +16,7 @@ export interface ISimulationResult extends Document {
     // range = [min val, max val]
     financialGoal: number;
     investmentsRange: number[][];
-    incomeRange: number[][];
+    incomeRange: number[][]; // total income
     expensesRange: number[][];
     earlyWithdrawTaxRange: number[][];
     // (the percentage is based on the amounts, not the number, 
@@ -25,16 +25,16 @@ export interface ISimulationResult extends Document {
 
     // 4.3 Stacked bar chart of median or average values of a selected quantity over time
     // Stores results as average/median desired quantity
-    // investmentOrder: any[];
+    investmentOrder: string[];
     avgInvestmentsOverTime: number[][];
     medianInvestmentsOverTime: number[][];
 
-    // incomeOrder: any[];
+    incomeOrder: string[];
     avgIncomeOverTime: number[][];
     medianIncomeOverTime: number[][];
     
     // includes taxes
-    // expensesOrder: any[];
+    expensesOrder: string[];
     avgExpensesOverTime: number[][];
     medianExpensesOverTime: number[][];
 }
@@ -44,6 +44,10 @@ const simulationResultSchema = new Schema<ISimulationResult>({
     inflationAssumption: { type: DistributionSchema, required: true },
     financialGoal: { type: Number, required: true },
     probabilityOverTime: { type: [Number], required: true, default: [] },
+    
+    investmentOrder: { type: [String], required: true, default: [] },
+    incomeOrder: { type: [String], required: true, default: [] },
+    expensesOrder: { type: [String], required: true, default: [] },
 
     investmentsRange: { type: [[[Number]]], required: true, default: [] },
     incomeRange: { type: [[[Number]]], required: true, default: [] },

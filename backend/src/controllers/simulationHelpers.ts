@@ -56,6 +56,20 @@ export function hashIntoTotal(total: any[][], sim: any[]) {
     }
 }
 
+export function getValueOfInvestments(investments: IInvestment[]): number[] {
+  return investments.map(investment => investment.value);
+}
+
+export function getValueOfDistExpenses(eventSeries: ILifeEvent[]): number[] {
+  const events = getLifeEventsByType(eventSeries, "expense").filter(event => event.discretionary);
+  if(events){
+    let vals = events.map(investment => investment.initialAmount);
+    let output = vals.filter(val => val!=undefined)
+    return output;
+  }
+  return [];
+}
+
 export function getLifeEventsByType(eventSeries: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
     return eventSeries.filter(event => event.type === type);
 }
@@ -1119,7 +1133,7 @@ export function performRothOptimizer(
 //
 //
 //Helper function for part 4 of simulation
-export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
+export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number, number] {
     const investments = financialplan.investments;
     const investmentTypesMap = new Map<string, IInvestmentType>(
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
@@ -1128,6 +1142,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
   
     let taxable_income = 0;
     let non_taxable_income = 0;
+    let total_expense = 0;
 
     for (const investment of investments) {
         // Assuming investment.investmentType is a string (the name of the investment type)
@@ -1207,6 +1222,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         // Calculate expense part 4 part e
         const expenseRatio = investType.expenseRatio ?? 0;
         const expense = expenseRatio * ((value + investment.value) / 2);
+        total_expense += expense;
         investment.value -= expense;
         investment.value = Number(investment.value.toFixed(2));;
     }
@@ -1214,7 +1230,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
     //console.log(investments);
     console.log(currentYearIncome, taxable_income, non_taxable_income);
 
-    return [currentYearIncome, taxable_income, non_taxable_income];
+    return [currentYearIncome, taxable_income, non_taxable_income, total_expense];
 }
 
 
@@ -1224,7 +1240,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
 //
 //
 //Helper function for part 6
-export function findTotalNonDiscretionary(financialplan: any): number {
+export function findTotalNonDiscretionary(financialplan: any, year: number, startingYear: number): number {
     const allEvents = financialplan.eventSeries || [];
     const expenseEvents = allEvents.filter((e: any) => e.type === "expense");
     const nonDiscretionaryEvents = expenseEvents.filter((e: any) => !e.discretionary);
@@ -1232,32 +1248,36 @@ export function findTotalNonDiscretionary(financialplan: any): number {
     let total = 0;
 
     for (const event of nonDiscretionaryEvents) {
-        const cost = event.initialAmount || 0;
-        const dist = event.changeDistribution || {};
-        const distType = dist.type;
-        const distParams: number[] = Object.entries(dist)
-            .filter(([key]) => key !== "type")
-            .map(([_, value]) => typeof value === 'number' ? value : Number(value));
-        // Calculate change value
-        let change = 0;
-        if (distType === "fixed") {
-            change = distParams[0] || 0;
-        } else if (distType === "normal") {
-            // Assuming a normal distribution function is defined
-            change = generateNormal(distParams[0], distParams[1]);
-        } else if (distType === "uniform") {
-            change = generateUniform(distParams[0], distParams[1]);
-        }
+      if (event && event.start.value && event.duration.value && 
+      startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){
+        continue; // skip if not active
+      }
+      const cost = event.initialAmount || 0;
+      const dist = event.changeDistribution || {};
+      const distType = dist.type;
+      const distParams: number[] = Object.entries(dist)
+          .filter(([key]) => key !== "type")
+          .map(([_, value]) => typeof value === 'number' ? value : Number(value));
+      // Calculate change value
+      let change = 0;
+      if (distType === "fixed") {
+          change = distParams[0] || 0;
+      } else if (distType === "normal") {
+          // Assuming a normal distribution function is defined
+          change = generateNormal(distParams[0], distParams[1]);
+      } else if (distType === "uniform") {
+          change = generateUniform(distParams[0], distParams[1]);
+      }
 
-        // Apply change
-        if (event.changeAmtOrPct === "percent") {
-            total += cost * (1 + change);
-        } else {
-            total += cost + change;
-        }
-    }
+      // Apply change
+      if (event.changeAmtOrPct === "percent") {
+          total += cost * (1 + change);
+      } else {
+          total += cost + change;
+      }
+  }
 
-    return total;
+  return total;
 }
 
 
@@ -1269,7 +1289,9 @@ export function payNonDiscretionary(
     state: string,
     previousYearGain: number,
     previousYearEarlyWithdrawals: number,
-    age: number,
+    currentAge: number,
+    year: number,
+    startingYear: number,
     currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
@@ -1279,7 +1301,7 @@ export function payNonDiscretionary(
     stateTaxBracket: TaxData
 
 ): number[] {
-
+    const age = currentAge + year;
     const total_income = previousYearIncome + previousYearSocialSecurityIncome;
 
     // part a
@@ -1298,7 +1320,7 @@ export function payNonDiscretionary(
         : 0;
 
     // part d
-    const total_non_discretionary = findTotalNonDiscretionary(financialplan);
+    const total_non_discretionary = findTotalNonDiscretionary(financialplan, year, startingYear);
     const total_payment_amount = total_non_discretionary + (federal_tax ?? 0) + (state_tax ?? 0) + (capital_gain_tax ?? 0) + early_withdrawal_tax;
 
     // part e
@@ -1362,7 +1384,7 @@ export function payNonDiscretionary(
             if (total_withdrawal_amount === 0) break;
         }
     }
-    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_payment_amount];
 }
 
 
@@ -1382,17 +1404,30 @@ export function payDiscretionary(
     currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
-    age: number
+    currentAge: number,
+    year: number,
+    startingYear: number,
   ): number[] {
     const all_events = financialplan.eventSeries ?? [];
     const spending_strategy = financialplan.spendingStrategy ?? [];
-  
+
+    // output 
+    let total_cost_paid = 0;
+    let total_disc_cost = 0;
+
     let total_event_cost = 0;
-  
-    for (const event_id of spending_strategy) {
+    const events = [];
+    const age = currentAge + year;
+
+    for (const event_id of spending_strategy) { // filter nondiscretionary and non-active
       const event = all_events.find(e => e.name === event_id);
-      if (!event) continue;
+      if (event && event.discretionary && event.start.value && event.duration.value && 
+        startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){ // check
+        events.push(event);
+      }
+    }
   
+    for (const event of events) {
       // Calculates the total cost of the event
       const cost = event.initialAmount ?? 0;
       const dist = event.changeDistribution;
@@ -1488,6 +1523,7 @@ export function payDiscretionary(
           }
   
           currentYearEarlyWithdrawal += total_event_cost;
+          total_cost_paid += total_event_cost;
   
           if (total_event_cost === 0) {
             break;
