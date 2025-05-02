@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Area,
   Bar,
@@ -861,658 +859,330 @@ const ParameterValueChart = ({
     </LineChart>
   );
 };
+interface ToggleButtonProps {
+  label: string;
+  value: string;
+  selected: boolean;
+  onToggle: (v: string, sel: boolean) => void;
+}
 
-const OpenSimulation = () => {
-  const { id } = useParams();
-  const [lineChartMetric, setLineChartMetric] = useState("investments");
-  const [graph, setGraph] = useState("line");
+const ToggleButton: React.FC<ToggleButtonProps> = ({
+  label,
+  value,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  value: string;
+  selected: boolean;
+  onToggle: (v: string, sel: boolean) => void;
+}) => (
+  <button
+    onClick={() => onToggle(value, selected)}
+    style={{
+      padding: "12px 20px",
+      fontSize: 16,
+      borderRadius: 8,
+      border: "none",
+      backgroundColor: selected ? "#7EC995" : "#e9ecef",
+      color: selected ? "white" : "#495057",
+      cursor: "pointer",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+      transition: "all 0.3s ease",
+      fontWeight: selected ? "bold" : "normal",
+      marginRight: 12,
+      marginBottom: 12,
+    }}
+  >
+    {label}
+  </button>
+);
+
+/* ---------------- MAIN COMPONENT ---------------- */
+const OpenSimulation: React.FC = () => {
+
+  const [selectedGraphs, setSelectedGraphs] = useState<string[]>(["line"]);
+  const [selectedShadedMetrics, setSelectedShadedMetrics] = useState<string[]>([
+    "investments",
+  ]);
   const [useMedianValues, setUseMedianValues] = useState(true);
+
+  const [showScenario, setShowScenario] = useState(false);
+  const [scenarioView, setScenarioView] = useState<"multiLine" | "parameterValue">(
+    "multiLine"
+  );
   const [scenarioParam, setScenarioParam] = useState("retirementStart");
   const [scenarioMetric, setScenarioMetric] = useState("probability");
-  const [scenarioView, setScenarioView] = useState("multiLine");
-  const [selectedParamValue, setSelectedParamValue] = useState<string | number | null>(null);
-  const [viewingParamResult, setViewingParamResult] = useState(false);
+  const [scenarioUseMedian, setScenarioUseMedian] = useState(true);
 
-  const paramValues = mockScenarioExplorationData.scenarioParameters[scenarioParam]?.values || [];
-  
-  React.useEffect(() => {
-    if (paramValues.length > 0) {
-      setSelectedParamValue(paramValues[0]);
-    } else {
-      setSelectedParamValue(null);
-    }
+  const paramValues =
+    mockScenarioExplorationData.scenarioParameters[scenarioParam]?.values || [];
+  const [selectedParamValue, setSelectedParamValue] = useState(paramValues[0]);
+
+  useEffect(() => {
+    if (paramValues.length) setSelectedParamValue(paramValues[0]);
   }, [scenarioParam]);
 
-  React.useEffect(() => {
-    if (graph !== 'scenarioExploration' && !viewingParamResult) {
-      setSelectedParamValue(null);
-    }
-  }, [graph]);
-
-  const getDataForParamValue = () => {
-    if (!selectedParamValue || !viewingParamResult) return null;
-    
-    const valueIndex = paramValues.indexOf(selectedParamValue);
-    if (valueIndex === -1) return null;
-    
-    if (scenarioParam === 'RothConversionOpt') {
-      return {
-        probabilityOverTime: mockScenarioExplorationData.parameterResults.probabilityOverTime[scenarioParam][selectedParamValue].map(p => p * 100),
-        medianInvestmentsOverTime: mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[scenarioParam][selectedParamValue],
-        avgInvestmentsOverTime: mockScenarioExplorationData.parameterResults.avgInvestmentsOverTime[scenarioParam][selectedParamValue],
-        discretionaryExpensePct: mockScenarioExplorationData.parameterResults.discretionaryExpensePctOverTime[scenarioParam][selectedParamValue].map(p => p * 100)
-      };
-    } else {
-      return {
-        probabilityOverTime: mockScenarioExplorationData.parameterResults.probabilityOverTime[scenarioParam][selectedParamValue].map(p => p * 100),
-        medianInvestmentsOverTime: mockScenarioExplorationData.parameterResults.medianInvestmentsOverTime[scenarioParam][selectedParamValue],
-        avgInvestmentsOverTime: mockScenarioExplorationData.parameterResults.avgInvestmentsOverTime[scenarioParam][selectedParamValue],
-        discretionaryExpensePct: mockScenarioExplorationData.parameterResults.discretionaryExpensePctOverTime[scenarioParam][selectedParamValue].map(p => p * 100)
-      };
-    }
+  /* ---------- labels ---------- */
+  const metricLabels: Record<string, string> = {
+    investments: "Total Investments",
+    income: "Total Income",
+    expenses: "Total Expenses",
+    earlyTax: "Early Withdrawal Tax",
+    discretionaryPct: "% of Discretionary Expenses",
   };
 
-  const viewSelectedParameterResults = () => {
-    setViewingParamResult(true);
-    setGraph("line");
-  };
-
-  const resetToNormalView = () => {
-    setViewingParamResult(false);
-    setSelectedParamValue(null);
-  };
-
-  const getParamValueDescription = () => {
-    if (!selectedParamValue) return "";
-    
-    if (scenarioParam === 'RothConversionOpt') {
-      return `${selectedParamValue ? 'Enabled' : 'Disabled'}`;
-    }
-    
-    return `${selectedParamValue}`;
-  };
-
-  const renderGraph = () => {
-    const paramData = getDataForParamValue();
-    
-    if (graph === "combined") {
-      return (
-        <div>
-          <div style={{ marginBottom: "40px" }}>
-            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>Probability of Success</h3>
-            {viewingParamResult && paramData ? (
-              <LineChart width={700} height={350} data={paramData.probabilityOverTime.map((prob, index) => ({
-                year: 2025 + index,
-                success: prob
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year">
-                  <Label value="Year" offset={-5} position="insideBottom" />
-                </XAxis>
-                <YAxis domain={[0, 100]}>
-                  <Label
-                    value="Probability of Success (%)"
-                    angle={-90}
-                    position="insideLeft"
-                    style={{ textAnchor: "middle" }}
-                  />
-                </YAxis>
-                <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
-                <Line 
-                  type="monotone" 
-                  dataKey="success" 
-                  stroke="#8884d8"
-                  strokeWidth={3}
-                  dot={{ fill: "#8884d8" }}
-                />
-              </LineChart>
-            ) : (
-              <LineChartGraph />
-            )}
-          </div>
-          
-          <div style={{ marginBottom: "40px" }}>
-            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>Investment Range</h3>
-            <ShadedLineChart
-              metric="investments"
-              financialGoal={mockSimulationResult.financialGoal}
-            />
-          </div>
-          
-          <div>
-            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>
-              {useMedianValues ? 'Median' : 'Average'} Values by Category
-            </h3>
-            {viewingParamResult && paramData ? (
-              <StackedBarChart useMedian={useMedianValues} customData={paramData} />
-            ) : (
-              <StackedBarChart useMedian={useMedianValues} />
-            )}
-            <div style={{ textAlign: "center", marginTop: "10px" }}>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="valueType"
-                  checked={useMedianValues}
-                  onChange={() => setUseMedianValues(true)}
-                />
-                Median Values
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="valueType"
-                  checked={!useMedianValues}
-                  onChange={() => setUseMedianValues(false)}
-                />
-                Average Values
-              </label>
-            </div>
-          </div>
+  const renderNormalGraphs = () => (
+    <>
+      {selectedGraphs.includes("line") && (
+        <div style={{ marginBottom: 40 }}>
+          <LineChartGraph />
         </div>
-      );
-    }
-    
-    if (graph === "line") {
-      if (viewingParamResult && paramData) {
-        return (
-          <LineChart width={700} height={400} data={paramData.probabilityOverTime.map((prob, index) => ({
-            year: 2025 + index,
-            success: prob
-          }))}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="year">
-              <Label value="Year" offset={-5} position="insideBottom" />
-            </XAxis>
-            <YAxis domain={[0, 100]}>
-              <Label
-                value="Probability of Success (%)"
-                angle={-90}
-                position="insideLeft"
-                style={{ textAnchor: "middle" }}
-              />
-            </YAxis>
-            <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
-            <Line 
-              type="monotone" 
-              dataKey="success" 
-              stroke="#8884d8"
-              strokeWidth={3}
-              dot={{ fill: "#8884d8" }}
-            />
-          </LineChart>
-        );
-      }
-      return <LineChartGraph />;
-    }
-    
-    if (graph === "shaded") {
-      return (
-        <ShadedLineChart
-          metric={lineChartMetric}
-          financialGoal={lineChartMetric === 'investments' ? mockSimulationResult.financialGoal : undefined}
-        />
-      );
-    }
-    
-    if (graph === "stacked") {
-      if (viewingParamResult && paramData) {
-        return <StackedBarChart useMedian={useMedianValues} customData={paramData} />;
-      }
-      return <StackedBarChart useMedian={useMedianValues} />;
-    }
-    
-    if (graph === "scenarioExploration") {
-      if (scenarioView === "multiLine") {
-        return (
-          <ScenarioMultiLineChart 
-            paramName={scenarioParam} 
-            metric={scenarioMetric} 
-            useMedian={useMedianValues}
-          />
-        );
-      } else if (scenarioView === "parameterValue") {
-        return (
-          <ParameterValueChart 
-            paramName={scenarioParam} 
-            metric={scenarioMetric} 
-            useMedian={useMedianValues}
-          />
-        );
-      }
-    }
-  };
+      )}
 
-  const renderParamValueSelector = () => {
-    if (!paramValues.length) return null;
-    
-    return (
-      <div style={{ marginBottom: "20px" }}>
-        <div className="normal-text">Select Parameter Value:</div>
-        <div style={{ display: "flex", flexWrap: "wrap" }}>
-          {paramValues.map((value) => (
-            <label key={value} style={{ marginRight: "15px", marginBottom: "10px" }}>
+      {selectedGraphs.includes("shaded") &&
+        selectedShadedMetrics.map((metric) => (
+          <div key={metric} style={{ marginBottom: 40 }}>
+            <h3 style={{ textAlign: "center", marginBottom: 10 }}>
+              {metricLabels[metric]}
+            </h3>
+            <ShadedLineChart
+              metric={metric}
+              financialGoal={
+                metric === "investments" ? mockSimulationResult.financialGoal : undefined
+              }
+            />
+          </div>
+        ))}
+
+      {selectedGraphs.includes("stacked") && (
+        <div style={{ marginBottom: 40 }}>
+          <StackedBarChart useMedian={useMedianValues} />
+        </div>
+      )}
+    </>
+  );
+
+  const renderScenarioPanel = () => (
+    <div style={{ marginTop: 20 }}>
+      {/* view‑type radios */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="normal-text">Select View Type:</div>
+        <label style={{ marginRight: 20 }}>
+          <input
+            type="radio"
+            name="scenarioView"
+            value="multiLine"
+            checked={scenarioView === "multiLine"}
+            onChange={() => setScenarioView("multiLine")}
+          />
+          Multiple Lines Over Time
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="scenarioView"
+            value="parameterValue"
+            checked={scenarioView === "parameterValue"}
+            onChange={() => setScenarioView("parameterValue")}
+          />
+          Parameter Value Chart
+        </label>
+      </div>
+
+      {/* scenario parameter radios */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="normal-text">Select Scenario Parameter:</div>
+        {Object.entries(mockScenarioExplorationData.scenarioParameters).map(
+          ([key, obj]: any) => (
+            <label key={key} style={{ marginRight: 20 }}>
               <input
                 type="radio"
-                name="paramValue"
-                value={value.toString()}
-                checked={selectedParamValue === value}
-                onChange={() => setSelectedParamValue(value)}
+                name="scenarioParam"
+                value={key}
+                checked={scenarioParam === key}
+                onChange={() => setScenarioParam(key)}
               />
-              {scenarioParam === 'RothConversionOpt' ? (value ? 'Enabled' : 'Disabled') : value}
+              {obj.description}
             </label>
-          ))}
-        </div>
+          )
+        )}
       </div>
-    );
-  };
 
-  const username = localStorage.getItem("name");
-  const picture = localStorage.getItem("picture");
+      {/* scenario metric radios */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="normal-text">Select Metric to Display:</div>
+        <label style={{ marginRight: 20 }}>
+          <input
+            type="radio"
+            name="scenarioMetric"
+            value="probability"
+            checked={scenarioMetric === "probability"}
+            onChange={() => setScenarioMetric("probability")}
+          />
+          Probability of Success
+        </label>
+        <label style={{ marginRight: 20 }}>
+          <input
+            type="radio"
+            name="scenarioMetric"
+            value="investments"
+            checked={scenarioMetric === "investments"}
+            onChange={() => setScenarioMetric("investments")}
+          />
+          Total Investments
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="scenarioMetric"
+            value="discretionaryPct"
+            checked={scenarioMetric === "discretionaryPct"}
+            onChange={() => setScenarioMetric("discretionaryPct")}
+          />
+          % of Discretionary Expenses
+        </label>
+      </div>
 
+      {/* median / average radios (only for investments) */}
+      {scenarioMetric === "investments" && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ marginRight: 20 }}>
+            <input
+              type="radio"
+              name="scenarioValueType"
+              checked={scenarioUseMedian}
+              onChange={() => setScenarioUseMedian(true)}
+            />
+            Median Values
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="scenarioValueType"
+              checked={!scenarioUseMedian}
+              onChange={() => setScenarioUseMedian(false)}
+            />
+            Average Values
+          </label>
+        </div>
+      )}
+
+      {/* parameter value radios */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="normal-text">Select Parameter Value:</div>
+        {paramValues.map((pv: any) => (
+          <label key={pv.toString()} style={{ marginRight: 15 }}>
+            <input
+              type="radio"
+              name="paramValue"
+              value={pv.toString()}
+              checked={selectedParamValue === pv}
+              onChange={() => setSelectedParamValue(pv)}
+            />
+            {scenarioParam === "RothConversionOpt" ? (pv ? "Enabled" : "Disabled") : pv}
+          </label>
+        ))}
+      </div>
+
+      {/* chart */}
+      {scenarioView === "multiLine" ? (
+        <ScenarioMultiLineChart
+          paramName={scenarioParam}
+          metric={scenarioMetric}
+          useMedian={scenarioUseMedian}
+        />
+      ) : (
+        <ParameterValueChart
+          paramName={scenarioParam}
+          metric={scenarioMetric}
+          useMedian={scenarioUseMedian}
+        />
+      )}
+    </div>
+  );
+
+  /* ---------- MAIN JSX ---------- */
   return (
     <div className="page-container">
-      <div className="header" style={{ marginBottom: "5%" }}>
-        <div>Simulate</div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            position: "absolute",
-            right: "40px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              position: "absolute",
-              right: "40px",
-            }}
-          >
-            {username ? (
-              <>
-                <div style={{ margin: 20 }}>{username}</div>
-                <img
-                  src={picture}
-                  height={60}
-                  width={60}
-                  alt="User"
-                  style={{ cursor: "pointer", borderRadius: "50%" }}
-                  className="transparent-hover"
-                />
-              </>
-            ) : (
-              <div>Guest</div>
-            )}
-          </div>
-        </div>
-      </div>
-
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
 
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "center",
-          flexWrap: "wrap",
-          gap: "15px",
-          marginBottom: "30px" 
-        }}>
-          <button 
-            style={{ 
-              padding: "12px 20px", 
-              fontSize: "16px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: graph === "line" ? "#7EC995" : "#e9ecef",
-              color: graph === "line" ? "white" : "#495057",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-              fontWeight: graph === "line" ? "bold" : "normal"
-            }} 
-            onClick={() => {
-              setGraph("line");
-              setViewingParamResult(false);
-            }}
-          >
-            Line Chart
-          </button>
-          <button 
-            style={{ 
-              padding: "12px 20px", 
-              fontSize: "16px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: graph === "shaded" ? "#7EC995" : "#e9ecef",
-              color: graph === "shaded" ? "white" : "#495057",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-              fontWeight: graph === "shaded" ? "bold" : "normal"
-            }}
-            onClick={() => {
-              setGraph("shaded");
-              setViewingParamResult(false);
-            }}
-          >
-            Shaded Line Chart
-          </button>
-          <button 
-            style={{ 
-              padding: "12px 20px", 
-              fontSize: "16px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: graph === "stacked" ? "#7EC995" : "#e9ecef",
-              color: graph === "stacked" ? "white" : "#495057",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-              fontWeight: graph === "stacked" ? "bold" : "normal"
-            }}
-            onClick={() => {
-              setGraph("stacked");
-              setViewingParamResult(false);
-            }}
-          >
-            Stacked Bar Chart
-          </button>
-          <button 
-            style={{ 
-              padding: "12px 20px", 
-              fontSize: "16px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: graph === "combined" ? "#7EC995" : "#e9ecef",
-              color: graph === "combined" ? "white" : "#495057",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-              fontWeight: graph === "combined" ? "bold" : "normal"
-            }}
-            onClick={() => {
-              setGraph("combined");
-              setViewingParamResult(false);
-            }}
-          >
-            Combined View
-          </button>
-          <button 
-            style={{ 
-              padding: "12px 20px", 
-              fontSize: "16px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: graph === "scenarioExploration" ? "#7EC995" : "#e9ecef",
-              color: graph === "scenarioExploration" ? "white" : "#495057",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              transition: "all 0.3s ease",
-              fontWeight: graph === "scenarioExploration" ? "bold" : "normal"
-            }}
-            onClick={() => setGraph("scenarioExploration")}
-          >
-            Scenario Exploration
-          </button>
+        {/* top‑row buttons */}
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: "2%" }}>
+          {[
+            ["line", "Line Chart"],
+            ["shaded", "Shaded Line Chart"],
+            ["stacked", "Stacked Bar Chart"],
+          ].map(([val, label]) => (
+            <ToggleButton
+              key={val}
+              value={val}
+              label={label}
+              selected={selectedGraphs.includes(val)}
+              onToggle={(v) =>
+                setSelectedGraphs((prev) =>
+                  prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                )
+              }
+            />
+          ))}
+          
+
+          {/* scenario exploration button */}
+          <ToggleButton
+            value="scenario"
+            label="Scenario Exploration"
+            selected={showScenario}
+            onToggle={() => setShowScenario(!showScenario)}
+          />
+        </div>
+        <div>
+        <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
+
+          {!showScenario && selectedGraphs.includes("shaded") && (
+            <div style={{ marginTop: 20 }}>
+              <div className="normal-text">Select Shaded Metrics:</div>
+              {Object.entries(metricLabels).map(([val, label]) => (
+                <ToggleButton
+                  key={val}
+                  value={val}
+                  label={label}
+                  selected={selectedShadedMetrics.includes(val)}
+                  onToggle={(v) =>
+                    setSelectedShadedMetrics((prev) =>
+                      prev.includes(v) ? prev.filter((m) => m !== v) : [...prev, v]
+                    )
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          {!showScenario && selectedGraphs.includes("stacked") && (
+            <div style={{ margin: "20px 0" }}>
+              <div className="normal-text">Select Stacked Bar Chart Metrics:</div>
+              <ToggleButton
+                label="Median Values"
+                value="median"
+                selected={useMedianValues}
+                onToggle={() => setUseMedianValues(true)}
+              />
+              <ToggleButton
+                label="Average Values"
+                value="average"
+                selected={!useMedianValues}
+                onToggle={() => setUseMedianValues(false)}
+              />
+            </div>
+          )}
+          <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
         </div>
 
-        {viewingParamResult && selectedParamValue !== null && (
-          <div style={{ marginBottom: "15px", padding: "10px", backgroundColor: "#f8f9fa", borderRadius: "5px" }}>
-            <div className="normal-text" style={{ marginBottom: "5px" }}>
-              <span>Viewing results for: </span>
-              <strong>{mockScenarioExplorationData.scenarioParameters[scenarioParam].description}: {getParamValueDescription()}</strong>
-              <button 
-                style={{ marginLeft: "10px", padding: "2px 8px", fontSize: "12px" }}
-                onClick={() => setGraph("scenarioExploration")}
-              >
-                Edit
-              </button>
-              <button 
-                style={{ marginLeft: "10px", padding: "2px 8px", fontSize: "12px" }}
-                onClick={resetToNormalView}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
-
-        {graph === "stacked" && graph !== "combined" && (
-          <div style={{ marginBottom: "20px" }}>
-            <label style={{ marginRight: "20px" }}>
-              <input
-                type="radio"
-                name="valueType"
-                checked={useMedianValues}
-                onChange={() => setUseMedianValues(true)}
-              />
-              Median Values
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="valueType"
-                checked={!useMedianValues}
-                onChange={() => setUseMedianValues(false)}
-              />
-              Average Values
-            </label>
-          </div>
-        )}
-
-        {graph === "shaded" && (
-          <div style={{ marginTop: "20px" }}>
-            <div className="normal-text">Select Metric to Display:</div>
-            <label>
-              <input
-                type="radio"
-                name="lineMetric"
-                value="investments"
-                checked={lineChartMetric === "investments"}
-                onChange={(e) => setLineChartMetric(e.target.value)}
-              />
-              Total Investments
-            </label>
-            <br />
-            <label>
-              <input
-                type="radio"
-                name="lineMetric"
-                value="income"
-                checked={lineChartMetric === "income"}
-                onChange={(e) => setLineChartMetric(e.target.value)}
-              />
-              Total Income
-            </label>
-            <br />
-            <label>
-              <input
-                type="radio"
-                name="lineMetric"
-                value="expenses"
-                checked={lineChartMetric === "expenses"}
-                onChange={(e) => setLineChartMetric(e.target.value)}
-              />
-              Total Expenses
-            </label>
-            <br />
-            <label>
-              <input
-                type="radio"
-                name="lineMetric"
-                value="earlyTax"
-                checked={lineChartMetric === "earlyTax"}
-                onChange={(e) => setLineChartMetric(e.target.value)}
-              />
-              Early Withdrawal Tax
-            </label>
-            <br />
-            <label>
-              <input
-                type="radio"
-                name="lineMetric"
-                value="discretionaryPct"
-                checked={lineChartMetric === "discretionaryPct"}
-                onChange={(e) => setLineChartMetric(e.target.value)}
-              />
-              % of Total Discretionary Expenses
-            </label>
-          </div>
-        )}
-
-        {graph === "scenarioExploration" && (
-          <div style={{ marginTop: "20px" }}>
-            <div style={{ marginBottom: "20px" }}>
-              <div className="normal-text">Select View Type:</div>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="scenarioView"
-                  value="multiLine"
-                  checked={scenarioView === "multiLine"}
-                  onChange={() => setScenarioView("multiLine")}
-                />
-                Multiple Lines Over Time
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="scenarioView"
-                  value="parameterValue"
-                  checked={scenarioView === "parameterValue"}
-                  onChange={() => setScenarioView("parameterValue")}
-                />
-                Parameter Value Chart
-              </label>
-            </div>
-            
-            <div style={{ marginBottom: "20px" }}>
-              <div className="normal-text">Select Scenario Parameter:</div>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="scenarioParam"
-                  value="retirementStart"
-                  checked={scenarioParam === "retirementStart"}
-                  onChange={() => setScenarioParam("retirementStart")}
-                />
-                Retirement Start Year
-              </label>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="scenarioParam"
-                  value="salaryInitialAmount"
-                  checked={scenarioParam === "salaryInitialAmount"}
-                  onChange={() => setScenarioParam("salaryInitialAmount")}
-                />
-                Initial Salary Amount
-              </label>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="scenarioParam"
-                  value="stockBondAllocation"
-                  checked={scenarioParam === "stockBondAllocation"}
-                  onChange={() => setScenarioParam("stockBondAllocation")}
-                />
-                Stock Allocation (%)
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="scenarioParam"
-                  value="RothConversionOpt"
-                  checked={scenarioParam === "RothConversionOpt"}
-                  onChange={() => setScenarioParam("RothConversionOpt")}
-                />
-                Roth Conversion Optimization
-              </label>
-            </div>
-            
-            <div style={{ marginBottom: "20px" }}>
-              <div className="normal-text">Select Metric to Display:</div>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="scenarioMetric"
-                  value="probability"
-                  checked={scenarioMetric === "probability"}
-                  onChange={() => setScenarioMetric("probability")}
-                />
-                Probability of Success
-              </label>
-              <label style={{ marginRight: "20px" }}>
-                <input
-                  type="radio"
-                  name="scenarioMetric"
-                  value="investments"
-                  checked={scenarioMetric === "investments"}
-                  onChange={() => setScenarioMetric("investments")}
-                />
-                Total Investments
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="scenarioMetric"
-                  value="discretionaryPct"
-                  checked={scenarioMetric === "discretionaryPct"}
-                  onChange={() => setScenarioMetric("discretionaryPct")}
-                />
-                % of Discretionary Expenses
-              </label>
-            </div>
-
-            {scenarioMetric === "investments" && (
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ marginRight: "20px" }}>
-                  <input
-                    type="radio"
-                    name="scenarioValueType"
-                    checked={useMedianValues}
-                    onChange={() => setUseMedianValues(true)}
-                  />
-                  Median Values
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="scenarioValueType"
-                    checked={!useMedianValues}
-                    onChange={() => setUseMedianValues(false)}
-                  />
-                  Average Values
-                </label>
-              </div>
-            )}
-            
-            {renderParamValueSelector()}
-            
-            <div style={{ marginBottom: "20px" }}>
-              <button 
-                style={{ 
-                  padding: "5px 15px", 
-                  backgroundColor: "#7EC995", 
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer" 
-                }}
-                onClick={viewSelectedParameterResults}
-                disabled={selectedParamValue === null}
-              >
-                View Selected Parameter Value Results
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", justifyContent: "center" }}>{renderGraph()}</div>
+        {/* graphs */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          {showScenario ? renderScenarioPanel() : renderNormalGraphs()}
+        </div>
       </div>
     </div>
   );

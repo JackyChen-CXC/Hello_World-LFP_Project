@@ -26,23 +26,72 @@ export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOver
 
 // raw values -> median -> ranges
 // @input = [year][simulation][number || items]
+// @output = [year] range = [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
 // [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
 export function generateRange(total: any[][]){
-    const range: number[][] = []; // [min, max],
-    // check if need to convert from 3D to 2D array
-    const check = Array.isArray(total[0][0]);
-    if(check){
-        total = total.map(year =>
-            year.map(sim => sim.reduce((sum: number, val: number) => sum + val, 0)));
-    }
-    // calculate ranges for each year 
-    for (let year = 0; year < total.length; year++) {
-        const sorted = total[year].sort((a, b) => a - b);
-        
-    }
-    return range;
+  const range: number[][] = []; // [min, max],
+  // check if need to convert from 3D to 2D array
+  const check = Array.isArray(total[0][0]);
+  if(check){ // reduce simulation numbers into one simulation number
+      total = total.map(year =>
+          year.map(sim => sim.reduce((sum: number, val: number) => sum + val, 0)));
+  }
+  // calculate ranges for each year 
+  for (let year = 0; year < total.length; year++) {
+    const sorted = [...total[year]].sort((a, b) => a - b);
+
+    const getPercentile = (p: number) => {
+      const idx = (sorted.length - 1) * p;
+      const lower = Math.floor(idx);
+      const upper = Math.ceil(idx);
+      if (lower === upper) return sorted[lower];
+      return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
+    };
+    const r10_90 = [getPercentile(0.1), getPercentile(0.9)];
+    const r20_80 = [getPercentile(0.2), getPercentile(0.8)];
+    const r30_70 = [getPercentile(0.3), getPercentile(0.7)];
+    const r40_60 = [getPercentile(0.4), getPercentile(0.6)];
+    const median = getPercentile(0.5);
+    range.push([r10_90[0], r10_90[1]]);
+    range.push([r20_80[0], r20_80[1]]);
+    range.push([r30_70[0], r30_70[1]]);
+    range.push([r40_60[0], r40_60[1]]);
+    range.push([median, median]);
+  }
+  return range;
 }
 
+// combine simulation sets of items into one set per year for median or mean
+export function computeMeanAndMedian(data: number[][][]): { means: number[][], medians: number[][] } {
+  const years = data.length;
+  const means: number[][] = [];
+  const medians: number[][] = [];
+  for (let y = 0; y < years; y++) {
+      const simulations = data[y];
+      if (simulations.length === 0) {
+          means.push([]);
+          medians.push([]);
+          continue;
+      }
+      const numCount = simulations[0].length;
+      const yearMeans: number[] = [];
+      const yearMedians: number[] = [];
+      for (let i = 0; i < numCount; i++) {
+          const values = simulations.map(sim => sim[i]);
+          const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+          values.sort((a, b) => a - b);
+          const mid = Math.floor(values.length / 2);
+          const median = values.length % 2 === 0
+              ? (values[mid - 1] + values[mid]) / 2
+              : values[mid];
+          yearMeans.push(mean);
+          yearMedians.push(median);
+      }
+      means.push(yearMeans);
+      medians.push(yearMedians);
+  }
+  return { means, medians };
+}
 
 // hash simulated values into total values
 // @number[] sim: array of one number per year
@@ -54,6 +103,26 @@ export function hashIntoTotal(total: any[][], sim: any[]) {
         }
         total[year].push(sim[year]);
     }
+}
+
+export function getValueOfInvestments(investments: IInvestment[]): number[] {
+  return investments.map(investment => investment.value);
+}
+
+export function getValueOfExpenses(eventSeries: ILifeEvent[], year: number, startingYear: number): number[] {
+  const events = getLifeEventsByType(eventSeries, "expense");
+  const output: number[] = [];
+  if(events){
+    for(const event of events){
+      if (event && event.start.value && event.duration.value && 
+      startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){
+        output.push(event.initialAmount ?? 0);
+      } else{
+        output.push(0); // presevere order
+      }
+    }
+  }
+  return output;
 }
 
 export function getLifeEventsByType(eventSeries: ILifeEvent[], type: ILifeEvent["type"]): ILifeEvent[] {
@@ -284,7 +353,7 @@ export function getCapitalGainTaxRate(income: number, status: 'single' | 'marrie
 ///
 ///
 ///federal tax
-export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): number | null {
+export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): number {
     // Find the tax bracket that matches the income and marital status
     for (const bracket of adjusted) {
       const { min_value, max_value, tax_rate, single, married } = bracket;
@@ -301,7 +370,7 @@ export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'mar
     }
   
     // Return null if no bracket is found
-    return null;
+    return 0;
   }
 
 
@@ -1119,7 +1188,7 @@ export function performRothOptimizer(
 //
 //
 //Helper function for part 4 of simulation
-export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number] {
+export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number, number] {
     const investments = financialplan.investments;
     const investmentTypesMap = new Map<string, IInvestmentType>(
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
@@ -1128,6 +1197,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
   
     let taxable_income = 0;
     let non_taxable_income = 0;
+    let total_expense = 0;
 
     for (const investment of investments) {
         // Assuming investment.investmentType is a string (the name of the investment type)
@@ -1207,6 +1277,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         // Calculate expense part 4 part e
         const expenseRatio = investType.expenseRatio ?? 0;
         const expense = expenseRatio * ((value + investment.value) / 2);
+        total_expense += expense;
         investment.value -= expense;
         investment.value = Number(investment.value.toFixed(2));;
     }
@@ -1214,7 +1285,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
     //console.log(investments);
     console.log(currentYearIncome, taxable_income, non_taxable_income);
 
-    return [currentYearIncome, taxable_income, non_taxable_income];
+    return [currentYearIncome, taxable_income, non_taxable_income, total_expense];
 }
 
 
@@ -1224,7 +1295,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
 //
 //
 //Helper function for part 6
-export function findTotalNonDiscretionary(financialplan: any): number {
+export function findTotalNonDiscretionary(financialplan: any, year: number, startingYear: number): number {
     const allEvents = financialplan.eventSeries || [];
     const expenseEvents = allEvents.filter((e: any) => e.type === "expense");
     const nonDiscretionaryEvents = expenseEvents.filter((e: any) => !e.discretionary);
@@ -1232,32 +1303,36 @@ export function findTotalNonDiscretionary(financialplan: any): number {
     let total = 0;
 
     for (const event of nonDiscretionaryEvents) {
-        const cost = event.initialAmount || 0;
-        const dist = event.changeDistribution || {};
-        const distType = dist.type;
-        const distParams: number[] = Object.entries(dist)
-            .filter(([key]) => key !== "type")
-            .map(([_, value]) => typeof value === 'number' ? value : Number(value));
-        // Calculate change value
-        let change = 0;
-        if (distType === "fixed") {
-            change = distParams[0] || 0;
-        } else if (distType === "normal") {
-            // Assuming a normal distribution function is defined
-            change = generateNormal(distParams[0], distParams[1]);
-        } else if (distType === "uniform") {
-            change = generateUniform(distParams[0], distParams[1]);
-        }
+      if (event && event.start.value && event.duration.value && 
+      startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){
+        continue; // skip if not active
+      }
+      const cost = event.initialAmount || 0;
+      const dist = event.changeDistribution || {};
+      const distType = dist.type;
+      const distParams: number[] = Object.entries(dist)
+          .filter(([key]) => key !== "type")
+          .map(([_, value]) => typeof value === 'number' ? value : Number(value));
+      // Calculate change value
+      let change = 0;
+      if (distType === "fixed") {
+          change = distParams[0] || 0;
+      } else if (distType === "normal") {
+          // Assuming a normal distribution function is defined
+          change = generateNormal(distParams[0], distParams[1]);
+      } else if (distType === "uniform") {
+          change = generateUniform(distParams[0], distParams[1]);
+      }
 
-        // Apply change
-        if (event.changeAmtOrPct === "percent") {
-            total += cost * (1 + change);
-        } else {
-            total += cost + change;
-        }
-    }
+      // Apply change
+      if (event.changeAmtOrPct === "percent") {
+          total += cost * (1 + change);
+      } else {
+          total += cost + change;
+      }
+  }
 
-    return total;
+  return total;
 }
 
 
@@ -1269,7 +1344,9 @@ export function payNonDiscretionary(
     state: string,
     previousYearGain: number,
     previousYearEarlyWithdrawals: number,
-    age: number,
+    currentAge: number,
+    year: number,
+    startingYear: number,
     currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
@@ -1279,7 +1356,7 @@ export function payNonDiscretionary(
     stateTaxBracket: TaxData
 
 ): number[] {
-
+    const age = currentAge + year;
     const total_income = previousYearIncome + previousYearSocialSecurityIncome;
 
     // part a
@@ -1298,7 +1375,7 @@ export function payNonDiscretionary(
         : 0;
 
     // part d
-    const total_non_discretionary = findTotalNonDiscretionary(financialplan);
+    const total_non_discretionary = findTotalNonDiscretionary(financialplan, year, startingYear);
     const total_payment_amount = total_non_discretionary + (federal_tax ?? 0) + (state_tax ?? 0) + (capital_gain_tax ?? 0) + early_withdrawal_tax;
 
     // part e
@@ -1362,7 +1439,7 @@ export function payNonDiscretionary(
             if (total_withdrawal_amount === 0) break;
         }
     }
-    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_payment_amount, federal_tax, state_tax];
 }
 
 
@@ -1382,17 +1459,31 @@ export function payDiscretionary(
     currYearIncome: number,
     currentYearGain: number,
     currentYearEarlyWithdrawal: number,
-    age: number
+    currentAge: number,
+    year: number,
+    startingYear: number,
   ): number[] {
     const all_events = financialplan.eventSeries ?? [];
     const spending_strategy = financialplan.spendingStrategy ?? [];
-  
+
+    // output 
+    let total_cost_paid = 0;
+    let total_disc_cost = 0;
+
     let total_event_cost = 0;
-  
-    for (const event_id of spending_strategy) {
+    const events = [];
+    const age = currentAge + year;
+
+    for (const event_id of spending_strategy) { // filter nondiscretionary and non-active
       const event = all_events.find(e => e.name === event_id);
-      if (!event) continue;
+      if (event && event.discretionary && event.start.value && event.duration.value && 
+        startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){ // check
+        events.push(event);
+        total_disc_cost += event.initialAmount ?? 0;
+      }
+    }
   
+    for (const event of events) {
       // Calculates the total cost of the event
       const cost = event.initialAmount ?? 0;
       const dist = event.changeDistribution;
@@ -1488,6 +1579,7 @@ export function payDiscretionary(
           }
   
           currentYearEarlyWithdrawal += total_event_cost;
+          total_cost_paid += total_event_cost;
   
           if (total_event_cost === 0) {
             break;
@@ -1495,7 +1587,7 @@ export function payDiscretionary(
         }
       }
     }
-    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_cost_paid/total_disc_cost];
   }
 
 

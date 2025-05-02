@@ -5,18 +5,16 @@ import { DistributionSchema, IDistribution } from "./Distribution";
 export interface ISimulationResult extends Document {
     _id: mongoose.Types.ObjectId;
     simulationId: string;
-    // Add all variables required for chart creation? (+ Scenario Exploration?)
-    inflationAssumption: IDistribution; // For displaying items in future dollars? (All charts can be shown in future dollars)
-    
+    // Add all variables required for chart creation? (+ Scenario Exploration?)    
     // 4.1 Line chart of probability of success over time
     probabilityOverTime: number[]; // % of simulations that reached the financial goal in year & previous years. Good range is 75-90% zone. Aiming for 85% is ideal.
 
     // 4.2 Shaded line chart of probability ranges for a selected quantity over time
-    // Median -> range [10%-90%, 20%-80%, 30%-70%, 40%-60%]
+    // Median -> range [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
     // range = [min val, max val]
     financialGoal: number;
     investmentsRange: number[][];
-    incomeRange: number[][];
+    incomeRange: number[][]; // total income
     expensesRange: number[][];
     earlyWithdrawTaxRange: number[][];
     // (the percentage is based on the amounts, not the number, 
@@ -25,25 +23,28 @@ export interface ISimulationResult extends Document {
 
     // 4.3 Stacked bar chart of median or average values of a selected quantity over time
     // Stores results as average/median desired quantity
-    // investmentOrder: any[];
+    investmentOrder: string[];
     avgInvestmentsOverTime: number[][];
     medianInvestmentsOverTime: number[][];
 
-    // incomeOrder: any[];
+    incomeOrder: string[];
     avgIncomeOverTime: number[][];
     medianIncomeOverTime: number[][];
     
     // includes taxes
-    // expensesOrder: any[];
+    expensesOrder: string[];
     avgExpensesOverTime: number[][];
     medianExpensesOverTime: number[][];
 }
 
 const simulationResultSchema = new Schema<ISimulationResult>({
     simulationId: { type: String, required: true },
-    inflationAssumption: { type: DistributionSchema, required: true },
     financialGoal: { type: Number, required: true },
     probabilityOverTime: { type: [Number], required: true, default: [] },
+    
+    investmentOrder: { type: [String], required: true, default: [] },
+    incomeOrder: { type: [String], required: true, default: [] },
+    expensesOrder: { type: [String], required: true, default: [] },
 
     investmentsRange: { type: [[[Number]]], required: true, default: [] },
     incomeRange: { type: [[[Number]]], required: true, default: [] },
