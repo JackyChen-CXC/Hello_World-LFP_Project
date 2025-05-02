@@ -2,7 +2,7 @@ import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // new function that uses console.log with typed rest parameters
 const createLog = (username: string, ...args: unknown[]): void => {
@@ -248,10 +248,13 @@ export const runSimulation = async (req: any, res: any) => {
                 const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
                     previousYearGain, previousYearEarlyWithdrawals, age, year, startingYear, curYearIncome, currentYearGain, currentYearEarlyWithdrawal,
                     standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
+                // TODO - add federal & state tax
                 curYearIncome = vals[0];
                 currentYearGain = vals[1];
                 currentYearEarlyWithdrawal = vals[2];
                 curYearExpenses += vals[3];
+                let federal_tax = vals[4];
+                let state_tax = vals[5]
                 createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
 
                 // writeLog(username, "Paid non-discretionary expenses and the previous year’s taxes ", "log");
@@ -288,8 +291,13 @@ export const runSimulation = async (req: any, res: any) => {
                 // incomes alr pushed
                 // total income
                 yearlyIncome.push(curYearIncome);
-                // expenses
-                ExpensesOverTime.push(getValueOfExpenses(plan.eventSeries, year, startingYear));
+                // expenses + taxes
+                const expenseItems = getValueOfExpenses(plan.eventSeries, year, startingYear)
+                expenseItems.push(federal_tax);
+                expenseItems.push(state_tax);
+                expenseItems.push(currentYearGain);
+                expenseItems.push(currentYearEarlyWithdrawal);
+                ExpensesOverTime.push(expenseItems);
                 // total expenses
                 yearlyExpenses.push(curYearExpenses);
                 // early withdraw tax
@@ -324,17 +332,33 @@ export const runSimulation = async (req: any, res: any) => {
         result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);
         // 4.2 range
         result.financialGoal = plan.financialGoal;
-        result.investmentOrder // TODO - incomplete
+        result.investmentOrder = plan.investments.map(investments => investments.id);
         result.investmentsRange = generateRange(totalInvestmentsOverTime);
-        result.investmentOrder // TODO - incomplete
         result.incomeRange = generateRange(totalYealyIncome);
-        result.expensesOrder // TODO - incomplete
         result.expensesRange = generateRange(totalYearlyExpenses);
         result.earlyWithdrawTaxRange = generateRange(totalEarlyWithdrawalTax);
         result.percentageDiscretionaryRange = generateRange(totalPercentageTotalDiscretionary);
-        // 4.3 mean + median values TODO - incomplete
-
-        // await result.save();
+        // 4.3 mean + median values (Generate mean/median of items for each year, TODO - incomplete)
+        const investmentOverTimeVals = computeMeanAndMedian(totalInvestmentsOverTime);
+        result.medianInvestmentsOverTime = investmentOverTimeVals.medians;
+        result.avgInvestmentsOverTime = investmentOverTimeVals.means;
+        result.investmentOrder = plan.investments.map(investments => investments.id);
+        
+        const incomeOverTimeVals = computeMeanAndMedian(totalIncomeOverTime);
+        result.medianIncomeOverTime = incomeOverTimeVals.medians;
+        result.avgIncomeOverTime = incomeOverTimeVals.means;
+        result.incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
+        
+        const expensesOverTimeVals = computeMeanAndMedian(totalExpensesOverTime);
+        result.medianExpensesOverTime = expensesOverTimeVals.medians;
+        result.avgExpensesOverTime = expensesOverTimeVals.means;
+        // expenses -> taxes ([federal income, state income, capital gains, early withdrawal tax])
+        // let taxOrder: string[] = []; // disable taxes (before completion)
+        let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
+        result.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
+        result.expensesOrder.push(...taxOrder);
+        
+        await result.save();
 
     }
     catch (error) {

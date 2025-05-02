@@ -61,6 +61,41 @@ export function generateRange(total: any[][]){
   return range;
 }
 
+// mean
+
+// median
+
+// combine simulation sets of items into one set per year for median or mean
+export function computeMeanAndMedian(data: number[][][]): { means: number[][], medians: number[][] } {
+  const years = data.length;
+  const means: number[][] = [];
+  const medians: number[][] = [];
+  for (let y = 0; y < years; y++) {
+      const simulations = data[y];
+      if (simulations.length === 0) {
+          means.push([]);
+          medians.push([]);
+          continue;
+      }
+      const numCount = simulations[0].length;
+      const yearMeans: number[] = [];
+      const yearMedians: number[] = [];
+      for (let i = 0; i < numCount; i++) {
+          const values = simulations.map(sim => sim[i]);
+          const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+          values.sort((a, b) => a - b);
+          const mid = Math.floor(values.length / 2);
+          const median = values.length % 2 === 0
+              ? (values[mid - 1] + values[mid]) / 2
+              : values[mid];
+          yearMeans.push(mean);
+          yearMedians.push(median);
+      }
+      means.push(yearMeans);
+      medians.push(yearMedians);
+  }
+  return { means, medians };
+}
 
 // hash simulated values into total values
 // @number[] sim: array of one number per year
@@ -322,7 +357,7 @@ export function getCapitalGainTaxRate(income: number, status: 'single' | 'marrie
 ///
 ///
 ///federal tax
-export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): number | null {
+export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): number {
     // Find the tax bracket that matches the income and marital status
     for (const bracket of adjusted) {
       const { min_value, max_value, tax_rate, single, married } = bracket;
@@ -339,7 +374,7 @@ export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'mar
     }
   
     // Return null if no bracket is found
-    return null;
+    return 0;
   }
 
 
@@ -1408,7 +1443,7 @@ export function payNonDiscretionary(
             if (total_withdrawal_amount === 0) break;
         }
     }
-    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_payment_amount];
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_payment_amount, federal_tax, state_tax];
 }
 
 
