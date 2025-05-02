@@ -61,10 +61,6 @@ export function generateRange(total: any[][]){
   return range;
 }
 
-// mean
-
-// median
-
 // combine simulation sets of items into one set per year for median or mean
 export function computeMeanAndMedian(data: number[][][]): { means: number[][], medians: number[][] } {
   const years = data.length;
