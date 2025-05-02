@@ -1109,7 +1109,7 @@ const OpenSimulation: React.FC = () => {
         <div className="subheading">Simulation Results and Graphs</div>
 
         {/* top‑row buttons */}
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: "2%" }}>
           {[
             ["line", "Line Chart"],
             ["shaded", "Shaded Line Chart"],
@@ -1127,6 +1127,7 @@ const OpenSimulation: React.FC = () => {
               }
             />
           ))}
+          
 
           {/* scenario exploration button */}
           <ToggleButton
@@ -1137,8 +1138,8 @@ const OpenSimulation: React.FC = () => {
           />
         </div>
         <div>
+        <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
 
-          {/* shaded‑metric selector (only in normal mode) */}
           {!showScenario && selectedGraphs.includes("shaded") && (
             <div style={{ marginTop: 20 }}>
               <div className="normal-text">Select Shaded Metrics:</div>
@@ -1175,6 +1176,7 @@ const OpenSimulation: React.FC = () => {
               />
             </div>
           )}
+          <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
         </div>
 
         {/* graphs */}
