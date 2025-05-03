@@ -253,6 +253,9 @@ export const runSimulation = async (req: any, res: any) => {
                 currentYearGain = vals[1];
                 currentYearEarlyWithdrawal = vals[2];
                 curYearExpenses += vals[3];
+                if (Number.isNaN(vals[3])){
+                    console.log("RETURNED NULL");
+                }
                 let federal_tax = vals[4];
                 let state_tax = vals[5]
                 createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
@@ -267,6 +270,7 @@ export const runSimulation = async (req: any, res: any) => {
                 curYearIncome = vals2[0];
                 currentYearGain = vals2[1];
                 currentYearEarlyWithdrawal = vals2[2];
+                console.log("PERCETNAGHE",vals2[3]);
                 percentageTotalDiscretionary.push(vals2[3]);
                 writeLog(username, "Paid discretionary expenses", "log");
 
@@ -335,6 +339,7 @@ export const runSimulation = async (req: any, res: any) => {
         result.investmentOrder = plan.investments.map(investments => investments.id);
         result.investmentsRange = generateRange(totalInvestmentsOverTime);
         result.incomeRange = generateRange(totalYealyIncome);
+        // console.log(totalYearlyExpenses);
         result.expensesRange = generateRange(totalYearlyExpenses);
         result.earlyWithdrawTaxRange = generateRange(totalEarlyWithdrawalTax);
         result.percentageDiscretionaryRange = generateRange(totalPercentageTotalDiscretionary);
@@ -357,7 +362,7 @@ export const runSimulation = async (req: any, res: any) => {
         let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
         result.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         result.expensesOrder.push(...taxOrder);
-        
+        // console.log(result);
         await result.save();
 
     }
