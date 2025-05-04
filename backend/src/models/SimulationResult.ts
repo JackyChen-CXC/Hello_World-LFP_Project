@@ -13,13 +13,13 @@ export interface ISimulationResult extends Document {
     // Median -> range [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
     // range = [min val, max val]
     financialGoal: number;
-    investmentsRange: number[][];
-    incomeRange: number[][]; // total income
-    expensesRange: number[][];
-    earlyWithdrawTaxRange: number[][];
+    investmentsRange: number[][][];
+    incomeRange: number[][][]; // total income
+    expensesRange: number[][][];
+    earlyWithdrawTaxRange: number[][][];
     // (the percentage is based on the amounts, not the number, 
     // of the discretionary expenses in that year)
-    percentageDiscretionaryRange: number[][];
+    percentageDiscretionaryRange: number[][][];
 
     // 4.3 Stacked bar chart of median or average values of a selected quantity over time
     // Stores results as average/median desired quantity

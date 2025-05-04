@@ -29,7 +29,7 @@ export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOver
 // @output = [year] range = [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
 // [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
 export function generateRange(total: any[][]){
-  const range: number[][] = []; // [min, max],
+  const range: number[][][] = []; // [min, max],
   // check if need to convert from 3D to 2D array
   const check = Array.isArray(total[0][0]);
   if(check){ // reduce simulation numbers into one simulation number
@@ -39,6 +39,7 @@ export function generateRange(total: any[][]){
   // calculate ranges for each year 
   for (let year = 0; year < total.length; year++) {
     const sorted = [...total[year]].sort((a, b) => a - b);
+    range[year] = [];
 
     const getPercentile = (p: number) => {
       const idx = (sorted.length - 1) * p;
@@ -52,11 +53,11 @@ export function generateRange(total: any[][]){
     const r30_70 = [getPercentile(0.3), getPercentile(0.7)];
     const r40_60 = [getPercentile(0.4), getPercentile(0.6)];
     const median = getPercentile(0.5);
-    range.push([r10_90[0], r10_90[1]]);
-    range.push([r20_80[0], r20_80[1]]);
-    range.push([r30_70[0], r30_70[1]]);
-    range.push([r40_60[0], r40_60[1]]);
-    range.push([median, median]);
+    range[year].push([r10_90[0], r10_90[1]]);
+    range[year].push([r20_80[0], r20_80[1]]);
+    range[year].push([r30_70[0], r30_70[1]]);
+    range[year].push([r40_60[0], r40_60[1]]);
+    range[year].push([median, median]);
   }
   return range;
 }
@@ -1283,7 +1284,7 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
     }
 
     //console.log(investments);
-    console.log(currentYearIncome, taxable_income, non_taxable_income);
+    // console.log(currentYearIncome, taxable_income, non_taxable_income);
 
     return [currentYearIncome, taxable_income, non_taxable_income, total_expense];
 }
@@ -1304,34 +1305,34 @@ export function findTotalNonDiscretionary(financialplan: any, year: number, star
 
     for (const event of nonDiscretionaryEvents) {
       if (event && event.start.value && event.duration.value && 
-      startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){
+      startingYear + year < event.start.value && startingYear + year > startingYear + event.duration.value){
         continue; // skip if not active
       }
+
       const cost = event.initialAmount || 0;
-      const dist = event.changeDistribution || {};
+      const dist = event.changeDistribution;
       const distType = dist.type;
-      const distParams: number[] = Object.entries(dist)
-          .filter(([key]) => key !== "type")
-          .map(([_, value]) => typeof value === 'number' ? value : Number(value));
+
       // Calculate change value
       let change = 0;
       if (distType === "fixed") {
-          change = distParams[0] || 0;
+          change = dist.value;
       } else if (distType === "normal") {
           // Assuming a normal distribution function is defined
-          change = generateNormal(distParams[0], distParams[1]);
+          change = generateNormal(dist.mean ?? 0, dist.stdev ?? 0);
       } else if (distType === "uniform") {
-          change = generateUniform(distParams[0], distParams[1]);
+          change = generateUniform(dist.lower ?? 0, dist.upper ?? 0);
       }
 
       // Apply change
+      // console.log("checking", cost, change);
       if (event.changeAmtOrPct === "percent") {
           total += cost * (1 + change);
       } else {
           total += cost + change;
       }
   }
-
+  // console.log(total);
   return total;
 }
 
@@ -1485,30 +1486,29 @@ export function payDiscretionary(
   
     for (const event of events) {
       // Calculates the total cost of the event
+      console.log("events that were added for expense: ",event.name);
       const cost = event.initialAmount ?? 0;
       const dist = event.changeDistribution;
   
       // Check if dist is defined
       if (dist) {
         const dist_type = dist.type;
-        const dist_params = Object.entries(dist)
-          .filter(([key]) => key !== 'type')
-          .map(([, value]) => value);
-  
-        let change = 0;
-        if (dist_type === 'fixed') {
-          change = dist_params[0] ?? 0;
-        } else if (dist_type === 'normal') {
-          change = generateNormal(dist_params[0], dist_params[1]);
-        } else if (dist_type === 'uniform') {
-          change = generateUniform(dist_params[0], dist_params[1]);
-        }
-  
-        if (event.changeAmtOrPct === 'percent') {
-          total_event_cost += cost * (1 + change);
-        } else {
-          total_event_cost += cost + change;
-        }
+        
+        let change;
+        if (dist_type === "fixed") {
+          change = dist.value;
+      } else if (dist_type === "normal") {
+          // Assuming a normal distribution function is defined
+          change = generateNormal(dist.mean ?? 0, dist.stdev ?? 0);
+      } else if (dist_type === "uniform") {
+          change = generateUniform(dist.lower ?? 0, dist.upper ?? 0);
+      }
+      change = change ?? 0;
+      if (event.changeAmtOrPct === 'percent') {
+        total_event_cost += cost * (1 + change);
+      } else {
+        total_event_cost += cost + change;
+      }
       } else {
         // If dist is not defined, handle accordingly (e.g., no change)
         total_event_cost += cost;
@@ -1522,17 +1522,18 @@ export function payDiscretionary(
       const all_investments = financialplan.investments ?? [];
       const withdrawal_strategy = financialplan.expenseWithdrawalStrategy ?? [];
   
+      
       if (total_event_cost >= 0) {
         for (const invest_id of withdrawal_strategy) {
           const investment = all_investments.find(inv => inv.id === invest_id);
           if (!investment) continue;
   
           const invest_value = investment.value ?? 0;
-          let early_withdrawal_total = 0;
   
           if (invest_value <= total_event_cost) {
             // Sells entire investment
             total_event_cost -= invest_value;
+            total_cost_paid += invest_value;
             investment.value = 0;
   
             if (investment.taxStatus !== 'pre-tax') {
@@ -1545,7 +1546,7 @@ export function payDiscretionary(
             }
   
             if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
-              early_withdrawal_total += invest_value;
+              currentYearEarlyWithdrawal += invest_value;
             }
 
             if (investment.taxStatus === "pre-tax") {
@@ -1568,26 +1569,30 @@ export function payDiscretionary(
             }
   
             if ((investment.taxStatus === 'pre-tax' || investment.taxStatus === 'after-tax') && age < 59) {
-              early_withdrawal_total += total_event_cost;
+              currentYearEarlyWithdrawal += total_event_cost;
             }
 
             if (investment.taxStatus === "pre-tax") {
               currYearIncome += total_event_cost;
             }
-  
+            
+            total_cost_paid += total_event_cost;
+            
+            console.log("total cost paid: ",total_event_cost);
+
             total_event_cost = 0;
           }
-  
-          currentYearEarlyWithdrawal += total_event_cost;
-          total_cost_paid += total_event_cost;
-  
+            
           if (total_event_cost === 0) {
             break;
           }
+
         }
       }
     }
-    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_cost_paid/total_disc_cost];
+    const percentage = Number.isNaN(total_cost_paid/total_disc_cost) ? 0 : total_cost_paid/total_disc_cost;
+    console.log(percentage);
+    return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, percentage ];
   }
 
 
@@ -1676,8 +1681,8 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
         }
       }
   
-      console.log("array: ", item);
-      console.log(all_investment);
+      // console.log("array: ", item);
+      // console.log(all_investment);
     }
   }
 
