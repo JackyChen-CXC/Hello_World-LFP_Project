@@ -26,7 +26,8 @@ export const createSimulation = async (req: any, res: any) => {
         const plan = await FinancialPlan.findById(id);
 
         if (!plan) {
-            return res.status(404).json({ error: 'Financial plan not found' });
+            return;
+            // return res.status(404).json({ error: 'Financial plan not found' });
         }
 
         // Create simulation
@@ -44,7 +45,7 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running/queued simulation", "csv");
 
         // async queue (not implemented) -> simulation algorithm (do not await)
- 
+        req.body.simulationId = simulation._id;
         //runSimulation(req, res);
         const total_worker = 2;
         const simulation_per_worker = Math.floor(simulations/total_worker);
@@ -110,12 +111,13 @@ export const createSimulation = async (req: any, res: any) => {
 export const runSimulation = async (req: any, res: any) => {
     // Get financial plan, simulation & create simulationResult
     // const start = process.hrtime();
-    const { state_tax_file, username, id, simulations } = req.body;
+    const { state_tax_file, username, id, simulationId, simulations } = req.body;
     
     try {
+        createLog(username, simulationId);
         let plan = await FinancialPlan.findById(id);
-        const simulation = await Simulation.findOne({ planId : id });
-        const result = await SimulationResult.findById(simulation?.resultsId);
+        const simulation = await Simulation.findById(simulationId);
+        const result = await SimulationResult.findOne({ simulationId: simulationId});
 
         // Storage for all simulation raw values
         const totalInvestmentsOverTime: number[][][] = [];  // individual items for range
@@ -128,7 +130,8 @@ export const runSimulation = async (req: any, res: any) => {
         // Check if everything is there
         if (!plan || ! simulation || ! result) {
             createLog(username, 'Items not found.');
-            return res.status(404).json({ error: 'Items not found.' });
+            return;
+            // return res.status(404).json({ error: 'Items not found.' });
         }
 
         // 1,000–10,000 simulations → good starting range
@@ -163,11 +166,12 @@ export const runSimulation = async (req: any, res: any) => {
             const lifeExpectancy = generateFromDistribution(plan.lifeExpectancy[0]);
             if(!lifeExpectancy){
                 createLog(username, "User Life expectancy not found.");
-                return res.status(200).json({
-                    status: "ERROR",
-                    error: true,
-                    message: "Life expectancy not found.",
-                });
+                return;
+                // return res.status(200).json({
+                //     status: "ERROR",
+                //     error: true,
+                //     message: "Life expectancy not found.",
+                // });
             }
 
             // const num_years = 1;
@@ -199,7 +203,8 @@ export const runSimulation = async (req: any, res: any) => {
                 const inflationRate = generateFromDistribution(plan.inflationAssumption);
                 if(!inflationRate){
                     createLog(username, 'inflationRate not found.');
-                    return res.status(404).json({ error: 'inflationRate not found.' });
+                    return;
+                    // return res.status(404).json({ error: 'inflationRate not found.' });
                 }
                 // inflate tax brackets
                 let federal_tax_bracket;
@@ -235,7 +240,8 @@ export const runSimulation = async (req: any, res: any) => {
                 }
                 if(!federal_tax_bracket || !capital_tax_bracket || !standard_deduction_bracket || !state_tax_bracket){
                     createLog(username, "ERROR, Brackets did not update correctly.")
-                    return res.status(404).json({ error: '"ERROR, Brackets did not update correctly.' });
+                    return;
+                    // res.status(404).json({ error: '"ERROR, Brackets did not update correctly.' });
                 }
                 // compute & store inflation-adjusted annual limits on retirement account contributions
                 if(plan.afterTaxContributionLimit){
@@ -262,7 +268,8 @@ export const runSimulation = async (req: any, res: any) => {
                     const rmd = await calculateRMD(plan, age + year, curYearIncome);
                     if ( rmd == -1 ){
                         createLog(username, "Error in calculateRMD()");
-                        return res.status(404).json({ error: 'Error in calculateRMD()' });
+                        return;
+                        // return res.status(404).json({ error: 'Error in calculateRMD()' });
                     }
                     calculateRMD_Investment(plan, rmd);
                     createLog(username, "after 3, investments:", plan.investments);
@@ -373,7 +380,8 @@ export const runSimulation = async (req: any, res: any) => {
             // reset financial plan
             plan = await FinancialPlan.findById(id);
             if (!plan) {
-                return res.status(404).json({ error: 'Financial Plan not found.' });
+                return;
+                // return res.status(404).json({ error: 'Financial Plan not found.' });
             }
 
             // OUTPUT - hash simulation raw values into total arrays
@@ -424,6 +432,7 @@ export const runSimulation = async (req: any, res: any) => {
         // console.log("ended")
     }
     catch (error) {
+        console.log("HUH");
         createLog(username, error);
         console.log("Meet a silent error");
         res.status(200).json({
