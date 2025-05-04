@@ -42,6 +42,8 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running/queued simulation", "csv");
 
         // async queue (not implemented) -> simulation algorithm (do not await)
+        req.body.simulationId = simulation._id;
+
         runSimulation(req, res);
 
         // return OK signal
@@ -65,12 +67,13 @@ export const createSimulation = async (req: any, res: any) => {
 // Oversee Simulation algorithm and configure SimulationResult
 export const runSimulation = async (req: any, res: any) => {
     // Get financial plan, simulation & create simulationResult
-    const { state_tax_file, username, id, simulations, scenarioExplore: boolean, explorationType, item, min, max, explorationType2, item2, min2, max2} = req.body;
+    const { state_tax_file, username, id, simulations, simulationId, scenarioExplore: boolean, explorationType, item, min, max, explorationType2, item2, min2, max2} = req.body;
     
     try {
+        createLog(username, simulationId);
         let plan = await FinancialPlan.findById(id);
-        const simulation = await Simulation.findOne({ planId : id });
-        const result = await SimulationResult.findById(simulation?.resultsId);
+        const simulation = await Simulation.findById(simulationId);
+        const result = await SimulationResult.findOne({ simulationId: simulationId});
 
         // Storage for all simulation raw values
         const totalInvestmentsOverTime: number[][][] = [];  // individual items for range
@@ -369,11 +372,13 @@ export const runSimulation = async (req: any, res: any) => {
         let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
         result.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         result.expensesOrder.push(...taxOrder);
-        // console.log(result);
+        console.log(result);
         await result.save();
-
+        createLog(username, "saved results.")
+        return;
     }
     catch (error) {
+        console.log("HUH");
         createLog(username, error);
         return;
         // res.status(200).json({
