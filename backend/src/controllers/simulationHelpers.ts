@@ -271,19 +271,24 @@ export function getDB(){
 //
 //
 //Standard Deduction
-export function getStandardDeduction(status: 'single' | 'married', data: any[]): number | null {
+export function getStandardDeduction(status: 'single' | 'married', data: Record<string, number>): number | null {
     // Loop through the data to find the matching status
-    for (const item of data) {
-      const { status: itemStatus, rate } = item;
-  
-      // Check if the status matches
-      if (itemStatus === status) {
-        return rate; // Return the rate if a match is found
-      }
-    }
-  
-    // Return null if no matching status is found
-    return null;
+    return data[status] ?? null;
+    // console.log("inside deducytion");
+    // console.log(data)
+    // for (const item of data) {
+    //   console.log("d");
+    //   console.log("tem",item);
+    //   const { status: itemStatus, rate } = item;
+    //   console.log("inside deducytion",item);
+    //   // Check if the status matches
+    //   if (itemStatus === status) {
+    //     return rate; // Return the rate if a match is found
+    //   }
+    // }
+    // console.log("stopped dedication")
+    // // Return null if no matching status is found
+    // return null;
   }
 
 
@@ -302,6 +307,8 @@ type TaxData = {
   single: TaxBracket[];
   married: TaxBracket[];
 };
+
+import { writeLog } from "./logHelper";
 export function calculateStateTax(income: number, marriedStatus: "single" | "married", adjusted: TaxData | number): number {
     //adjusted is 0 meaning it's one of the taxless states
     if (adjusted === 0) return 0;
@@ -310,12 +317,12 @@ export function calculateStateTax(income: number, marriedStatus: "single" | "mar
 
     for (const bracket of brackets) {
       if (income >= bracket.min && (bracket.max === null || income <= bracket.max)) {
-        console.log("state tax amount: ",bracket.base_tax + parseFloat((bracket.rate * income).toFixed(2)));
+        //console.log("state tax amount: ",bracket.base_tax + parseFloat((bracket.rate * income).toFixed(2)));
         return bracket.base_tax + parseFloat((bracket.rate * income).toFixed(2));
       }
     }
 
-    console.log(`Tax amount not found`);
+    //console.log(`Tax amount not found`);
     return 0;
 }
 
@@ -533,7 +540,6 @@ export function updateStateTaxForInflation(state_tax_file: string, inflation: nu
 //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
   const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
   if (noTaxStates.includes(state)) {
-    console.log("no state tax");
     adjusted.single.push({
       min: 0,
       max: 0,
@@ -623,7 +629,6 @@ export function updateStateTaxForNormalDistributionInflation(mean: number, std: 
 //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
   const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
   if (noTaxStates.includes(state)) {
-    console.log("no state tax");
     return 0;
   }
 
@@ -695,7 +700,6 @@ export function updateStateTaxForUniformDistributionInflation(bot: number, top: 
 //                   "alaska", "florida", "nevada", "south_dakota", "tennessee", "texas", "wyoming"
   const noTaxStates = ["ak", "fl", "nv", "sd", "tn", "tx", "wy"];
   if (noTaxStates.includes(state)) {
-    console.log("no state tax");
     return 0;
   }
 
@@ -1100,7 +1104,6 @@ export function performRothOptimizer(
     taxBrackets: any[],
     standardDeduction: any
   ): number {
-    console.log("starting roth optimizer-----------------")
     const allInvestments = financialPlan.investments;
     const rothStrategy = financialPlan.RothConversionStrategy;
   
@@ -1115,7 +1118,7 @@ export function performRothOptimizer(
       const max = Number(bracket.max_value ?? Infinity);
         
       if (currentYearIncome >= min && currentYearIncome <= max) {
-        console.log("Match found!");
+        //console.log("Match found!");
         u = max;
         break;
       }
@@ -1360,6 +1363,7 @@ export function payNonDiscretionary(
     const age = currentAge + year;
     const total_income = previousYearIncome + previousYearSocialSecurityIncome;
 
+  
     // part a
     const total_taxable_income = total_income - (getStandardDeduction(married_status,standardDeductionBrackets) ?? 0);
     const federal_tax = getFederalTaxRate(total_taxable_income ?? 0,married_status,federalTaxBracket);
@@ -1374,6 +1378,7 @@ export function payNonDiscretionary(
     const early_withdrawal_tax = (previousYearEarlyWithdrawals > 0 && age < 59)
         ? previousYearEarlyWithdrawals * 0.1
         : 0;
+
 
     // part d
     const total_non_discretionary = findTotalNonDiscretionary(financialplan, year, startingYear);
@@ -1416,7 +1421,6 @@ export function payNonDiscretionary(
                 }
             } else {
                 investment.value -= total_withdrawal_amount;
-
                 if (investment.taxStatus !== "pre-tax") {
                     //following line assumes we have created a field that stores the total purchased price
                     //remember to create the field for the investment once algorithmn starts or store it in a array
@@ -1435,7 +1439,6 @@ export function payNonDiscretionary(
 
                 total_withdrawal_amount = 0;
             }
-
             currentYearEarlyWithdrawal += total_withdrawal_amount;
             if (total_withdrawal_amount === 0) break;
         }
@@ -1486,7 +1489,7 @@ export function payDiscretionary(
   
     for (const event of events) {
       // Calculates the total cost of the event
-      console.log("events that were added for expense: ",event.name);
+      //console.log("events that were added for expense: ",event.name);
       const cost = event.initialAmount ?? 0;
       const dist = event.changeDistribution;
   
@@ -1578,7 +1581,7 @@ export function payDiscretionary(
             
             total_cost_paid += total_event_cost;
             
-            console.log("total cost paid: ",total_event_cost);
+            //console.log("total cost paid: ",total_event_cost);
 
             total_event_cost = 0;
           }
@@ -1591,7 +1594,7 @@ export function payDiscretionary(
       }
     }
     const percentage = Number.isNaN(total_cost_paid/total_disc_cost) ? 0 : total_cost_paid/total_disc_cost;
-    console.log(percentage);
+    //console.log(percentage);
     return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, percentage ];
   }
 

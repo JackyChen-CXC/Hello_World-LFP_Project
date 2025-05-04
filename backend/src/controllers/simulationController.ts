@@ -4,6 +4,7 @@ import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
 import * as path from 'path';
 import { Worker } from 'worker_threads';
+import { fork } from 'child_process';
 import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // new function that uses console.log with typed rest parameters
@@ -21,7 +22,7 @@ const createLog = (username: string, ...args: unknown[]): void => {
 export const createSimulation = async (req: any, res: any) => {
     try {
         // Get specific financial plan to simulate
-        const { username, id } = req.body;
+        const { state_tax_file, username, id, simulations } = req.body;
         const plan = await FinancialPlan.findById(id);
 
         if (!plan) {
@@ -43,19 +44,49 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running/queued simulation", "csv");
 
         // async queue (not implemented) -> simulation algorithm (do not await)
+ 
         //runSimulation(req, res);
-        const worker = new Worker(path.resolve(__dirname, './simulationWorker.ts'), {
-            workerData: {
+        const total_worker = 2;
+        const simulation_per_worker = Math.floor(simulations/total_worker);
+        const extra_simulation = simulations % total_worker;
+
+        const workerPath = path.resolve(__dirname, 'simulationWorker.ts');
+
+        let completed = 0;
+        let results: any[] = [];
+
+        for(let i=0; i<total_worker; i++){
+            const numSimulations = simulation_per_worker + (i < extra_simulation ? 1 : 0);
+
+            const child = fork(workerPath, [], {
+                execArgv: ['-r', 'ts-node/register'],
+                env: { ...process.env },
+                stdio: 'inherit'
+            });
+
+            // Send data to child
+            child.send({
                 reqData: {
                     body: {
-                        username: username,
-                        id: id
+                        state_tax_file,
+                        username,
+                        id,
+                        simulations
                     }
+                },
+                numSimulations: numSimulations, // or whatever number you want
+                workerId: i
+            });
+
+
+            child.on('message', (msg) => {
+                // Count completion
+                if (++completed === total_worker) {
+                    console.log("All workers finished.");
+                    
                 }
-            }
-        });
-
-
+            });
+        }
         // return OK signal
         return res.status(200).json({
             status: "OK",
@@ -66,6 +97,7 @@ export const createSimulation = async (req: any, res: any) => {
         });
     }
     catch (error) {
+        console.log("simulation failed to error");
         return res.status(200).json({
             status: "ERROR",
             error: true,
@@ -77,6 +109,7 @@ export const createSimulation = async (req: any, res: any) => {
 // Oversee Simulation algorithm and configure SimulationResult
 export const runSimulation = async (req: any, res: any) => {
     // Get financial plan, simulation & create simulationResult
+    // const start = process.hrtime();
     const { state_tax_file, username, id, simulations } = req.body;
     
     try {
@@ -105,7 +138,7 @@ export const runSimulation = async (req: any, res: any) => {
         const age = startingYear - plan.birthYears[0];
 
         // inside simulations (loop by simulation)
-        for (let simulations = 0; simulations < num_simulations; simulations++) {
+        //for (let simulations = 0; simulations < num_simulations; simulations++) {
             // Storage for total yearly raw values
             const InvestmentsOverTime: number[][] = [];
             const IncomeOverTime: number[][] = [];
@@ -236,6 +269,7 @@ export const runSimulation = async (req: any, res: any) => {
                     writeLog(username, "performed RMD for last year", "log");
                 }
 
+                
                 // 4. Update investments, expected annual return, reinvestment of income, then expenses.
                 createLog(username, `b4 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}`);
                 // return [currentYearIncome, taxable_income, non_taxable_income];
@@ -258,6 +292,8 @@ export const runSimulation = async (req: any, res: any) => {
                 
                 // // 6. Pay non-discretionary expenses and the previous year’s taxes (Pre-tax -> +curYearIncome)
                 createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
+
+
                 const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
                     previousYearGain, previousYearEarlyWithdrawals, age, year, startingYear, curYearIncome, currentYearGain, currentYearEarlyWithdrawal,
                     standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
@@ -266,15 +302,18 @@ export const runSimulation = async (req: any, res: any) => {
                 currentYearGain = vals[1];
                 currentYearEarlyWithdrawal = vals[2];
                 curYearExpenses += vals[3];
+
+    
                 if (Number.isNaN(vals[3])){
                     console.log("RETURNED NULL");
                 }
+
+             
                 let federal_tax = vals[4];
                 let state_tax = vals[5]
                 createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
 
                 // writeLog(username, "Paid non-discretionary expenses and the previous year’s taxes ", "log");
-                
                 // // 7. Pay discretionary expenses in the order given by the spending strategy (Pre-tax -> +curYearIncome)
                 const total_asset = getTotalAssetValue(plan.investments);
                 // currYearIncome, currentYearGain, currentYearEarlyWithdrawal
@@ -283,10 +322,11 @@ export const runSimulation = async (req: any, res: any) => {
                 curYearIncome = vals2[0];
                 currentYearGain = vals2[1];
                 currentYearEarlyWithdrawal = vals2[2];
-                console.log("PERCETNAGHE",vals2[3]);
+                //console.log("PERCETNAGHE",vals2[3]);
                 percentageTotalDiscretionary.push(vals2[3]);
                 writeLog(username, "Paid discretionary expenses", "log");
 
+            
                 // // 8. Run the invest events scheduled for the current year
                 createLog(username, `b4 8, investments: ${plan.investments}`);
                 runInvestEvents(plan, glidePathValue);
@@ -295,14 +335,14 @@ export const runSimulation = async (req: any, res: any) => {
                 
                 
                 // writeLog(username, "Ran the invest events", "log");
-
+           
                 // // 9. Run rebalance events scheduled for the current year
                 createLog(username, `b4 9, currentYearGain: ${currentYearGain}, investments: ${plan.investments}`);
                 currentYearGain = runRebalance(plan, currentYearGain, status, capital_tax_bracket);
                 createLog(username, `after 9, currentYearGain: ${currentYearGain}, investments: ${plan.investments}`);
 
                 // writeLog(username, "Ran rebalance events", "log");
-                
+           
                 // investments
                 InvestmentsOverTime.push(getValueOfInvestments(plan.investments));
                 // incomes alr pushed
@@ -328,6 +368,7 @@ export const runSimulation = async (req: any, res: any) => {
                 previousYearEarlyWithdrawals = currentYearEarlyWithdrawal;
                 currentYearGain = 0;
                 currentYearEarlyWithdrawal = 0;
+            
             }
             // reset financial plan
             plan = await FinancialPlan.findById(id);
@@ -343,7 +384,7 @@ export const runSimulation = async (req: any, res: any) => {
             hashIntoTotal(totalYearlyExpenses, yearlyExpenses);
             hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
             hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
-        }
+        //}
         // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean/median values)
         // 4.1 probability of success
         result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);
@@ -376,11 +417,15 @@ export const runSimulation = async (req: any, res: any) => {
         result.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         result.expensesOrder.push(...taxOrder);
         // console.log(result);
-        await result.save();
+        //await result.save();
 
+        // const end = process.hrtime(start);
+        // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
+        // console.log("ended")
     }
     catch (error) {
         createLog(username, error);
+        console.log("Meet a silent error");
         res.status(200).json({
             status: "ERROR",
             error: true,

@@ -3,24 +3,42 @@ import { runSimulation } from './simulationController';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
+
+//console.log(process.env.MONGO_URI);
 dotenv.config();
-mongoose.connect(process.env.MONGO_URI || '');
+//mongoose.connect(process.env.MONGO_URI || '');
+mongoose.connect('mongodb://localhost:27017/mydatabase');
 
-(async () => {
+process.on('message', async (data: any) => {
+    const { reqData, numSimulations, workerId } = data;
+
+    const fakeRes: any = {
+        status: () => ({
+            json: (msg: any) => process.send?.({ msg, workerId }),
+        }),
+        json: (msg: any) => process.send?.({ msg, workerId }),
+    };
+
     try {
-        const fakeReq: any = workerData.reqData;
-        const fakeRes: any = {
-            status: () => ({
-                json: (msg: any) => parentPort?.postMessage(msg)
-            }),
-            json: (msg: any) => parentPort?.postMessage(msg)
-        };
+        const timerLabel = `simulationTime_worker_${workerId}`;
+        console.log(`Worker ${workerId} starting ${numSimulations} simulations...`);
+        console.time(timerLabel);
 
-        await runSimulation(fakeReq, fakeRes);
+        for (let i = 0; i < numSimulations; i++) {
+            await runSimulation(reqData, fakeRes);
+        }
+
+        console.timeEnd(timerLabel);
+        console.log(`Worker ${workerId} finished.`);
+        
+        process.send?.({
+            success: true,
+            message: `Worker ${workerId} completed ${numSimulations} simulations`,
+        });
     } catch (err: any) {
-        parentPort?.postMessage({ error: true, message: err.message });
+        process.send?.({ error: true, message: err.message, workerId });
     }
-})();
+});
 
 
 
