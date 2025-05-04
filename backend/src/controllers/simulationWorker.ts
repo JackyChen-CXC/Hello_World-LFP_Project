@@ -24,13 +24,14 @@ process.on('message', async (data: any) => {
         console.log(`Worker ${workerId} starting ${numSimulations} simulations...`);
         console.time(timerLabel);
 
+        const results = [];
         for (let i = 0; i < numSimulations; i++) {
             await runSimulation(reqData, fakeRes);
         }
 
         console.timeEnd(timerLabel);
         console.log(`Worker ${workerId} finished.`);
-        
+
         process.send?.({
             success: true,
             message: `Worker ${workerId} completed ${numSimulations} simulations`,
