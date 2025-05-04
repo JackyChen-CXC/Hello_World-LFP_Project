@@ -2,6 +2,8 @@ import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog } from "./logHelper";
+import * as path from 'path';
+import { Worker } from 'worker_threads';
 import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // new function that uses console.log with typed rest parameters
@@ -41,7 +43,18 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running/queued simulation", "csv");
 
         // async queue (not implemented) -> simulation algorithm (do not await)
-        runSimulation(req, res);
+        //runSimulation(req, res);
+        const worker = new Worker(path.resolve(__dirname, './simulationWorker.ts'), {
+            workerData: {
+                reqData: {
+                    body: {
+                        username: username,
+                        id: id
+                    }
+                }
+            }
+        });
+
 
         // return OK signal
         return res.status(200).json({
