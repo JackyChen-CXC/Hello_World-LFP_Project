@@ -16,7 +16,14 @@ export function writeLog(user: string, log: string, type: 'csv' | 'log') {
   fs.appendFileSync(filepath, log + (type === 'csv' ? '\n' : '\n\n'), 'utf8');
 }
 
-
+// function that uses console.log with typed rest parameters
+export const createLog = (username: string, ...args: unknown[]): void => {
+  const logInfo = args.map(arg =>
+      typeof arg === 'string' ? arg : JSON.stringify(arg)
+  ).join(' ') + '\n';
+  writeLog(username, logInfo, "log");
+  // console.log.apply(console, args); // Optionally keep original logging
+};
 
 if (require.main === module) {
     writeLog('jack', 'Year,Stocks,Bonds,Cash\n2025,10000,5000,2000', 'csv');

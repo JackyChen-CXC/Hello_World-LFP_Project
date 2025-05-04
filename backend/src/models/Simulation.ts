@@ -4,21 +4,14 @@ export interface ISimulation extends Document {
     planId: string;
     status: string;
     resultsId: string;
-    // Stores all the detailed paths for each simulation inside for depiction using scenario exploration (Might be unnecessary)
-    InvestmentsOverTime: number[][]; 
-    ExpensesOverTime: number[][];
-    earlyWithdrawalTaxOverTime: number[][];
-    percentageTotalDiscretionary: number[][];
+    time: String;
 }
 
 const simulationSchema = new Schema<ISimulation>({
     planId: { type: String, required: true },
     status: { type: String, required: true, enum: ["pending", "running", "completed", "failed"], default: "pending" },
     resultsId: { type: String, },
-    InvestmentsOverTime: { type: [[Number]], required: true, default: [] },
-    ExpensesOverTime: { type: [[Number]], required: true, default: [] },
-    earlyWithdrawalTaxOverTime: { type: [[Number]], required: true, default: [] },
-    percentageTotalDiscretionary: { type: [[Number]], required: true, default: [] },
+    time:  { type: String, },
 });
 
 simulationSchema.index({ planId: 1 });
