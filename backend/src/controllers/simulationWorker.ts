@@ -12,25 +12,17 @@ mongoose.connect('mongodb://localhost:27017/mydatabase');
 process.on('message', async (data: any) => {
     const { reqData, numSimulations, workerId } = data;
 
-    // const fakeRes: any = {
-    //     status: () => ({
-    //         json: (msg: any) => process.send?.({ msg, workerId }),
-    //     }),
-    //     json: (msg: any) => process.send?.({ msg, workerId }),
-    // };
     const fakeRes: any = {
         data: null,
         status: function() {
             return {
                 json: function(msg: any) {
                     fakeRes.data = msg;  // Store the data
-                    process.send?.({ msg, workerId });
                 }
             };
         },
         json: function(msg: any) {
             fakeRes.data = msg;  // Store the data
-            process.send?.({ msg, workerId });
         }
     };
 
@@ -39,14 +31,18 @@ process.on('message', async (data: any) => {
         console.log(`Worker ${workerId} starting ${numSimulations} simulations...`);
         console.time(timerLabel);
         const results = [];
+        
         for (let i = 0; i < numSimulations; i++) {
             await runSimulation(reqData, fakeRes);
-            results.push(fakeRes.data.data);
+            if (fakeRes.data && fakeRes.data.data) {
+                results.push(fakeRes.data.data);
+            }
         }
 
         console.timeEnd(timerLabel);
         console.log(`Worker ${workerId} finished.`);
 
+        // Send all data in one message at the end
         process.send?.({
             success: true,
             message: `Worker ${workerId} completed ${numSimulations} simulations`,
