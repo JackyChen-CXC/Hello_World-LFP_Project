@@ -2379,32 +2379,19 @@ const ShadedLineChart = ({
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
 
-        {/* top‑row buttons */}
+        {/* Top-row buttons - simplified to just two main options */}
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: "2%" }}>
-          {[
-            ["line", "Line Chart"],
-            ["shaded", "Shaded Line Chart"],
-            ["stacked", "Stacked Bar Chart"],
-          ].map(([val, label]) => (
-            <ToggleButton
-              key={val}
-              value={val}
-              label={label}
-              selected={selectedGraphs.includes(val)}
-              onToggle={(v) =>
-                setSelectedGraphs((prev) =>
-                  prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
-                )
-              }
-            />
-          ))}
-          
-          {/* Scenario exploration button */}
+          <ToggleButton
+            value="graphs"
+            label="View Graphs"
+            selected={!showScenarioExploration}
+            onToggle={() => setShowScenarioExploration(false)}
+          />
           <ToggleButton
             value="scenario"
             label="Scenario Exploration"
             selected={showScenarioExploration}
-            onToggle={() => setShowScenarioExploration(!showScenarioExploration)}
+            onToggle={() => setShowScenarioExploration(true)}
           />
         </div>
         
@@ -2418,13 +2405,50 @@ const ShadedLineChart = ({
               fontWeight: 'bold'
             }}>
               Loading simulation data...
+            </div>
           </div>
-        </div>
         )}
         
         {!showScenarioExploration && (
           <div>
             <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
+            
+            {/* Chart Type Selection */}
+            <div style={{ marginTop: 20, textAlign: "center" }}>
+              <div className="normal-text" style={{ fontWeight: 'bold', marginBottom: 10 }}>Select Chart Types:</div>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px" }}>
+                <ToggleButton
+                  value="line"
+                  label="Line Chart"
+                  selected={selectedGraphs.includes("line")}
+                  onToggle={(v) =>
+                    setSelectedGraphs((prev) =>
+                      prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                    )
+                  }
+                />
+                <ToggleButton
+                  value="shaded"
+                  label="Shaded Line Chart"
+                  selected={selectedGraphs.includes("shaded")}
+                  onToggle={(v) =>
+                    setSelectedGraphs((prev) =>
+                      prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                    )
+                  }
+                />
+                <ToggleButton
+                  value="stacked"
+                  label="Stacked Bar Chart"
+                  selected={selectedGraphs.includes("stacked")}
+                  onToggle={(v) =>
+                    setSelectedGraphs((prev) =>
+                      prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                    )
+                  }
+                />
+              </div>
+            </div>
 
             {selectedGraphs.includes("shaded") && (
               <div style={{ marginTop: 20 }}>
@@ -2442,8 +2466,8 @@ const ShadedLineChart = ({
                     }
                   />
                 ))}
-        </div>
-        )}
+              </div>
+            )}
 
             {selectedGraphs.includes("stacked") && (
               <div style={{ marginBottom: 40 }}>
@@ -2535,13 +2559,20 @@ const ShadedLineChart = ({
               </div>
             )}
             <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
+          
+            {/* Graphs display */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {renderNormalGraphs()}
+            </div>
           </div>
         )}
 
-        {/* graphs */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {showScenarioExploration ? renderScenarioExploration() : renderNormalGraphs()}
-        </div>
+        {/* Show scenario exploration if selected */}
+        {showScenarioExploration && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {renderScenarioExploration()}
+          </div>
+        )}
       </div>
     </div>
   );
