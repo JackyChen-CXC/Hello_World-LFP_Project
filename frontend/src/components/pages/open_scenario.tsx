@@ -112,7 +112,7 @@ const OpenScenario = () => {
         });
         setInvestmentDetails(Object.values(investmentMap));
 
-        console.log(scenario.investmentTypes);
+        // console.log(scenario.investmentTypes);
       } catch (error) {
         console.error("Failed to load investment types:", error);
       }
@@ -163,6 +163,7 @@ const OpenScenario = () => {
   const username = localStorage.getItem("name");
   const name = localStorage.getItem("given_name");
   const picture = localStorage.getItem("picture")
+  const userId = localStorage.getItem("userId") || "";
   
   const handleRunSimulation = async () => {
     if (!id || !simulationNum) {
@@ -172,15 +173,16 @@ const OpenScenario = () => {
 
     try {
       // state tax file
-      const resp = await fetch(`http://localhost:5000/api/user-files?userId=${id}`);
+      const resp = await fetch(`http://localhost:5000/api/user-files?userId=${userId}`);
       const resu = await resp.json();
       let tax_file;
-      if (resp.ok) {
+      if (resp.ok && Array.isArray(resu.data) && resu.data.length > 0) {
         tax_file = resu.data[0];
       } else {
         console.error("Failed to fetch user files:", resu.error);
+        tax_file = "state_tax.yaml";
       }
-
+      console.log("state tax file:", tax_file);
       const response = await fetch("http://localhost:5000/api/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -315,7 +317,7 @@ const OpenScenario = () => {
             //   (item) => item._id === meta.investmentType
             // );
             const inv = scenario.investmentTypes[index];
-            console.log(inv);
+            // console.log(inv);
             return (
               <div key={meta.investmentType + index} style={{ marginBottom: "1rem" }}>
                 <div className="normal-text" style={{ fontWeight: "bold" }}>
