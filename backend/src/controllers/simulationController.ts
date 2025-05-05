@@ -344,11 +344,13 @@ export const runSimulation = async (req: any, res: any) => {
             // // 7. Pay discretionary expenses in the order given by the spending strategy (Pre-tax -> +curYearIncome)
             const total_asset = getTotalAssetValue(plan.investments);
             // currYearIncome, currentYearGain, currentYearEarlyWithdrawal
+            createLog(username, `b4 7, total_asset: ${total_asset}, curYearIncome: ${curYearIncome}, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
             const vals2 = payDiscretionary(plan, total_asset, curYearIncome, currentYearGain, currentYearEarlyWithdrawal, age, year, startingYear);
             // TODO - OUTPUT expense output didn't add taxes
             curYearIncome = vals2[0];
             currentYearGain = vals2[1];
             currentYearEarlyWithdrawal = vals2[2];
+            createLog(username, `after 7, curYearIncome: ${curYearIncome}, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
             //console.log("PERCETNAGHE",vals2[3]);
             percentageTotalDiscretionary.push(vals2[3]);
             writeLog(username, "Paid discretionary expenses", "log");
