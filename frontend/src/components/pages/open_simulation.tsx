@@ -932,37 +932,6 @@ const OpenSimulation: React.FC = () => {
     discretionaryPct: "% of Discretionary Expenses",
   };
 
-  const renderNormalGraphs = () => (
-    <>
-      {selectedGraphs.includes("line") && (
-        <div style={{ marginBottom: 40 }}>
-          <LineChartGraph />
-        </div>
-      )}
-
-      {selectedGraphs.includes("shaded") &&
-        selectedShadedMetrics.map((metric) => (
-          <div key={metric} style={{ marginBottom: 40 }}>
-            <h3 style={{ textAlign: "center", marginBottom: 10 }}>
-              {metricLabels[metric]}
-            </h3>
-            <ShadedLineChart
-              metric={metric}
-              financialGoal={
-                metric === "investments" ? mockSimulationResult.financialGoal : undefined
-              }
-            />
-          </div>
-        ))}
-
-      {selectedGraphs.includes("stacked") && (
-        <div style={{ marginBottom: 40 }}>
-          <StackedBarChart useMedian={useMedianValues} />
-        </div>
-      )}
-    </>
-  );
-
   const renderScenarioPanel = () => (
     <div style={{ marginTop: 20 }}>
       {/* view‑type radios */}
@@ -1120,68 +1089,124 @@ const OpenSimulation: React.FC = () => {
               value={val}
               label={label}
               selected={selectedGraphs.includes(val)}
-              onToggle={(v) =>
+              onToggle={(v) => {
+                setShowScenario(false);
                 setSelectedGraphs((prev) =>
                   prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
-                )
-              }
+                );
+              }}
             />
           ))}
           
-
           {/* scenario exploration button */}
           <ToggleButton
             value="scenario"
             label="Scenario Exploration"
             selected={showScenario}
-            onToggle={() => setShowScenario(!showScenario)}
+            onToggle={() => {
+              setShowScenario(!showScenario);
+              if (!showScenario) {
+                setSelectedGraphs([]);
+              }
+            }}
+
           />
         </div>
-        <div>
-        <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
+        
+        <div
+          style={{
+            backgroundColor: "#e2ece5",
+            width: "80%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          {!showScenario && selectedGraphs.includes("line") && (
+            <>
+              <div style={{ marginTop: 20, marginBottom: 10 }}>
+                <h3 style={{ textAlign: "center" }}>Probability of Success</h3>
+              </div>
+              <div style={{ marginBottom: 40 }}>
+                <LineChartGraph />
+              </div>
+            </>
+          )}
 
           {!showScenario && selectedGraphs.includes("shaded") && (
-            <div style={{ marginTop: 20 }}>
-              <div className="normal-text">Select Shaded Metrics:</div>
-              {Object.entries(metricLabels).map(([val, label]) => (
-                <ToggleButton
-                  key={val}
-                  value={val}
-                  label={label}
-                  selected={selectedShadedMetrics.includes(val)}
-                  onToggle={(v) =>
-                    setSelectedShadedMetrics((prev) =>
-                      prev.includes(v) ? prev.filter((m) => m !== v) : [...prev, v]
-                    )
-                  }
-                />
+            <>
+              <div style={{ marginTop: 20 }}>
+                <div className="normal-text" style={{ textAlign: "center" }}>
+                  Select Shaded Metrics:
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    marginTop: 10,
+                  }}
+                >
+                  {Object.entries(metricLabels).map(([val, label]) => (
+                    <ToggleButton
+                      key={val}
+                      value={val}
+                      label={label}
+                      selected={selectedShadedMetrics.includes(val)}
+                      onToggle={(v) =>
+                        setSelectedShadedMetrics((prev) =>
+                          prev.includes(v)
+                            ? prev.filter((m) => m !== v)
+                            : [...prev, v]
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {selectedShadedMetrics.map((metric) => (
+                <div key={metric} style={{ marginBottom: 40 }}>
+                  <h3 style={{ textAlign: "center", marginTop: 30, marginBottom: 10 }}>
+                    {metricLabels[metric]}
+                  </h3>
+                  <ShadedLineChart
+                    metric={metric}
+                    financialGoal={
+                      metric === "investments" ? mockSimulationResult.financialGoal : undefined
+                    }
+                  />
+                </div>
               ))}
-            </div>
+            </>
           )}
 
           {!showScenario && selectedGraphs.includes("stacked") && (
-            <div style={{ margin: "20px 0" }}>
-              <div className="normal-text">Select Stacked Bar Chart Metrics:</div>
-              <ToggleButton
-                label="Median Values"
-                value="median"
-                selected={useMedianValues}
-                onToggle={() => setUseMedianValues(true)}
-              />
-              <ToggleButton
-                label="Average Values"
-                value="average"
-                selected={!useMedianValues}
-                onToggle={() => setUseMedianValues(false)}
-              />
-            </div>
+            <>
+              <div style={{ margin: "20px 0" }}>
+                <div className="normal-text">Select Stacked Bar Chart Metrics:</div>
+                <ToggleButton
+                  label="Median Values"
+                  value="median"
+                  selected={useMedianValues}
+                  onToggle={() => setUseMedianValues(true)}
+                />
+                <ToggleButton
+                  label="Average Values"
+                  value="average"
+                  selected={!useMedianValues}
+                  onToggle={() => setUseMedianValues(false)}
+                />
+              </div>
+              <StackedBarChart useMedian={useMedianValues} />
+            </>
           )}
-          <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
         </div>
+
 
         {/* graphs */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {showScenario ? renderScenarioPanel() : renderNormalGraphs()}
+        {showScenario && renderScenarioPanel()}
         </div>
       </div>
     </div>
