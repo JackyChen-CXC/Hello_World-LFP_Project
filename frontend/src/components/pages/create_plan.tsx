@@ -2441,7 +2441,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                     value={lifeEvent.eventName}
                     onChange={(e) => handleLifeEventChange(index, e)}
                   />
-                  <div className="normal-text">Brief Description of Event Series *(Required)*</div>
+                  <div className="normal-text">Brief Description of Event Series </div>
                   <textarea
                     className="input-boxes textarea-box"
                     rows="4"
