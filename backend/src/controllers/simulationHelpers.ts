@@ -169,9 +169,7 @@ export function hashIntoTotal(total: any[][][], sim: any[], rangeIndex: number) 
       if (!total[rangeIndex][year]) {
           total[rangeIndex][year] = [];
       }
-      console.log("b4",total[rangeIndex][year]);
       total[rangeIndex][year].push(sim[year]);
-      console.log("after",total[rangeIndex][year]);
   }
 }
 
