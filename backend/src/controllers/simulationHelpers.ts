@@ -1204,6 +1204,7 @@ export function performRothOptimizer(
     // console.log("deduction: ", deductionValue)
     // console.log("federal bracket: ", u)
     // console.log("rc value: ",rc)
+    let amount_transferred = 0;
 
     for (const investId of rothStrategy) {
       const investment = allInvestments.find((inv) => inv.id === investId);
@@ -1213,11 +1214,13 @@ export function performRothOptimizer(
       let movedValue = 0;
   
       if (investValue <= rc) {
+        amount_transferred += investValue;
         rc -= investValue;
         investment.value = 0;
         movedValue = investValue;
         // console.log("here we are moving everything---------")
       } else {
+        amount_transferred += rc;
         investment.value -= rc;
         movedValue = rc;
         rc = 0;
@@ -1245,7 +1248,7 @@ export function performRothOptimizer(
       if (rc === 0) break;
     }
     console.log("\n\n\n-----")
-    currentYearIncome += rc;
+    currentYearIncome += amount_transferred;
     return currentYearIncome;
   }
 
