@@ -1187,6 +1187,28 @@ useEffect(() => {
 useEffect(() => {
   if (!isEditMode || !formData) return;
 
+  // Extract unique investmentType IDs from existing investments
+  const typeIdsInPlan = formData.investments.map(inv => inv.investmentType);
+  const missingTypes = typeIdsInPlan.filter(
+    id => !existingInvestmentTypes.some(type => type._id === id)
+  );
+
+  // If any investmentTypes are missing from existingInvestmentTypes, fetch them
+  if (missingTypes.length > 0) {
+    Promise.all(
+      missingTypes.map(id =>
+        fetch(`/api/investmenttypes/${id}`).then(res => res.json())
+      )
+    ).then(fetchedTypes => {
+      setExistingInvestmentTypes(prev => [...prev, ...fetchedTypes]);
+    });
+  }
+}, [isEditMode, formData, existingInvestmentTypes]);
+
+
+useEffect(() => {
+  if (!isEditMode || !formData) return;
+
   setRmdOrder(formData.rmdStrategy || []);
   setRothOrder(formData.rothconversionstrategy || []);
   setExpenseOrder(formData.expenseWithdrawalStrategy || []);
@@ -1824,7 +1846,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               <option value="">--Select--</option>
               <option value="create_new">-- Create New Investment Type --</option>
               {localInvestmentTypes.map((type) => (
-                <option key={type._id} value={type._id}>
+                <option key={type.name} value={type.name}>
                   {type.name}
                 </option>
               ))}
