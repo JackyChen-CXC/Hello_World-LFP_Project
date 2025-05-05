@@ -5,7 +5,7 @@ import { writeLog, createLog } from "./logHelper";
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { fork } from 'child_process';
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, enforceScenarioParameter, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -27,6 +27,23 @@ export interface simulationOutput{
     expensesOrder: string[];
     avgExpensesOverTime: number[][][];
     medianExpensesOverTime: number[][][];
+}
+
+export interface scenarioExplorationParams{
+    algorithmType: string,
+    index: number,
+    min: number,
+    max: number,
+    step: number,
+    index2: number,
+    min2: number,
+    max2: number,
+    step2: number,
+
+    itemId?: string,
+    itemType?: string,
+    itemId2?: string,
+    itemType2?: string,
 }
 
 // Create Simulation object using Financial Plan object
@@ -65,18 +82,54 @@ export const createSimulation = async (req: any, res: any) => {
 
         writeLog(username, "started running/queued simulation", "csv");
 
+        // set up Scenario Exploration Params
+        let rangeIterator: scenarioExplorationParams;
         if( (algorithmType === "1d" || algorithmType === "2d") && itemType && itemId && min && max && step){
             console.log("scenario parameter 1 defined");
             if(algorithmType === "2d" && itemType2 && itemId2 && min2 && max2 && step2){
                 console.log("scenario parameter 2 defined");
+                rangeIterator = {
+                    algorithmType: algorithmType,
+                    index: min,
+                    min: min,
+                    max: max,
+                    step: step,
+                    itemId: itemId,
+                    itemType: itemType,
+                    index2: min2,
+                    min2: min2,
+                    max2: max2,
+                    step2: step2,
+                    itemId2: itemId2,
+                    itemType2: itemType2,
+                };
+            } else{
+                rangeIterator = {
+                    algorithmType: algorithmType,
+                    index: min,
+                    min: min,
+                    max: max,
+                    step: step,
+                    itemId: itemId,
+                    itemType: itemType,
+                    index2: 0,
+                    min2: 0,
+                    max2: 1,
+                    step2: 1,
+                };
             }
         } else{ // fix scenario parameter 1 && 2 to single run
-            min = 0;
-            max = 1;
-            step = 1;
-            min2 = 0;
-            max2 = 1;
-            step2 = 1;
+            rangeIterator = {
+                algorithmType: algorithmType,
+                index: 0,
+                min: 0,
+                max: 1,
+                step: 1,
+                index2: 0,
+                min2: 0,
+                max2: 1,
+                step2: 1,
+            }
         }
 
         writeLog(username, "started running simulations", "csv");
@@ -99,15 +152,17 @@ export const createSimulation = async (req: any, res: any) => {
 
         const workerPath = path.resolve(__dirname, 'simulationWorker.ts');
 
-        let completed = 0;
         let rangeIndex = 0;
         // iterate through scenario parameter 1
-        for(let p1 = min; p1 < max; p1+=step){
+        while(rangeIterator.index < rangeIterator.max){
             // iterate through scenario parameter 2
-            for(let p2 = min2; p2 < max2; p2+=step2){
+            while(rangeIterator.index2 < rangeIterator.max2){
                 // for each rangeIndex
                 const workerPromises: Promise<any>[] = [];
-                for(let i=0; i<total_worker; i++){
+                // pseudo-random number generator (PRNG)
+                const baseSeed = 12345;
+
+                for(let i = 0; i < total_worker; i++){
                     // initalize new nested arrays
                     totalInvestmentsOverTime[rangeIndex] = [];
                     totalIncomeOverTime[rangeIndex] = [];
@@ -118,7 +173,7 @@ export const createSimulation = async (req: any, res: any) => {
                     totalYearlyExpenses[rangeIndex] = [];
 
                     const numSimulations = simulation_per_worker + (i < extra_simulation ? 1 : 0);
-                    const tempPlan = deepCopyDocument(plan);
+
                     const workerPromise = new Promise((resolve, reject) => {
                         const child = fork(workerPath, [], {
                             execArgv: ['-r', 'ts-node/register'],
@@ -133,11 +188,12 @@ export const createSimulation = async (req: any, res: any) => {
                                     state_tax_file,
                                     username,
                                     id,
-                                    plan: tempPlan
+                                    params: rangeIterator,
                                 }
                             },
                             numSimulations: numSimulations,
-                            workerId: i
+                            workerId: i,
+                            seed: baseSeed,
                         });
 
                         
@@ -178,19 +234,18 @@ export const createSimulation = async (req: any, res: any) => {
                 // wait for all to finish
                 await Promise.all(workerPromises);
 
+                console.log("Go up one step");
+
                 // update plan based on parameter 2
-                if(algorithmType === "2d"){
-                    updateScenarioParameter(plan, itemType2, itemId2, step2);
-                }
+                updateScenarioParameter(plan, rangeIterator, 2);
                 rangeIndex++;
             }
             // update plan based on parameter 1
-            if(algorithmType === "1d" || algorithmType === "2d"){
-                updateScenarioParameter(plan, itemType, itemId, step);
-            }
+            rangeIterator.index = min;
+            updateScenarioParameter(plan, rangeIterator, 1);
         }
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
-        const output = generateOutput(plan.financialGoal);
+        const output = generateOutput();
         // 4.1 probability of success
         output.probabilityOverTime = totalInvestmentsOverTime.map(range => probabilityOfSuccess(plan.financialGoal, range));
         // 4.2 range
@@ -218,6 +273,9 @@ export const createSimulation = async (req: any, res: any) => {
         output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         output.expensesOrder.push(...taxOrder);
 
+        createLog(username, "input",incomeOverTimeVals);
+        createLog(username, "median output", output.medianIncomeOverTime);
+        createLog(username, "mean output", output.avgIncomeOverTime);
         // console.log(output);
 
         // OUTPUTS - FOR EACH TYPE OF ALGORITHM
@@ -283,12 +341,12 @@ export const createSimulation = async (req: any, res: any) => {
 export const runSimulation = async (req: any, res: any) => {
     // Get financial plan, simulation & create simulationResult
     // const start = process.hrtime();
-    const { state_tax_file, username, id, plan } = req.body;
+    const { state_tax_file, username, id, params } = req.body;
     
 
     try {
         createLog(username, "running a simulation");
-        const planOriginal = await FinancialPlan.findById(id); // WHY THE FUCK I NEED THIS FOR TAX TO RUN????
+        const plan = await FinancialPlan.findById(id); // WHY THE FUCK I NEED THIS FOR TAX TO RUN????
         // const simulation = await Simulation.findById(simulationId);
         // const result = await SimulationResult.findOne({ simulationId: simulationId});
 
@@ -298,7 +356,9 @@ export const runSimulation = async (req: any, res: any) => {
             return;
             // return res.status(404).json({ error: 'Items not found.' });
         }
+        enforceScenarioParameter(plan, params)
 
+        console.log(plan.eventSeries);
         // 1,000–10,000 simulations → good starting range
         // const num_simulations = simulations || 1000;
         const spouse = plan.maritalStatus == "couple"; // boolean
@@ -603,6 +663,7 @@ export const runSimulation = async (req: any, res: any) => {
         // const end = process.hrtime(start);
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
+        // console.log(IncomeOverTime[0])
 
         res.status(200).json({
             status: "OK",
