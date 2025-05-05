@@ -32,28 +32,28 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
       case "start":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
         if(temp.start.value)
-          temp.start.value += params.index;
+          temp.start.value = params.index;
         break;
       case "duration":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
         if(temp.duration.value)
-          temp.duration.value += params.index;
+          temp.duration.value = params.index;
         break;
-      case "initalAmount":
+      case "initialAmount":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
         if(temp.initialAmount)
-          temp.initialAmount += params.index;
+          temp.initialAmount = params.index;
         break;
       case "percentage":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-        // fix later (?)
-        // if(temp.assetAllocation){
-        //   temp.assetAllocation[0] += step;
-        //   temp.assetAllocation[1] -= step;
-        // }
+        if(temp.assetAllocation){
+          temp.assetAllocation[0] = params.index;
+          temp.assetAllocation[1] = 1 - params.index;
+        }
+        console.log(temp.assetAllocation);
         break;
       default:
-        console.log(`ISSUE AT STEP PARAM 1:${params.index, params.index2}`)
+        console.log(`ISSUE AT STEP PARAM 1: ${params.itemType}, ${params.index}, ${params.index2}`)
     }
     // param 2
     if(params.algorithmType === "2d") {
@@ -66,28 +66,29 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
         case "start":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.start.value)
-            temp.start.value += params.index2;
+            temp.start.value = params.index2;
           break;
         case "duration":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.duration.value)
-            temp.duration.value += params.index2;
+            temp.duration.value = params.index2;
           break;
-        case "initalAmount":
+        case "initialAmount":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.initialAmount)
-            temp.initialAmount += params.index2;
+            temp.initialAmount = params.index2;
           break;
         case "percentage":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          // fix later (?)
-          // if(temp.assetAllocation){
-          //   temp.assetAllocation[0] += step;
-          //   temp.assetAllocation[1] -= step;
-          // }
+          if(temp.assetAllocation){
+            console.log("b4",temp.assetAllocation);
+            temp.assetAllocation[0] = params.index;
+            temp.assetAllocation[1] = 1 - params.index;
+            console.log("after",temp.assetAllocation);
+          }
           break;
         default:
-          console.log(`ISSUE AT STEP PARAM 2:${params.index, params.index2}`)
+          console.log(`ISSUE AT STEP PARAM 2: ${params.itemType2}, ${params.index}, ${params.index2}`);
       }
     }
   }
@@ -95,10 +96,14 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
 
 // Scenario Exploration Updater (param 1 or 2)
 export function updateScenarioParameter(plan: IFinancialPlan, params: scenarioExplorationParams, index: 1 | 2): void {
-  if(index === 1){
-    params.index += params.step;
-  } else if(index === 2){
-    params.index2 += params.step2;
+  try {
+    if(index === 1){
+      params.index += params.step;
+    } else if(index === 2){
+      params.index2 += params.step2;
+    } 
+  } catch(error){
+    console.log("cannot update",error)
   }
 }
 

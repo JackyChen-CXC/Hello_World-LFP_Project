@@ -55,6 +55,8 @@ export const createSimulation = async (req: any, res: any) => {
         // itemType2 -> start, duriation, initalAmount, percentage
         let { state_tax_file, username, id, simulations, algorithmType, itemType, itemId, min, max, step, itemType2, itemId2, min2, max2, step2} = req.body;
 
+        console.log("new simulation", state_tax_file, username, id, simulations, algorithmType, itemType, itemId, min, max, step, itemType2, itemId2, min2, max2, step2);
+
         // Get specific financial plan to simulate
         const plan = await FinancialPlan.findById(id);
 
@@ -114,7 +116,7 @@ export const createSimulation = async (req: any, res: any) => {
                     itemType: itemType,
                     index2: 0,
                     min2: 0,
-                    max2: 1,
+                    max2: 0,
                     step2: 1,
                 };
             }
@@ -123,14 +125,15 @@ export const createSimulation = async (req: any, res: any) => {
                 algorithmType: algorithmType,
                 index: 0,
                 min: 0,
-                max: 1,
+                max: 0,
                 step: 1,
                 index2: 0,
                 min2: 0,
-                max2: 1,
+                max2: 0,
                 step2: 1,
             }
         }
+        console.log(rangeIterator);
 
         writeLog(username, "started running simulations", "csv");
         writeLog(username, "started running simulations", "log");
@@ -154,9 +157,9 @@ export const createSimulation = async (req: any, res: any) => {
 
         let rangeIndex = 0;
         // iterate through scenario parameter 1
-        while(rangeIterator.index < rangeIterator.max){
+        while(rangeIterator.index <= rangeIterator.max){
             // iterate through scenario parameter 2
-            while(rangeIterator.index2 < rangeIterator.max2){
+            while(rangeIterator.index2 <= rangeIterator.max2){
                 // for each rangeIndex
                 const workerPromises: Promise<any>[] = [];
                 // pseudo-random number generator (PRNG)
@@ -222,11 +225,6 @@ export const createSimulation = async (req: any, res: any) => {
                             console.error(`Worker ${i} error:`, err);
                             reject(err);
                         });
-
-                        child.on('error', (err) => {
-                            console.error(`Worker ${i} error:`, err);
-                            reject(err);
-                        });
                     });
                     workerPromises.push(workerPromise);
                 }
@@ -241,7 +239,7 @@ export const createSimulation = async (req: any, res: any) => {
                 rangeIndex++;
             }
             // update plan based on parameter 1
-            rangeIterator.index = min;
+            rangeIterator.index2 = min2;
             updateScenarioParameter(plan, rangeIterator, 1);
         }
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
@@ -273,10 +271,10 @@ export const createSimulation = async (req: any, res: any) => {
         output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         output.expensesOrder.push(...taxOrder);
 
-        createLog(username, "input",incomeOverTimeVals);
-        createLog(username, "median output", output.medianIncomeOverTime);
-        createLog(username, "mean output", output.avgIncomeOverTime);
-        // console.log(output);
+        // createLog(username, "input",incomeOverTimeVals);
+        // createLog(username, "median output", output.medianIncomeOverTime);
+        // createLog(username, "mean output", output.avgIncomeOverTime);
+        console.log(output);
 
         // OUTPUTS - FOR EACH TYPE OF ALGORITHM
         if(algorithmType === "standard" && result){ // standard
@@ -356,9 +354,9 @@ export const runSimulation = async (req: any, res: any) => {
             return;
             // return res.status(404).json({ error: 'Items not found.' });
         }
-        enforceScenarioParameter(plan, params)
+        enforceScenarioParameter(plan, params);
+        // console.log(plan.eventSeries);
 
-        console.log(plan.eventSeries);
         // 1,000–10,000 simulations → good starting range
         // const num_simulations = simulations || 1000;
         const spouse = plan.maritalStatus == "couple"; // boolean
@@ -566,7 +564,6 @@ export const runSimulation = async (req: any, res: any) => {
             percentageTotalDiscretionary.push(vals2[3]);
             writeLog(username, "Paid discretionary expenses", "log");
 
-            createLog(username, "after4 7, cash:", cash);
             // // 8. Run the invest events scheduled for the current year
             createLog(username, `b4 8, investments: ${plan.investments}`);
             runInvestEvents(plan, glidePathValue);
@@ -610,55 +607,6 @@ export const runSimulation = async (req: any, res: any) => {
             currentYearEarlyWithdrawal = 0;
         
         }
-        // reset financial plan
-        // plan = await FinancialPlan.findById(id);
-        // if (!plan) {
-        //     return;
-        //     // return res.status(404).json({ error: 'Financial Plan not found.' });
-        // }
-
-        // OUTPUT - hash simulation raw values into total arrays
-        // hashIntoTotal(totalInvestmentsOverTime, InvestmentsOverTime);
-        // hashIntoTotal(totalIncomeOverTime, IncomeOverTime);
-        // hashIntoTotal(totalYealyIncome, yearlyIncome);
-        // hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
-        // hashIntoTotal(totalYearlyExpenses, yearlyExpenses);
-        // hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
-        // hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
-        //}
-        // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean/median values)
-        // 4.1 probability of success
-        // result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);
-        // // 4.2 range
-        // result.financialGoal = plan.financialGoal;
-        // result.investmentOrder = plan.investments.map(investments => investments.id);
-        // result.investmentsRange = generateRange(totalInvestmentsOverTime);
-        // result.incomeRange = generateRange(totalYealyIncome);
-        // // console.log(totalYearlyExpenses);
-        // result.expensesRange = generateRange(totalYearlyExpenses);
-        // result.earlyWithdrawTaxRange = generateRange(totalEarlyWithdrawalTax);
-        // result.percentageDiscretionaryRange = generateRange(totalPercentageTotalDiscretionary);
-        // // 4.3 mean + median values (Generate mean/median of items for each year, TODO - incomplete)
-        // const investmentOverTimeVals = computeMeanAndMedian(totalInvestmentsOverTime);
-        // result.medianInvestmentsOverTime = investmentOverTimeVals.medians;
-        // result.avgInvestmentsOverTime = investmentOverTimeVals.means;
-        // result.investmentOrder = plan.investments.map(investments => investments.id);
-        
-        // const incomeOverTimeVals = computeMeanAndMedian(totalIncomeOverTime);
-        // result.medianIncomeOverTime = incomeOverTimeVals.medians;
-        // result.avgIncomeOverTime = incomeOverTimeVals.means;
-        // result.incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
-        
-        // const expensesOverTimeVals = computeMeanAndMedian(totalExpensesOverTime);
-        // result.medianExpensesOverTime = expensesOverTimeVals.medians;
-        // result.avgExpensesOverTime = expensesOverTimeVals.means;
-        // // expenses -> taxes ([federal income, state income, capital gains, early withdrawal tax])
-        // // let taxOrder: string[] = []; // disable taxes (before completion)
-        // let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
-        // result.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
-        // result.expensesOrder.push(...taxOrder);
-        // console.log(result);
-        //await result.save();
         
         // const end = process.hrtime(start);
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
