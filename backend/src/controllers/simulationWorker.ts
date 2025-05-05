@@ -12,11 +12,26 @@ mongoose.connect('mongodb://localhost:27017/mydatabase');
 process.on('message', async (data: any) => {
     const { reqData, numSimulations, workerId } = data;
 
+    // const fakeRes: any = {
+    //     status: () => ({
+    //         json: (msg: any) => process.send?.({ msg, workerId }),
+    //     }),
+    //     json: (msg: any) => process.send?.({ msg, workerId }),
+    // };
     const fakeRes: any = {
-        status: () => ({
-            json: (msg: any) => process.send?.({ msg, workerId }),
-        }),
-        json: (msg: any) => process.send?.({ msg, workerId }),
+        data: null,
+        status: function() {
+            return {
+                json: function(msg: any) {
+                    fakeRes.data = msg;  // Store the data
+                    process.send?.({ msg, workerId });
+                }
+            };
+        },
+        json: function(msg: any) {
+            fakeRes.data = msg;  // Store the data
+            process.send?.({ msg, workerId });
+        }
     };
 
     try {
@@ -26,6 +41,7 @@ process.on('message', async (data: any) => {
         const results = [];
         for (let i = 0; i < numSimulations; i++) {
             await runSimulation(reqData, fakeRes);
+            results.push(fakeRes.data.data);
         }
 
         console.timeEnd(timerLabel);
@@ -34,9 +50,10 @@ process.on('message', async (data: any) => {
         process.send?.({
             success: true,
             message: `Worker ${workerId} completed ${numSimulations} simulations`,
+            data: results,
         });
     } catch (err: any) {
-        process.send?.({ error: true, message: err.message, workerId });
+        process.send?.({ success: false, message: err.message, data: undefined });
     }
 });
 

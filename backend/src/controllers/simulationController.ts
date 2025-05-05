@@ -5,12 +5,18 @@ import { writeLog, createLog } from "./logHelper";
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { fork } from 'child_process';
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
 // Create Simulation object using Financial Plan object
 export const createSimulation = async (req: any, res: any) => {
+    interface WorkerSimulationResult {
+        success: boolean
+        message: string;
+        data: any[];
+    }
+
     try {
         // algorithmType -> standard, 1d, 2d
         // itemType -> rothConversionOpt, start, duration, initalAmount, percentage
@@ -62,14 +68,24 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running simulations", "log");
 
         //runSimulation(req, res);
-        const total_worker = 2;
+        // Storage for all simulations' raw values [range][year][number/[number of items]]
+        const totalInvestmentsOverTime: number[][][][] = [];  // individual items for range
+        const totalIncomeOverTime: number[][][][] = [];       // individual items for range
+        const totalExpensesOverTime: number[][][][] = [];     // individual items for range & total expenses
+        const totalEarlyWithdrawalTax: number[][][] = [];             // value
+        const totalPercentageTotalDiscretionary: number[][][] = [];   // value
+        const totalYealyIncome: number[][][] = [];            // value -> currYearIncome
+        const totalYearlyExpenses: number[][][] = [];         // value -> total expenses total
+
+        // const total_worker = 2;
+        const total_worker = Math.min(require('os').cpus().length - 1, 4); // Use at most N-1 cores, max 4
+
         const simulation_per_worker = Math.floor(simulations/total_worker);
         const extra_simulation = simulations % total_worker;
 
         const workerPath = path.resolve(__dirname, 'simulationWorker.ts');
 
         let completed = 0;
-        let results: any[] = [];
         // iterate through scenario parameter 1
         for(let p1 = min; p1 < max; p1+=step){
             // iterate through scenario parameter 2
@@ -77,6 +93,7 @@ export const createSimulation = async (req: any, res: any) => {
                 for(let i=0; i<total_worker; i++){
                     const numSimulations = simulation_per_worker + (i < extra_simulation ? 1 : 0);
                     const tempPlan = deepCopyDocument(plan);
+
                     const child = fork(workerPath, [], {
                         execArgv: ['-r', 'ts-node/register'],
                         env: { ...process.env },
@@ -97,23 +114,37 @@ export const createSimulation = async (req: any, res: any) => {
                         workerId: i
                     });
 
-
-                    child.on('message', (msg) => {
+                    
+                    child.on('message', (res: any) => {
+                        const { success, message, data } = res;
+                        // console.log(success, message);
                         // Count completion
                         if (++completed === total_worker) {
-                            console.log("All workers finished.");
-                            
+                            console.log("All workers finished.");   
+                        }
+
+                        // check result
+                        if(success){
+                            console.log("result", data);
                         }
                     });
                 }
-                // return OK signal
-                return res.status(200).json({
-                    status: "OK",
-                    error: false,
-                    message: "Simulation in queue.",
-                });
+                // update plan based on parameter 2
+                if(algorithmType === "2d"){
+                    updateScenarioParameter(plan, itemType2, itemId2, step2);
+                }
+            }
+            // update plan based on parameter 1
+            if(algorithmType === "1d" || algorithmType === "2d"){
+                updateScenarioParameter(plan, itemType, itemId, step);
             }
         }
+        // return OK signal
+        return res.status(200).json({
+            status: "OK",
+            error: false,
+            message: "Simulation in queue.",
+        });
     }
     catch (error) {
         console.log("simulation failed to error");
@@ -135,7 +166,6 @@ export const runSimulation = async (req: any, res: any) => {
     try {
         createLog(username, "running a simulation");
         const planOriginal = await FinancialPlan.findById(id); // WHY THE FUCK I NEED THIS FOR TAX TO RUN????
-        console.log(plan.inflationAssumption);
         // const simulation = await Simulation.findById(simulationId);
         // const result = await SimulationResult.findOne({ simulationId: simulationId});
 
@@ -187,7 +217,7 @@ export const runSimulation = async (req: any, res: any) => {
         if(!lifeExpectancy){
             createLog(username, "User Life expectancy not found.");
             return;
-            // return res.status(200).json({
+            // return res.status(404).json({
             //     status: "ERROR",
             //     error: true,
             //     message: "Life expectancy not found.",
@@ -363,14 +393,14 @@ export const runSimulation = async (req: any, res: any) => {
             glidePathValue = !glidePathValue;
             
             
-            // writeLog(username, "Ran the invest events", "log");
+            writeLog(username, "Ran the invest events", "log");
         
             // // 9. Run rebalance events scheduled for the current year
             createLog(username, `b4 9, currentYearGain: ${currentYearGain}, investments: ${plan.investments}`);
             currentYearGain = runRebalance(plan, currentYearGain, status, capital_tax_bracket);
             createLog(username, `after 9, currentYearGain: ${currentYearGain}, investments: ${plan.investments}`);
 
-            // writeLog(username, "Ran rebalance events", "log");
+            writeLog(username, "Ran rebalance events", "log");
         
             // investments
             InvestmentsOverTime.push(getValueOfInvestments(plan.investments));
@@ -407,13 +437,13 @@ export const runSimulation = async (req: any, res: any) => {
         // }
 
         // OUTPUT - hash simulation raw values into total arrays
-        hashIntoTotal(totalInvestmentsOverTime, InvestmentsOverTime);
-        hashIntoTotal(totalIncomeOverTime, IncomeOverTime);
-        hashIntoTotal(totalYealyIncome, yearlyIncome);
-        hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
-        hashIntoTotal(totalYearlyExpenses, yearlyExpenses);
-        hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
-        hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
+        // hashIntoTotal(totalInvestmentsOverTime, InvestmentsOverTime);
+        // hashIntoTotal(totalIncomeOverTime, IncomeOverTime);
+        // hashIntoTotal(totalYealyIncome, yearlyIncome);
+        // hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
+        // hashIntoTotal(totalYearlyExpenses, yearlyExpenses);
+        // hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
+        // hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
         //}
         // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean/median values)
         // 4.1 probability of success
@@ -452,11 +482,35 @@ export const runSimulation = async (req: any, res: any) => {
         // const end = process.hrtime(start);
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
+
+        res.status(200).json({
+            status: "OK",
+            error: false,
+            data: {
+                InvestmentsOverTime,
+                IncomeOverTime,
+                ExpensesOverTime,
+                earlyWithdrawalTax,
+                percentageTotalDiscretionary,
+                yearlyIncome,
+                yearlyExpenses
+            },
+        });
+
+        // 
+        // const InvestmentsOverTime: number[][] = [];
+        // const IncomeOverTime: number[][] = [];
+        // const ExpensesOverTime: number[][] = [];
+
+        // const earlyWithdrawalTax: number[] = [];
+        // const percentageTotalDiscretionary: number[] = [];
+        // const yearlyIncome: number[] = [];
+        // const yearlyExpenses: number[] = [];
     }
     catch (error) {
         createLog(username, error);
         console.log("Meet a silent error", error);
-        res.status(200).json({
+        res.status(404).json({
             status: "ERROR",
             error: true,
             message: "Simulation failed.",
