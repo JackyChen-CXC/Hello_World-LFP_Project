@@ -438,6 +438,7 @@ export const runSimulation = async (req: any, res: any) => {
                 writeLog(username, "Ran the Roth conversion (RC) optimizer", "log");
             }
             
+            createLog(username, "b4 6, cash:", cash);
             // // 6. Pay non-discretionary expenses and the previous year's taxes (Pre-tax -> +curYearIncome)
             createLog(username, `total expense before part6: ${curYearExpenses}`);
             createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
@@ -479,7 +480,7 @@ export const runSimulation = async (req: any, res: any) => {
             percentageTotalDiscretionary.push(vals2[3]);
             writeLog(username, "Paid discretionary expenses", "log");
 
-        
+            createLog(username, "after4 7, cash:", cash);
             // // 8. Run the invest events scheduled for the current year
             createLog(username, `b4 8, investments: ${plan.investments}`);
             runInvestEvents(plan, glidePathValue);

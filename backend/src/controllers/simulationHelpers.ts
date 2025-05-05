@@ -1375,6 +1375,7 @@ export function findTotalNonDiscretionary(financialplan: any, year: number, star
     let total = 0;
 
     for (const event of nonDiscretionaryEvents) {
+      let cost_of_event = 0;
       if (event && event.start.value && event.duration.value && 
       startingYear + year < event.start.value && startingYear + year > startingYear + event.duration.value){
         continue; // skip if not active
@@ -1396,12 +1397,27 @@ export function findTotalNonDiscretionary(financialplan: any, year: number, star
       }
 
       // Apply change
-      // console.log("checking", cost, change);
+      // console.log("checking", cost, change)
       if (event.changeAmtOrPct === "percent") {
-          total += cost * (1 + change);
+          cost_of_event += cost * (1 + change);
       } else {
-          total += cost + change;
+          cost_of_event += cost + change;
       }
+
+      //apply for inflation
+      if(event.inflationAdjusted === true){
+        if(financialplan.inflationAssumption.type === 'fixed'){
+          cost_of_event = cost_of_event * (1+(financialplan.inflationAssumption.value ?? 0));
+        }else if(financialplan.inflationAssumption.type === 'normal'){
+          cost_of_event = cost_of_event * (1+(generateNormal(financialplan.inflationAssumption.mean ?? 0, financialplan.inflationAssumption.stdev ?? 0)));
+        }else if(financialplan.inflationAssumption.type === 'uniform'){
+          cost_of_event = cost_of_event * (1+(generateUniform(financialplan.inflationAssumption.lower ?? 0, financialplan.inflationAssumption.upper ?? 0)));
+        }
+      }
+
+      //apply for userfraction
+      cost_of_event = cost_of_event * event.userFraction;
+      total += cost_of_event;
   }
   // console.log(total);
   return total;
@@ -1457,8 +1473,20 @@ export function payNonDiscretionary(
     const cash_investments = (financialplan.investments || []).filter((i: any) => i.investmentType === "cash");
     const total_cash = cash_investments.reduce((sum: number, i: any) => sum + (i.value || 0), 0);
 
+    console.log("NONDiscretionary ",total_cash);
     let total_withdrawal_amount = total_payment_amount - total_cash;
+    let total_paid = total_payment_amount;
+    //pay in cash
+    for (const cash_event of cash_investments){
+      if (total_paid > cash_event.value){
+        total_paid -= cash_event.event
+        cash_event.value = 0;
+      }else{
+        cash_event.value -= total_paid;
+      }
+    }
 
+    console.log("total cash payment",total_payment_amount);
     // part f
     const all_investments = financialplan.investments || [];
     const withdrawal_strategy: string[] = financialplan.expenseWithdrawalStrategy || [];
@@ -1611,10 +1639,8 @@ export function payDiscretionary(
         if (paid_with_cash <= 0){ //this means we have enough cash to pay for event
           cash_investment.value -= total_event_cost;
           total_cost_paid += total_event_cost;
-          console.log("paid in cash at year: ",(startingYear+year));
           continue; //if we have enough cash, pay for discretionary event and move to next event
         }else{
-          console.log("not paid in cash at year: ",(startingYear+year));
           total_cost_paid += total_event_cost;
           cash_investment.value -= total_event_cost;
         }
