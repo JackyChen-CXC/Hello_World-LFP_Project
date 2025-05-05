@@ -1185,8 +1185,6 @@ export function performRothOptimizer(
         
       if (fedTaxableIncome >= min && fedTaxableIncome <= max) {
         //console.log("Match found!");
-        console.log("current year income: ",fedTaxableIncome);
-        console.log("upper tax bracket: ",max);
         u = max;
         break;
       }
@@ -1247,8 +1245,8 @@ export function performRothOptimizer(
   
       if (rc === 0) break;
     }
-    console.log("\n\n\n-----")
     currentYearIncome += amount_transferred;
+
     return currentYearIncome;
   }
 
@@ -1454,6 +1452,7 @@ export function payNonDiscretionary(
     const total_non_discretionary = findTotalNonDiscretionary(financialplan, year, startingYear);
     const total_payment_amount = total_non_discretionary + (federal_tax ?? 0) + (state_tax ?? 0) + (capital_gain_tax ?? 0) + early_withdrawal_tax;
 
+
     // part e
     const cash_investments = (financialplan.investments || []).filter((i: any) => i.investmentType === "cash");
     const total_cash = cash_investments.reduce((sum: number, i: any) => sum + (i.value || 0), 0);
@@ -1548,50 +1547,80 @@ export function payDiscretionary(
     const events = [];
     const age = currentAge + year;
 
-    for (const event_id of spending_strategy) { // filter nondiscretionary and non-active
+    //finds all the discretionary events and store it in events
+    for (const event_id of spending_strategy) { 
       const event = all_events.find(e => e.name === event_id);
       if (event && event.discretionary && event.start.value && event.duration.value && 
         startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){ // check
         events.push(event);
-        total_disc_cost += event.initialAmount ?? 0;
       }
     }
   
+    //event are the discrentionary events
     for (const event of events) {
       // Calculates the total cost of the event
-      //console.log("events that were added for expense: ",event.name);
       const cost = event.initialAmount ?? 0;
       const dist = event.changeDistribution;
   
-      // Check if dist is defined
+      // Check if change disttribution is defined
       if (dist) {
         const dist_type = dist.type;
-        
         let change;
         if (dist_type === "fixed") {
           change = dist.value;
-      } else if (dist_type === "normal") {
-          // Assuming a normal distribution function is defined
-          change = generateNormal(dist.mean ?? 0, dist.stdev ?? 0);
-      } else if (dist_type === "uniform") {
-          change = generateUniform(dist.lower ?? 0, dist.upper ?? 0);
-      }
-      change = change ?? 0;
-      if (event.changeAmtOrPct === 'percent') {
-        total_event_cost += cost * (1 + change);
+        } else if (dist_type === "normal") {
+            change = generateNormal(dist.mean ?? 0, dist.stdev ?? 0);
+        } else if (dist_type === "uniform") {
+            change = generateUniform(dist.lower ?? 0, dist.upper ?? 0);
+        }
+        change = change ?? 0;
+        if (event.changeAmtOrPct === 'percent') {
+          total_event_cost += cost * (1 + change);
+        } else {
+          total_event_cost += cost + change;
+        }
       } else {
-        total_event_cost += cost + change;
-      }
-      } else {
-        // If dist is not defined, handle accordingly (e.g., no change)
         total_event_cost += cost;
       }
   
       // If the event will reduce user asset to below financial goal, stop paying
       if (total_asset - total_event_cost < financialplan.financialGoal) {
+        console.log("could not afford");
         break;
       }
   
+      //check for inflation
+      if(event.inflationAdjusted == true){
+        if(financialplan.inflationAssumption.type === 'fixed'){
+          total_event_cost = total_event_cost * (1+(financialplan.inflationAssumption.value ?? 0));
+        }else if(financialplan.inflationAssumption.type === 'normal'){
+          total_event_cost = total_event_cost * (1+(generateNormal(financialplan.inflationAssumption.mean ?? 0, financialplan.inflationAssumption.stdev ?? 0)));
+        }else if(financialplan.inflationAssumption.type === 'uniform'){
+          total_event_cost = total_event_cost * (1+(generateUniform(financialplan.inflationAssumption.lower ?? 0, financialplan.inflationAssumption.upper ?? 0)));
+        }
+      }
+
+      //check for userfraction
+      total_event_cost = total_event_cost * (event.userFraction ?? 0);
+      total_disc_cost += total_event_cost;
+
+      //check if cash exist
+      const cash_investment = (financialplan.investments || []).find((i: any) => i.investmentType === "cash");
+      if (cash_investment){
+        const paid_with_cash = total_event_cost - (cash_investment.value);
+        if (paid_with_cash <= 0){ //this means we have enough cash to pay for event
+          cash_investment.value -= total_event_cost;
+          total_cost_paid += total_event_cost;
+          console.log("paid in cash at year: ",(startingYear+year));
+          continue; //if we have enough cash, pay for discretionary event and move to next event
+        }else{
+          console.log("not paid in cash at year: ",(startingYear+year));
+          total_cost_paid += total_event_cost;
+          cash_investment.value -= total_event_cost;
+        }
+      }
+
+      //if we dont have enough cash we remove from investements
       const all_investments = financialplan.investments ?? [];
       const withdrawal_strategy = financialplan.expenseWithdrawalStrategy ?? [];
   
@@ -1610,9 +1639,6 @@ export function payDiscretionary(
             investment.value = 0;
   
             if (investment.taxStatus !== 'pre-tax') {
-                //following line assumes we have created a field that stores the total purchased price
-                //remember to create the field for the investment once algorithmn starts
-                //const purchase_price = investment.total_purchase_price;
                 const purchase_price = 0;
 
                 currentYearGain += invest_value - purchase_price;
@@ -1625,16 +1651,13 @@ export function payDiscretionary(
             if (investment.taxStatus === "pre-tax") {
               currYearIncome += invest_value;
             }
-
           } else {
             // Sells part of investment
             investment.value -= total_event_cost;
   
             if (investment.taxStatus !== 'pre-tax') {
 
-                //following line assumes we have created a field that stores the total purchased price
-                //remember to create the field for the investment once algorithmn starts
-                //const purchase_price = investment.total_purchase_price;
+            
                 const purchase_price = 0;
 
                 const fraction = total_event_cost / invest_value;

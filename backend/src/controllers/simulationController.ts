@@ -417,7 +417,9 @@ export const runSimulation = async (req: any, res: any) => {
 
             
             // 4. Update investments, expected annual return, reinvestment of income, then expenses.
+            createLog(username, `total expense before part4: ${curYearExpenses}`);
             createLog(username, `b4 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}`);
+            createLog(username, `total expense after part4: ${curYearExpenses}`);
             // return [currentYearIncome, taxable_income, non_taxable_income];
             const incomes = calculateInvestmentValue(plan, curYearIncome);
             curYearIncome = incomes[0];
@@ -437,19 +439,22 @@ export const runSimulation = async (req: any, res: any) => {
             }
             
             // // 6. Pay non-discretionary expenses and the previous year's taxes (Pre-tax -> +curYearIncome)
+            createLog(username, `total expense before part6: ${curYearExpenses}`);
             createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
 
 
             const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
                 previousYearGain, previousYearEarlyWithdrawals, age, year, startingYear, curYearIncome, currentYearGain, currentYearEarlyWithdrawal,
                 standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket);
+            
+                
             // TODO - add federal & state tax
             curYearIncome = vals[0];
             currentYearGain = vals[1];
             currentYearEarlyWithdrawal = vals[2];
             curYearExpenses += vals[3];
 
-
+            createLog(username, `total expense after part6: ${curYearExpenses}`);
             if (Number.isNaN(vals[3])){
                 console.log("RETURNED NULL");
             }
