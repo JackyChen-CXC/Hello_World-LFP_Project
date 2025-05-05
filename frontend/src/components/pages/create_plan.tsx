@@ -939,7 +939,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
         id: inv.investmentName || "", 
         investmentTypeName: inv.investmentTypeName || "",
         investmentDescription: inv.investmentDescription || "",
-        investmentType: inv.investmentType|| "",
+        investmentType: inv.investmentTypeName|| "",
         value: inv.investmentValue !== undefined && inv.investmentValue !== ""
           ? parseFloat(inv.investmentValue)
           : 0,

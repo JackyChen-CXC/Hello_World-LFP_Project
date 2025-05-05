@@ -381,7 +381,7 @@ const OpenScenario = () => {
 
                 <div className="scenario-info-container">
                   Investment Type:
-                  <div>{capitalizeWords(inv?.name || "N/A")}</div>
+                  <div>{capitalizeWords(meta.investmentType || "N/A")}</div>
                 </div>
 
                 <div className="scenario-info-container">
@@ -399,22 +399,24 @@ const OpenScenario = () => {
         )}
         <hr />
 
-        {/**-----------------------------------Event Seriess------------------------------------------------------ */}
-        <div className="normal-text" style={{ fontWeight: "bold" }}>Event Seriess:</div>
+        {/**-----------------------------------Event Series------------------------------------------------------ */}
+        <div className="normal-text" style={{ fontWeight: "bold" }}>Event Series:</div>
         {scenario.eventSeries.length === 0 ? (
         <div className="normal-text">No Event Seriess added.</div>
         ) : (
           scenario.eventSeries.map((event, index) => (
             <div key={index} style={{ marginBottom: "1rem" }}>
               <div className="normal-text" style={{ fontWeight: "bold" }}>
-                {index + 1}.{capitalizeWords(event.name)}
+                {index + 1}. {capitalizeWords(event.name)}
               </div>
               <div className="normal-text" style={{ marginLeft: "5%" }}>
 
+              {event.description && (
                 <div className="scenario-info-container">
                   Brief Description:{" "}
-                  <div >{capitalizeWords(event.description)}</div>
+                  <div>{capitalizeWords(event.description)}</div>
                 </div>
+              )}
 
                 <div className="scenario-info-container">
                   Type: <div >{capitalizeWords(event.type)}</div>
