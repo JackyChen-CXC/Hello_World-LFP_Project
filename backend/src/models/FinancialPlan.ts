@@ -99,27 +99,6 @@ const LifeEventSchema = new Schema<ILifeEvent>({
     
 );
 
-// FROM CHATGPT, AS A ALTERNATIVE TO INDIVIDUAL REQUIRED FUNCTIONS
-// **Pre-validation for required fields**
-// LifeEventSchema.pre("validate", function (next) {
-//     const event = this as ILifeEvent;
-//     const requiredFieldsByType: Record<string, string[]> = {
-//         income: ["initialAmount", "changeAmtOrPct", "changeDistribution", "inflationAdjusted", "userFraction", "socialSecurity"],
-//         expense: ["initialAmount", "changeAmtOrPct", "changeDistribution", "inflationAdjusted", "userFraction", "discretionary"],
-//         invest: ["assetAllocation", "glidePath", "assetAllocation2", "maxCash"],
-//         rebalance: ["assetAllocation"],
-//     };
-
-//     const requiredFields = requiredFieldsByType[event.type] || [];
-
-//     for (const field of requiredFields) {
-//         if (event[field] === undefined) {
-//             return next(new Error(`Missing required field "${field}" for event type "${event.type}"`));
-//         }
-//     }
-//     next();
-// });
-
 // Actual Financial Plan
 
 export interface IFinancialPlan extends Document {

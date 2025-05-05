@@ -2,12 +2,55 @@ import { IDistribution } from "../models/Distribution";
 import { IInvestment, ILifeEvent, IFinancialPlan } from "../models/FinancialPlan";
 import InvestmentType, { IInvestmentType } from "../models/InvestmentType";
 import mongoose from "mongoose";
+import { Document } from "mongodb";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
 import { inflate } from "zlib";
 
+
 // Helper Functions
+
+// use plan without mutating original copy
+export function deepCopyDocument<T extends Document>(doc: T): T {
+    const plainObject = doc.toObject();
+    const deepCopy = JSON.parse(JSON.stringify(plainObject));
+    return deepCopy as T;
+}
+
+// Scenario Exploration Updater
+export function updateScenarioParameter(plan: IFinancialPlan, itemType: string, itemId: string, step: number): void {
+  let temp: ILifeEvent;
+  switch(itemType){
+    case "rothConversionOpt":
+      plan.RothConversionOpt = false;
+      break;
+    case "start":
+      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
+      if(temp.start.value)
+        temp.start.value += step;
+      break;
+    case "duration":
+      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
+      if(temp.duration.value)
+        temp.duration.value += step;
+      break;
+    case "initalAmount":
+      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
+      if(temp.initialAmount)
+        temp.initialAmount += step;
+      break;
+    case "percentage":
+      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
+      if(temp.assetAllocation){
+        temp.assetAllocation[0] += step;
+        temp.assetAllocation[1] -= step;
+      }
+      break;
+    default:
+      console.log(`ISSUE AT STEP ${step}`)
+  }
+}
 
 // Get percentage of total investments >= financial goal per year
 export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOverTime: number[][][]): number[] {
@@ -394,7 +437,6 @@ export async function updateFederalTaxForFlatInflation(inflationRate: number) {
     const collectionName = `federal_tax_${currentYear}`;
     const db = getDB(); // Assuming getdb is a function that returns a MongoDB connection
     const federalTaxCollection = db.collection(collectionName);
-  
     const documents = await federalTaxCollection.find().toArray();
     const adjusted: any[] = [];
   

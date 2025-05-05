@@ -177,7 +177,7 @@ const OpenScenario = () => {
       const resu = await resp.json();
       let tax_file;
       if (resp.ok && Array.isArray(resu.data) && resu.data.length > 0) {
-        tax_file = resu.data[0];
+        tax_file = resu.data[0].id;
       } else {
         console.error("Failed to fetch user files:", resu.error);
         tax_file = "state_tax.yaml";
@@ -191,6 +191,7 @@ const OpenScenario = () => {
           username: username,
           id: id,
           simulations: parseInt(simulationNum),
+          algorithmType: "standard",
         }),
       });
 
