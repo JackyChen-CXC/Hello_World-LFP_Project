@@ -7,7 +7,8 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
 import { inflate } from "zlib";
-
+import { writeLog } from "./logHelper";
+import { simulationOutput } from "./simulationController";
 
 // Helper Functions
 
@@ -50,6 +51,29 @@ export function updateScenarioParameter(plan: IFinancialPlan, itemType: string, 
     default:
       console.log(`ISSUE AT STEP ${step}`)
   }
+}
+
+// store algorithm output as simulationOutput
+export function generateOutput(goal: number){
+    const output: simulationOutput = {
+      probabilityOverTime: [],
+      financialGoal: 0,
+      investmentsRange: [],
+      incomeRange: [],
+      expensesRange: [],
+      earlyWithdrawTaxRange: [],
+      percentageDiscretionaryRange: [],
+      investmentOrder: [],
+      avgInvestmentsOverTime: [],
+      medianInvestmentsOverTime: [],
+      incomeOrder: [],
+      avgIncomeOverTime: [],
+      medianIncomeOverTime: [],
+      expensesOrder: [],
+      avgExpensesOverTime: [],
+      medianExpensesOverTime: []
+  };
+  return output;
 }
 
 // Get percentage of total investments >= financial goal per year
@@ -351,7 +375,6 @@ type TaxData = {
   married: TaxBracket[];
 };
 
-import { writeLog } from "./logHelper";
 export function calculateStateTax(income: number, marriedStatus: "single" | "married", adjusted: TaxData | number): number {
     //adjusted is 0 meaning it's one of the taxless states
     if (adjusted === 0) return 0;

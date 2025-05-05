@@ -5,17 +5,32 @@ import { writeLog, createLog } from "./logHelper";
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { fork } from 'child_process';
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, generateFromDistribution, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
+// simulationResult with a extra dimension for range so for example, [range] [year]
+export interface simulationOutput{
+    probabilityOverTime: number[][];
+    financialGoal: number;
+    investmentsRange: number[][][][];
+    incomeRange: number[][][][];
+    expensesRange: number[][][][];
+    earlyWithdrawTaxRange: number[][][][];
+    percentageDiscretionaryRange: number[][][][];
+    investmentOrder: string[];
+    avgInvestmentsOverTime: number[][][];
+    medianInvestmentsOverTime: number[][][];
+    incomeOrder: string[];
+    avgIncomeOverTime: number[][][];
+    medianIncomeOverTime: number[][][];
+    expensesOrder: string[];
+    avgExpensesOverTime: number[][][];
+    medianExpensesOverTime: number[][][];
+}
+
 // Create Simulation object using Financial Plan object
 export const createSimulation = async (req: any, res: any) => {
-    interface WorkerSimulationResult {
-        success: boolean
-        message: string;
-        data: any[];
-    }
 
     try {
         // algorithmType -> standard, 1d, 2d
@@ -34,16 +49,16 @@ export const createSimulation = async (req: any, res: any) => {
         let simulation;
         let result;
 
-        if(algorithmType==="standard"){
-            // Create simulation for standard simulation algorithm
-            simulation = new Simulation({ planId: id });
-            result = new SimulationResult({ 
-                simulationId: simulation._id,
-                inflationAssumption: plan.inflationAssumption,
-                financialGoal: plan.financialGoal
-            });
-            simulation.resultsId = result._id.toString();
-            
+        // Create simulation and simulationResult
+        simulation = new Simulation({ planId: id });
+        result = new SimulationResult({ 
+            simulationId: simulation._id,
+            inflationAssumption: plan.inflationAssumption,
+            financialGoal: plan.financialGoal
+        });
+        simulation.resultsId = result._id.toString();
+
+        if(algorithmType==="standard"){ // only save for standard simulation algorithm
             await simulation.save();
             await result.save();
         }
@@ -67,7 +82,6 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running simulations", "csv");
         writeLog(username, "started running simulations", "log");
 
-        //runSimulation(req, res);
         // Storage for all simulations' raw values [range][year][number/[number of items]]
         const totalInvestmentsOverTime: number[][][][] = [];  // individual items for range
         const totalIncomeOverTime: number[][][][] = [];       // individual items for range
@@ -86,6 +100,7 @@ export const createSimulation = async (req: any, res: any) => {
         const workerPath = path.resolve(__dirname, 'simulationWorker.ts');
 
         let completed = 0;
+        let rangeIndex = 0;
         // iterate through scenario parameter 1
         for(let p1 = min; p1 < max; p1+=step){
             // iterate through scenario parameter 2
@@ -123,27 +138,109 @@ export const createSimulation = async (req: any, res: any) => {
                             console.log("All workers finished.");   
                         }
 
-                        // check result
-                        if(success){
-                            console.log("result", data);
-                        }
+                        createLog(username,"result", data);
+                        console.log(data);
+                        // hash simulation values
+                        // for(let raw_vals of data){
+                        //     hashIntoTotal(totalInvestmentsOverTime[rangeIndex], raw_vals.InvestmentsOverTime);
+                        //     hashIntoTotal(totalIncomeOverTime[rangeIndex], raw_vals.IncomeOverTime);
+                        //     hashIntoTotal(totalExpensesOverTime[rangeIndex], raw_vals.ExpensesOverTime);
+                        //     hashIntoTotal(totalEarlyWithdrawalTax[rangeIndex], raw_vals.earlyWithdrawalTax);
+                        //     hashIntoTotal(totalPercentageTotalDiscretionary[rangeIndex], raw_vals.percentageTotalDiscretionary);
+                        //     hashIntoTotal(totalYealyIncome[rangeIndex], raw_vals.yearlyIncome);
+                        //     hashIntoTotal(totalYearlyExpenses[rangeIndex], raw_vals.yearlyExpenses);
+                        // }
                     });
                 }
+                // 
+
                 // update plan based on parameter 2
                 if(algorithmType === "2d"){
                     updateScenarioParameter(plan, itemType2, itemId2, step2);
                 }
+                rangeIndex++;
             }
             // update plan based on parameter 1
             if(algorithmType === "1d" || algorithmType === "2d"){
                 updateScenarioParameter(plan, itemType, itemId, step);
             }
         }
+        // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
+        const output = generateOutput(plan.financialGoal);
+        // 4.1 probability of success
+        output.probabilityOverTime = totalInvestmentsOverTime.map(range => probabilityOfSuccess(plan.financialGoal, range));
+        // 4.2 range
+        output.financialGoal = plan.financialGoal;
+        output.investmentsRange = totalInvestmentsOverTime.map(range => generateRange(range));
+        output.incomeRange = totalYealyIncome.map(range => generateRange(range));
+        output.expensesRange = totalYearlyExpenses.map(range => generateRange(range));
+        output.earlyWithdrawTaxRange = totalEarlyWithdrawalTax.map(range => generateRange(range));
+        output.percentageDiscretionaryRange = totalPercentageTotalDiscretionary.map(range => generateRange(range));
+        // 4.3 mean + median values (Generate mean/median of items for each year)
+        const investmentOverTimeVals = totalInvestmentsOverTime.map(range => computeMeanAndMedian(range));
+        output.medianInvestmentsOverTime = investmentOverTimeVals.map(range => range.medians);
+        output.avgInvestmentsOverTime = investmentOverTimeVals.map(range => range.means);
+        output.investmentOrder = plan.investments.map(investments => investments.id);
+
+        const incomeOverTimeVals = totalIncomeOverTime.map(range => computeMeanAndMedian(range));
+        output.medianIncomeOverTime = incomeOverTimeVals.map(range => range.medians);
+        output.avgIncomeOverTime = incomeOverTimeVals.map(range => range.means);
+        output.incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
+
+        const expensesOverTimeVals = totalExpensesOverTime.map(range => computeMeanAndMedian(range));
+        output.medianExpensesOverTime = expensesOverTimeVals.map(range => range.medians);
+        output.avgExpensesOverTime = expensesOverTimeVals.map(range => range.means);
+        let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
+        output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
+        output.expensesOrder.push(...taxOrder);
+
+        // OUTPUTS - FOR EACH TYPE OF ALGORITHM
+        if(algorithmType === "standard" && result){ // standard
+            // range is itself so index 0
+            result.probabilityOverTime = output.probabilityOverTime[0];
+            result.financialGoal = output.financialGoal;
+            result.investmentOrder = output.investmentOrder;
+            result.investmentsRange = output.investmentsRange[0];
+            result.incomeRange = output.incomeRange[0];
+            result.expensesRange = output.expensesRange[0];
+            result.earlyWithdrawTaxRange = output.earlyWithdrawTaxRange[0];
+            result.percentageDiscretionaryRange = output.percentageDiscretionaryRange[0];
+            result.medianInvestmentsOverTime = output.medianInvestmentsOverTime[0];
+            result.avgInvestmentsOverTime = output.avgInvestmentsOverTime[0];
+            result.investmentOrder = output.investmentOrder;
+            
+            result.medianIncomeOverTime = output.medianIncomeOverTime[0];
+            result.avgIncomeOverTime = output.avgIncomeOverTime[0];
+            result.incomeOrder = output.incomeOrder;
+            
+            result.medianExpensesOverTime = output.medianExpensesOverTime[0];
+            result.avgExpensesOverTime = output.avgExpensesOverTime[0];
+            result.expensesOrder = output.expensesOrder;
+
+            await result.save();
+        }
+        else if(algorithmType === "1d"){ // 1D
+            return res.status(200).json({
+                status: "OK",
+                error: false,
+                message: "1D Scenario Exploration complete",
+                data: output,
+            });
+        }
+        else if(algorithmType === "2d"){ // 2D
+            return res.status(200).json({
+                status: "OK",
+                error: false,
+                message: "2D Scenario Exploration complete",
+                data: output,
+            });
+        }
+
         // return OK signal
         return res.status(200).json({
             status: "OK",
             error: false,
-            message: "Simulation in queue.",
+            message: "Algorithm complete, but no output. (standard or an error)",
         });
     }
     catch (error) {
@@ -151,7 +248,7 @@ export const createSimulation = async (req: any, res: any) => {
         return res.status(200).json({
             status: "ERROR",
             error: true,
-            message: "Simulation failed to be added.",
+            message: "Simulation failed.",
         });
     }
 };
@@ -169,14 +266,6 @@ export const runSimulation = async (req: any, res: any) => {
         // const simulation = await Simulation.findById(simulationId);
         // const result = await SimulationResult.findOne({ simulationId: simulationId});
 
-        // Storage for all simulation raw values
-        const totalInvestmentsOverTime: number[][][] = [];  // individual items for range
-        const totalIncomeOverTime: number[][][] = [];       // individual items for range
-        const totalExpensesOverTime: number[][][] = [];     // individual items for range & total expenses
-        const totalEarlyWithdrawalTax: number[][] = [];  // value
-        const totalPercentageTotalDiscretionary: number[][] = [];// value
-        const totalYealyIncome: number[][] = []; // value -> currYearIncome
-        const totalYearlyExpenses: number[][] = []; // value -> total expenses total
         // Check if everything is there
         if (!plan) {
             createLog(username, 'Items not found.');
@@ -496,16 +585,6 @@ export const runSimulation = async (req: any, res: any) => {
                 yearlyExpenses
             },
         });
-
-        // 
-        // const InvestmentsOverTime: number[][] = [];
-        // const IncomeOverTime: number[][] = [];
-        // const ExpensesOverTime: number[][] = [];
-
-        // const earlyWithdrawalTax: number[] = [];
-        // const percentageTotalDiscretionary: number[] = [];
-        // const yearlyIncome: number[] = [];
-        // const yearlyExpenses: number[] = [];
     }
     catch (error) {
         createLog(username, error);
