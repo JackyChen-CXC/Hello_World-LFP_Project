@@ -154,17 +154,16 @@ export const createSimulation = async (req: any, res: any) => {
                         }
                         console.log(data);
                         // hash simulation values
-                        if(data){
-                            for(let raw_vals of data){
-                                hashIntoTotal(totalInvestmentsOverTime[rangeIndex], raw_vals.InvestmentsOverTime);
-                                hashIntoTotal(totalIncomeOverTime[rangeIndex], raw_vals.IncomeOverTime);
-                                hashIntoTotal(totalExpensesOverTime[rangeIndex], raw_vals.ExpensesOverTime);
-                                hashIntoTotal(totalEarlyWithdrawalTax[rangeIndex], raw_vals.earlyWithdrawalTax);
-                                hashIntoTotal(totalPercentageTotalDiscretionary[rangeIndex], raw_vals.percentageTotalDiscretionary);
-                                hashIntoTotal(totalYealyIncome[rangeIndex], raw_vals.yearlyIncome);
-                                hashIntoTotal(totalYearlyExpenses[rangeIndex], raw_vals.yearlyExpenses);
-                            }
-                        }
+                        // for(let raw_vals of data){
+                        //     hashIntoTotal(totalInvestmentsOverTime[rangeIndex], raw_vals.InvestmentsOverTime);
+                        //     hashIntoTotal(totalIncomeOverTime[rangeIndex], raw_vals.IncomeOverTime);
+                        //     hashIntoTotal(totalExpensesOverTime[rangeIndex], raw_vals.ExpensesOverTime);
+                        //     hashIntoTotal(totalEarlyWithdrawalTax[rangeIndex], raw_vals.earlyWithdrawalTax);
+                        //     hashIntoTotal(totalPercentageTotalDiscretionary[rangeIndex], raw_vals.percentageTotalDiscretionary);
+                        //     hashIntoTotal(totalYealyIncome[rangeIndex], raw_vals.yearlyIncome);
+                        //     hashIntoTotal(totalYearlyExpenses[rangeIndex], raw_vals.yearlyExpenses);
+                        // }
+                        
                     });
                 }
                 // 
