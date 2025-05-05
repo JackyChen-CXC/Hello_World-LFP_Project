@@ -1107,6 +1107,7 @@ export function performRothOptimizer(
     const allInvestments = financialPlan.investments;
     const rothStrategy = financialPlan.RothConversionStrategy;
   
+    const fedTaxableIncome = currentYearIncome - 0.15 * currentYearSocialSecurityIncome;
     // Find the applicable upper bracket limit
     const sortedBrackets = taxBrackets
       .filter(b => b[marriedStatus])
@@ -1117,15 +1118,16 @@ export function performRothOptimizer(
       const min = Number(bracket.min_value ?? -Infinity);
       const max = Number(bracket.max_value ?? Infinity);
         
-      if (currentYearIncome >= min && currentYearIncome <= max) {
+      if (fedTaxableIncome >= min && fedTaxableIncome <= max) {
         //console.log("Match found!");
+        console.log("current year income: ",fedTaxableIncome);
+        console.log("upper tax bracket: ",max);
         u = max;
         break;
       }
     }
     
   
-    const fedTaxableIncome = currentYearIncome - 0.15 * currentYearSocialSecurityIncome;
   
     // Access the standard deduction for the correct status, defaulting to 0 if null
     const deductionValue = standardDeduction[marriedStatus] ?? 0;
@@ -1177,7 +1179,7 @@ export function performRothOptimizer(
   
       if (rc === 0) break;
     }
-  
+    console.log("\n\n\n-----")
     currentYearIncome += rc;
     return currentYearIncome;
   }

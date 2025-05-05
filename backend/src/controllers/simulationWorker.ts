@@ -23,7 +23,6 @@ process.on('message', async (data: any) => {
         const timerLabel = `simulationTime_worker_${workerId}`;
         console.log(`Worker ${workerId} starting ${numSimulations} simulations...`);
         console.time(timerLabel);
-
         const results = [];
         for (let i = 0; i < numSimulations; i++) {
             await runSimulation(reqData, fakeRes);

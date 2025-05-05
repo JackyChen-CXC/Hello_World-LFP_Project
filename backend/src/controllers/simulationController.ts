@@ -37,6 +37,7 @@ export const createSimulation = async (req: any, res: any) => {
 
         // async queue (not implemented) -> simulation algorithm (do not await)
         req.body.simulationId = simulation._id;
+        const simulationId = simulation._id;
         //runSimulation(req, res);
         const total_worker = 2;
         const simulation_per_worker = Math.floor(simulations/total_worker);
@@ -63,6 +64,7 @@ export const createSimulation = async (req: any, res: any) => {
                         state_tax_file,
                         username,
                         id,
+                        simulationId,
                         simulations
                     }
                 },
@@ -104,6 +106,7 @@ export const runSimulation = async (req: any, res: any) => {
     // const start = process.hrtime();
     const { state_tax_file, username, id, simulationId, simulations } = req.body;
     
+
     try {
         createLog(username, simulationId);
         let plan = await FinancialPlan.findById(id);
