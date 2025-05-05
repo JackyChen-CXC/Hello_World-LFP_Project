@@ -309,10 +309,56 @@ const LineChartGraph = ({ data }: { data: any[] }) => (
   </LineChart>
 );
 
-const StackedBarChart = ({ useMedian = true, customData = null }: { useMedian?: boolean, customData?: any }) => {
+// Update the StackedBarChart component
+const StackedBarChart = ({ 
+  useMedian = true, 
+  customData = null,
+  investmentOrder = [], 
+  incomeOrder = [], 
+  expensesOrder = [],
+  medianInvestments = [],
+  avgInvestments = [],
+  medianIncome = [],
+  avgIncome = [],
+  medianExpenses = [],
+  avgExpenses = [],
+  aggregationThreshold = 5000
+}: { 
+  useMedian?: boolean, 
+  customData?: any,
+  investmentOrder?: string[], 
+  incomeOrder?: string[], 
+  expensesOrder?: string[],
+  medianInvestments?: number[][],
+  avgInvestments?: number[][],
+  medianIncome?: number[][],
+  avgIncome?: number[][],
+  medianExpenses?: number[][],
+  avgExpenses?: number[][],
+  aggregationThreshold?: number
+}) => {
   // Transform the data based on selected metric (median or average)
   const getStackedData = () => {
-    const years = [2025, 2026, 2027, 2028, 2029];
+    // Determine the number of years from the available data
+    const currentYear = new Date().getFullYear();
+    
+    // Check available data lengths to determine how many years to display
+    const investmentsYears = useMedian ? medianInvestments.length : avgInvestments.length;
+    const incomeYears = useMedian ? medianIncome.length : avgIncome.length;
+    const expensesYears = useMedian ? medianExpenses.length : avgExpenses.length;
+    
+    // Find the maximum number of years available in any dataset
+    let numYears = Math.max(investmentsYears, incomeYears, expensesYears);
+    
+    // If we don't have any real data, fallback to mock data length or default 5
+    if (numYears === 0) {
+      numYears = mockSimulationResult.medianInvestmentsOverTime.length || 5;
+    }
+    
+    console.log(`Displaying ${numYears} years of data`);
+    
+    // Generate the years array dynamically
+    const years = Array.from({ length: numYears }, (_, i) => currentYear + i);
     
     // If custom data is provided (for a specific parameter value), use it
     if (customData) {
@@ -338,65 +384,287 @@ const StackedBarChart = ({ useMedian = true, customData = null }: { useMedian?: 
       }));
     }
     
-    // Otherwise use the standard simulation results
-    const values = useMedian ? 
-      mockSimulationResult.medianInvestmentsOverTime :
-      mockSimulationResult.avgInvestmentsOverTime;
-
-    return years.map((year, index) => ({
-      year,
-      // Tax-Advantaged Accounts
-      "401k": values[index][0],
-      "RothIRA": values[index][1],
+    // Check if we have real data
+    const hasRealInvestments = medianInvestments.length > 0 || avgInvestments.length > 0;
+    const hasRealIncome = medianIncome.length > 0 || avgIncome.length > 0;
+    const hasRealExpenses = medianExpenses.length > 0 || avgExpenses.length > 0;
+    
+    // Use real data if available, fall back to mock data if not
+    let investmentsData = useMedian ? 
+      (medianInvestments.length > 0 ? medianInvestments : mockSimulationResult.medianInvestmentsOverTime) :
+      (avgInvestments.length > 0 ? avgInvestments : mockSimulationResult.avgInvestmentsOverTime);
+    
+    let incomeData = useMedian ? 
+      (medianIncome.length > 0 ? medianIncome : mockSimulationResult.medianIncomeOverTime) :
+      (avgIncome.length > 0 ? avgIncome : mockSimulationResult.avgIncomeOverTime);
+    
+    let expensesData = useMedian ? 
+      (medianExpenses.length > 0 ? medianExpenses : mockSimulationResult.medianExpensesOverTime) :
+      (avgExpenses.length > 0 ? avgExpenses : mockSimulationResult.avgExpensesOverTime);
+    
+    // Create an object with all categories from the orders
+    const dataPoint: any = { year: 0 };
+    
+    // Initialize values for all categories to zero
+    investmentOrder.forEach(inv => dataPoint[inv] = 0);
+    incomeOrder.forEach(inc => dataPoint[inc] = 0);
+    expensesOrder.forEach(exp => dataPoint[exp] = 0);
+    dataPoint["Other"] = 0;  // For values below threshold
+    
+    // Log data sources for debugging
+    console.log("Using real investment data:", hasRealInvestments);
+    console.log("Using real income data:", hasRealIncome);
+    console.log("Using real expenses data:", hasRealExpenses);
+    console.log("Aggregation threshold:", aggregationThreshold);
+    
+    // Create raw data points for each year
+    const rawYearData = years.map((year, index) => {
+      // Start with the year and initialize all fields to zero
+      const yearData = { ...dataPoint, year };
       
-      // Taxable Accounts
-      "Brokerage": values[index][2],
+      // Only process data for years we have data for
+      if (index < investmentsData.length || index < incomeData.length || index < expensesData.length) {
+        // Investments (use real data with real order when available)
+        if (investmentOrder.length > 0) {
+          if (index < investmentsData.length) {
+            investmentOrder.forEach((inv, i) => {
+              if (i < investmentsData[index].length) {
+                yearData[inv] = investmentsData[index][i];
+              }
+            });
+          }
+        } else {
+          // Fallback to mock data structure
+          if (hasRealInvestments && index < investmentsData.length) {
+            yearData["401k"] = investmentsData[index][0] || 0;
+            yearData["RothIRA"] = investmentsData[index][1] || 0;
+            yearData["Brokerage"] = investmentsData[index][2] || 0;
+          } else if (index < mockSimulationResult.medianInvestmentsOverTime.length) {
+            yearData["401k"] = mockSimulationResult.medianInvestmentsOverTime[index][0];
+            yearData["RothIRA"] = mockSimulationResult.medianInvestmentsOverTime[index][1];
+            yearData["Brokerage"] = mockSimulationResult.medianInvestmentsOverTime[index][2];
+          }
+        }
+        
+        // Income (use real data with real order when available)
+        if (incomeOrder.length > 0) {
+          if (index < incomeData.length) {
+            incomeOrder.forEach((inc, i) => {
+              if (i < incomeData[index].length) {
+                yearData[inc] = incomeData[index][i];
+              }
+            });
+          }
+        } else {
+          // Fallback to mock data structure
+          if (hasRealIncome && index < incomeData.length) {
+            yearData["Job"] = incomeData[index][0] || 0;
+            yearData["Pension"] = incomeData[index][1] || 0;
+          } else if (index < mockSimulationResult.medianIncomeOverTime.length) {
+            yearData["Job"] = mockSimulationResult.medianIncomeOverTime[index][0];
+            yearData["Pension"] = mockSimulationResult.medianIncomeOverTime[index][1];
+          }
+        }
+        
+        // Expenses (use real data with real order when available)
+        if (expensesOrder.length > 0) {
+          if (index < expensesData.length) {
+            expensesOrder.forEach((exp, i) => {
+              if (i < expensesData[index].length) {
+                yearData[exp] = expensesData[index][i];
+              }
+            });
+          }
+        } else {
+          // Fallback to mock data structure
+          if (hasRealExpenses && index < expensesData.length) {
+            yearData["Housing"] = expensesData[index][0] || 0;
+            yearData["Food"] = expensesData[index][1] || 0;
+          } else if (index < mockSimulationResult.medianExpensesOverTime.length) {
+            yearData["Housing"] = mockSimulationResult.medianExpensesOverTime[index][0];
+            yearData["Food"] = mockSimulationResult.medianExpensesOverTime[index][1];
+          }
+        }
+      }
       
-      // Income Sources
-      "Job": mockSimulationResult.medianIncomeOverTime[index][0],
-      "Pension": mockSimulationResult.medianIncomeOverTime[index][1],
+      return yearData;
+    });
+    
+    // Apply aggregation threshold
+    return applyAggregationThreshold(rawYearData, aggregationThreshold);
+  };
+  
+  // Function to apply aggregation threshold and group small values into "Other"
+  const applyAggregationThreshold = (data: any[], threshold: number) => {
+    if (threshold <= 0) return data; // No aggregation if threshold is 0
+    
+    // Get all unique keys except 'year' and 'Other'
+    const allKeys = new Set<string>();
+    data.forEach(dataPoint => {
+      Object.keys(dataPoint).forEach(key => {
+        if (key !== 'year' && key !== 'Other') {
+          allKeys.add(key);
+        }
+      });
+    });
+    
+    console.log("All keys before aggregation:", Array.from(allKeys));
+    
+    // Create new data with aggregated values - process each data point (year) individually
+    const result = data.map(dataPoint => {
+      const newDataPoint: any = { year: dataPoint.year, Other: 0 };
       
-      // Expenses
-      "Housing": mockSimulationResult.medianExpensesOverTime[index][0],
-      "Food": mockSimulationResult.medianExpensesOverTime[index][1],
-      "Other": 0  // For values below threshold
-    }));
+      // Process each category in this year's data point
+      Object.entries(dataPoint).forEach(([key, value]) => {
+        if (key === 'year') {
+          // Skip the year key
+        } else if (key === 'Other') {
+          // Keep existing Other values
+          newDataPoint.Other += Number(value);
+        } else {
+          // Check if this value is below the threshold
+          const numValue = Number(value);
+          if (numValue < threshold) {
+            // Add to "Other" category if below threshold
+            newDataPoint.Other += numValue;
+            console.log(`Year ${dataPoint.year}, Adding ${key}: ${numValue} to Other`);
+          } else {
+            // Keep original value if above threshold
+            newDataPoint[key] = numValue;
+          }
+        }
+      });
+      
+      // For debugging
+      if (newDataPoint.Other > 0) {
+        console.log(`Year ${dataPoint.year}, Total Other category value: ${newDataPoint.Other}`);
+      }
+      
+      return newDataPoint;
+    });
+    
+    // Log which categories were completely aggregated (not present in result)
+    const remainingKeys = new Set<string>();
+    result.forEach(dataPoint => {
+      Object.keys(dataPoint).forEach(key => {
+        if (key !== 'year' && key !== 'Other') {
+          remainingKeys.add(key);
+        }
+      });
+    });
+    
+    const fullyAggregatedKeys = Array.from(allKeys).filter(key => !remainingKeys.has(key));
+    console.log("Fully aggregated categories:", fullyAggregatedKeys);
+    
+    // Check if there are any Other values
+    const hasOtherValues = result.some(point => point.Other > 0);
+    console.log("Has Other values:", hasOtherValues);
+    
+    return result;
   };
 
+  const stackedData = getStackedData();
+  console.log("Stacked bar chart data:", stackedData);
+  
+  // Determine which categories to display in the chart
+  const getBarSegments = () => {
+    // Get all unique keys from the data, excluding 'year'
+    const allKeys = new Set<string>();
+    stackedData.forEach(dataPoint => {
+      Object.keys(dataPoint).forEach(key => {
+        if (key !== 'year') allKeys.add(key);
+      });
+    });
+    
+    console.log("All keys for bar segments:", Array.from(allKeys));
+    
+    // Check if we have real order data
+    const hasInvestmentOrder = investmentOrder.length > 0;
+    const hasIncomeOrder = incomeOrder.length > 0;
+    const hasExpensesOrder = expensesOrder.length > 0;
+    
+    // Filter out keys that were aggregated (will only be in 'Other')
+    const investmentSegments = hasInvestmentOrder 
+      ? investmentOrder.filter(key => allKeys.has(key)) 
+      : ["401k", "RothIRA", "Brokerage"].filter(key => allKeys.has(key));
+    
+    const incomeSegments = hasIncomeOrder 
+      ? incomeOrder.filter(key => allKeys.has(key)) 
+      : ["Job", "Pension"].filter(key => allKeys.has(key));
+    
+    const expensesSegments = hasExpensesOrder 
+      ? expensesOrder.filter(key => allKeys.has(key)) 
+      : ["Housing", "Food"].filter(key => allKeys.has(key));
+    
+    // Always include "Other" in the list of segments
+    // And check if it exists in allKeys and has a value above 0 in any data point
+    const hasOtherCategory = allKeys.has("Other") && stackedData.some(d => d.Other > 0);
+    console.log("Has Other category:", hasOtherCategory);
+    
+    // Combine all segments in the desired order
+    const segments = [...investmentSegments, ...incomeSegments, ...expensesSegments];
+    
+    // Always add "Other" to the segments even if it doesn't have values
+    // This ensures the "Other" category always appears in the legend
+    segments.push("Other");
+    
+    return segments;
+  };
+  
+  // Get segments to render
+  const barSegments = getBarSegments();
+  
   return (
-    <BarChart width={700} height={400} data={getStackedData()}>
-    <CartesianGrid strokeDasharray="3 3" />
-    <XAxis dataKey="year">
-      <Label value="Year" offset={-5} position="insideBottom" />
-    </XAxis>
-    <YAxis>
-      <Label
+    <BarChart width={700} height={400} data={stackedData}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="year" 
+        tick={{ fontSize: 12 }} 
+        tickFormatter={(value) => String(value)} 
+        interval={Math.max(1, Math.floor(stackedData.length / 10))} // Show maximum 10 ticks for readability
+      >
+        <Label value="Year" offset={-5} position="insideBottom" />
+      </XAxis>
+      <YAxis>
+        <Label
           value={`${useMedian ? 'Median' : 'Average'} Values ($)`}
-        angle={-90}
-        position="insideLeft"
-        style={{ textAnchor: "middle" }}
-      />
-    </YAxis>
-    <Tooltip />
-    <Legend />
+          angle={-90}
+          position="insideLeft"
+          style={{ textAnchor: "middle" }}
+        />
+      </YAxis>
+      <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+      <Legend />
 
-      {/* Tax-Advantaged Accounts */}
-      <Bar dataKey="401k" stackId="a" fill="#4b3f72" name="401(k)" />      
-      <Bar dataKey="RothIRA" stackId="a" fill="#007a99" name="Roth IRA" /> 
-
-      {/* Taxable Accounts */}
-      <Bar dataKey="Brokerage" stackId="a" fill="#2f855a" name="Brokerage" /> 
-
-      {/* Income Sources */}
-      <Bar dataKey="Job" stackId="a" fill="#b7791f" name="Employment" /> 
-      <Bar dataKey="Pension" stackId="a" fill="#cc3300" name="Pension" /> 
-
-    {/* Expenses */}
-      <Bar dataKey="Housing" stackId="a" fill="#7f9c00" name="Housing" />
-      <Bar dataKey="Food" stackId="a" fill="#3f9142" name="Food" />
-      <Bar dataKey="Other" stackId="a" fill="#666666" name="Other" />
-  </BarChart>
-);
+      {/* Render all bar segments dynamically */}
+      {barSegments.map((key, index) => {
+        // Determine color based on category
+        let fill = "#666666"; // Default color for "Other"
+        
+        // Investment categories (blues/purples)
+        if (investmentOrder.includes(key) || ["401k", "RothIRA", "Brokerage"].includes(key)) {
+          fill = ["#4b3f72", "#007a99", "#2f855a"][index % 3];
+        } 
+        // Income categories (yellows/oranges)
+        else if (incomeOrder.includes(key) || ["Job", "Pension"].includes(key)) {
+          fill = ["#b7791f", "#cc3300"][index % 2];
+        } 
+        // Expense categories (greens)
+        else if (expensesOrder.includes(key) || ["Housing", "Food"].includes(key)) {
+          fill = ["#7f9c00", "#3f9142"][index % 2];
+        }
+        
+        return (
+          <Bar 
+            key={key} 
+            dataKey={key} 
+            stackId="a" 
+            fill={fill} 
+            name={key === "Other" ? "Other (Below Threshold)" : key} 
+          />
+        );
+      })}
+    </BarChart>
+  );
 };
 
 // Scenario Exploration Components
@@ -721,6 +989,22 @@ const OpenSimulation: React.FC = () => {
   // Get planId from URL params
   const { planId } = useParams();
   
+  // Add new state variables for order data
+  const [investmentOrder, setInvestmentOrder] = useState<string[]>([]);
+  const [incomeOrder, setIncomeOrder] = useState<string[]>([]);
+  const [expensesOrder, setExpensesOrder] = useState<string[]>([]);
+  
+  // Add state variables for median and average values
+  const [medianInvestments, setMedianInvestments] = useState<number[][]>([]);
+  const [avgInvestments, setAvgInvestments] = useState<number[][]>([]);
+  const [medianIncome, setMedianIncome] = useState<number[][]>([]);
+  const [avgIncome, setAvgIncome] = useState<number[][]>([]);
+  const [medianExpenses, setMedianExpenses] = useState<number[][]>([]);
+  const [avgExpenses, setAvgExpenses] = useState<number[][]>([]);
+  
+  // Add state variable for aggregation threshold
+  const [aggregationThreshold, setAggregationThreshold] = useState<number>(5000);
+  
   useEffect(() => {
     const path = window.location.pathname;
     const scenarioId = path.split('/').pop(); // Get the last segment of the URL path
@@ -813,6 +1097,55 @@ const OpenSimulation: React.FC = () => {
         }));
         setProbabilityData(probData);
         console.log("Updated probability data:", probData);
+      }
+      
+      // Store order of investments, income, and expenses
+      if (results.data) {
+        if (results.data.investmentOrder) {
+          setInvestmentOrder(results.data.investmentOrder);
+          console.log("Set investment order:", results.data.investmentOrder);
+        }
+        
+        if (results.data.incomeOrder) {
+          setIncomeOrder(results.data.incomeOrder);
+          console.log("Set income order:", results.data.incomeOrder);
+        }
+        
+        if (results.data.expensesOrder) {
+          setExpensesOrder(results.data.expensesOrder);
+          console.log("Set expenses order:", results.data.expensesOrder);
+        }
+        
+        // Store median and average values
+        if (results.data.medianInvestmentsOverTime) {
+          setMedianInvestments(results.data.medianInvestmentsOverTime);
+          console.log("Set median investments:", results.data.medianInvestmentsOverTime);
+        }
+        
+        if (results.data.avgInvestmentsOverTime) {
+          setAvgInvestments(results.data.avgInvestmentsOverTime);
+          console.log("Set average investments:", results.data.avgInvestmentsOverTime);
+        }
+        
+        if (results.data.medianIncomeOverTime) {
+          setMedianIncome(results.data.medianIncomeOverTime);
+          console.log("Set median income:", results.data.medianIncomeOverTime);
+        }
+        
+        if (results.data.avgIncomeOverTime) {
+          setAvgIncome(results.data.avgIncomeOverTime);
+          console.log("Set average income:", results.data.avgIncomeOverTime);
+        }
+        
+        if (results.data.medianExpensesOverTime) {
+          setMedianExpenses(results.data.medianExpensesOverTime);
+          console.log("Set median expenses:", results.data.medianExpensesOverTime);
+        }
+        
+        if (results.data.avgExpensesOverTime) {
+          setAvgExpenses(results.data.avgExpensesOverTime);
+          console.log("Set average expenses:", results.data.avgExpensesOverTime);
+        }
       }
       
       // Process investment range data
@@ -1233,7 +1566,38 @@ const OpenSimulation: React.FC = () => {
 
       {selectedGraphs.includes("stacked") && (
         <div style={{ marginBottom: 40 }}>
-          <StackedBarChart useMedian={useMedianValues} />
+          {/* Add aggregation threshold slider */}
+          <div style={{ marginBottom: 20, width: 700, margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Aggregation Threshold: ${aggregationThreshold.toLocaleString()}</span>
+              <input
+                type="range"
+                min="0"
+                max="50000"
+                step="1000"
+                value={aggregationThreshold}
+                onChange={(e) => setAggregationThreshold(Number(e.target.value))}
+                style={{ width: '60%' }}
+              />
+            </div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 5 }}>
+              Categories with values below this threshold will be grouped as "Other"
+            </div>
+          </div>
+          
+          <StackedBarChart 
+            useMedian={useMedianValues} 
+            investmentOrder={investmentOrder}
+            incomeOrder={incomeOrder}
+            expensesOrder={expensesOrder}
+            medianInvestments={medianInvestments}
+            avgInvestments={avgInvestments}
+            medianIncome={medianIncome}
+            avgIncome={avgIncome}
+            medianExpenses={medianExpenses}
+            avgExpenses={avgExpenses}
+            aggregationThreshold={aggregationThreshold}
+          />
         </div>
       )}
     </>
