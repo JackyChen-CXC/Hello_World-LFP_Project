@@ -139,17 +139,32 @@ export const createSimulation = async (req: any, res: any) => {
                         }
 
                         createLog(username,"result", data);
+                        //console.log("this is returned data: ",data.totalInvestmentsOverTime[0]);
+
+                        let simulation1;
+                        if(data){
+                            simulation1 = data[0]; // safely get the first item
+                        }
+                        if (simulation1?.InvestmentsOverTime) {
+                        for (const x of simulation1.InvestmentsOverTime) {
+                            console.log(x); // x is one of those [Array] entries — probably an array of numbers
+                        }
+                        } else {
+                            console.error("InvestmentsOverTime is missing.");
+                        }
                         console.log(data);
                         // hash simulation values
-                        // for(let raw_vals of data){
-                        //     hashIntoTotal(totalInvestmentsOverTime[rangeIndex], raw_vals.InvestmentsOverTime);
-                        //     hashIntoTotal(totalIncomeOverTime[rangeIndex], raw_vals.IncomeOverTime);
-                        //     hashIntoTotal(totalExpensesOverTime[rangeIndex], raw_vals.ExpensesOverTime);
-                        //     hashIntoTotal(totalEarlyWithdrawalTax[rangeIndex], raw_vals.earlyWithdrawalTax);
-                        //     hashIntoTotal(totalPercentageTotalDiscretionary[rangeIndex], raw_vals.percentageTotalDiscretionary);
-                        //     hashIntoTotal(totalYealyIncome[rangeIndex], raw_vals.yearlyIncome);
-                        //     hashIntoTotal(totalYearlyExpenses[rangeIndex], raw_vals.yearlyExpenses);
-                        // }
+                        if(data){
+                            for(let raw_vals of data){
+                                hashIntoTotal(totalInvestmentsOverTime[rangeIndex], raw_vals.InvestmentsOverTime);
+                                hashIntoTotal(totalIncomeOverTime[rangeIndex], raw_vals.IncomeOverTime);
+                                hashIntoTotal(totalExpensesOverTime[rangeIndex], raw_vals.ExpensesOverTime);
+                                hashIntoTotal(totalEarlyWithdrawalTax[rangeIndex], raw_vals.earlyWithdrawalTax);
+                                hashIntoTotal(totalPercentageTotalDiscretionary[rangeIndex], raw_vals.percentageTotalDiscretionary);
+                                hashIntoTotal(totalYealyIncome[rangeIndex], raw_vals.yearlyIncome);
+                                hashIntoTotal(totalYearlyExpenses[rangeIndex], raw_vals.yearlyExpenses);
+                            }
+                        }
                     });
                 }
                 // 
