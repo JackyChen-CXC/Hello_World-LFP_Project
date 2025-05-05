@@ -162,15 +162,17 @@ export function computeMeanAndMedian(data: number[][][]): { means: number[][], m
 }
 
 // hash simulated values into total values
-// @number[] sim: array of one number per year
-// @number[][] total: nested array of unsorted simulated numbers per year
-export function hashIntoTotal(total: any[][], sim: any[]) {
-    for (let year = 0; year < sim.length; year++) {
-        if (!total[year]) {
-            total[year] = [];
-        }
-        total[year].push(sim[year]);
-    }
+// @any[] sim: array of one number/arr per year
+// @any[][] total: nested array of unsorted simulated numbers per year
+export function hashIntoTotal(total: any[][][], sim: any[], rangeIndex: number) {
+  for (let year = 0; year < sim.length; year++) {
+      if (!total[rangeIndex][year]) {
+          total[rangeIndex][year] = [];
+      }
+      console.log("b4",total[rangeIndex][year]);
+      total[rangeIndex][year].push(sim[year]);
+      console.log("after",total[rangeIndex][year]);
+  }
 }
 
 export function getValueOfInvestments(investments: IInvestment[]): number[] {
@@ -1473,7 +1475,7 @@ export function payNonDiscretionary(
     const cash_investments = (financialplan.investments || []).filter((i: any) => i.investmentType === "cash");
     const total_cash = cash_investments.reduce((sum: number, i: any) => sum + (i.value || 0), 0);
 
-    console.log("NONDiscretionary ",total_cash);
+    // console.log("NONDiscretionary ",total_cash);
     let total_withdrawal_amount = total_payment_amount - total_cash;
     let total_paid = total_payment_amount;
     //pay in cash
@@ -1486,7 +1488,7 @@ export function payNonDiscretionary(
       }
     }
 
-    console.log("total cash payment",total_payment_amount);
+    // console.log("total cash payment",total_payment_amount);
     // part f
     const all_investments = financialplan.investments || [];
     const withdrawal_strategy: string[] = financialplan.expenseWithdrawalStrategy || [];

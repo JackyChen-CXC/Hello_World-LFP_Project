@@ -82,7 +82,7 @@ export const createSimulation = async (req: any, res: any) => {
         writeLog(username, "started running simulations", "csv");
         writeLog(username, "started running simulations", "log");
 
-        // Storage for all simulations' raw values [range][year][number/[number of items]]
+        // Storage for all simulations' raw values [range][year][simulations][number/[number of items]]
         const totalInvestmentsOverTime: number[][][][] = [];  // individual items for range
         const totalIncomeOverTime: number[][][][] = [];       // individual items for range
         const totalExpensesOverTime: number[][][][] = [];     // individual items for range & total expenses
@@ -105,69 +105,78 @@ export const createSimulation = async (req: any, res: any) => {
         for(let p1 = min; p1 < max; p1+=step){
             // iterate through scenario parameter 2
             for(let p2 = min2; p2 < max2; p2+=step2){
+                // for each rangeIndex
+                const workerPromises: Promise<any>[] = [];
                 for(let i=0; i<total_worker; i++){
+                    // initalize new nested arrays
+                    totalInvestmentsOverTime[rangeIndex] = [];
+                    totalIncomeOverTime[rangeIndex] = [];
+                    totalExpensesOverTime[rangeIndex] = [];
+                    totalEarlyWithdrawalTax[rangeIndex] = [];
+                    totalPercentageTotalDiscretionary[rangeIndex] = [];
+                    totalYealyIncome[rangeIndex] = [];
+                    totalYearlyExpenses[rangeIndex] = [];
+
                     const numSimulations = simulation_per_worker + (i < extra_simulation ? 1 : 0);
                     const tempPlan = deepCopyDocument(plan);
+                    const workerPromise = new Promise((resolve, reject) => {
+                        const child = fork(workerPath, [], {
+                            execArgv: ['-r', 'ts-node/register'],
+                            env: { ...process.env },
+                            stdio: 'inherit'
+                        });
 
-                    const child = fork(workerPath, [], {
-                        execArgv: ['-r', 'ts-node/register'],
-                        env: { ...process.env },
-                        stdio: 'inherit'
-                    });
+                        // Send data to child
+                        child.send({
+                            reqData: {
+                                body: {
+                                    state_tax_file,
+                                    username,
+                                    id,
+                                    plan: tempPlan
+                                }
+                            },
+                            numSimulations: numSimulations,
+                            workerId: i
+                        });
 
-                    // Send data to child
-                    child.send({
-                        reqData: {
-                            body: {
-                                state_tax_file,
-                                username,
-                                id,
-                                plan: tempPlan
+                        
+                        child.on('message', (res: any) => {
+                            const { success, message, data } = res;
+                            
+                            // Only process complete data from workers
+                            if(success && data) {
+                                // Process all simulations from this worker at once
+                                for(let raw_vals of data){
+                                    hashIntoTotal(totalInvestmentsOverTime, raw_vals.InvestmentsOverTime, rangeIndex);
+                                    hashIntoTotal(totalIncomeOverTime, raw_vals.IncomeOverTime, rangeIndex);
+                                    hashIntoTotal(totalExpensesOverTime, raw_vals.ExpensesOverTime, rangeIndex);
+                                    hashIntoTotal(totalEarlyWithdrawalTax, raw_vals.earlyWithdrawalTax, rangeIndex);
+                                    hashIntoTotal(totalPercentageTotalDiscretionary, raw_vals.percentageTotalDiscretionary, rangeIndex);
+                                    hashIntoTotal(totalYealyIncome, raw_vals.yearlyIncome, rangeIndex);
+                                    hashIntoTotal(totalYearlyExpenses, raw_vals.yearlyExpenses, rangeIndex);
+                                }
+                                
+                                // This marks the worker as completely done
+                                resolve(true);
                             }
-                        },
-                        numSimulations: numSimulations, // or whatever number you want
-                        workerId: i
+                        });
+                
+                        child.on('error', (err) => {
+                            console.error(`Worker ${i} error:`, err);
+                            reject(err);
+                        });
+
+                        child.on('error', (err) => {
+                            console.error(`Worker ${i} error:`, err);
+                            reject(err);
+                        });
                     });
-
-                    
-                    child.on('message', (res: any) => {
-                        const { success, message, data } = res;
-                        // console.log(success, message);
-                        // Count completion
-                        if (++completed === total_worker) {
-                            console.log("All workers finished.");   
-                        }
-
-                        createLog(username,"result", data);
-                        //console.log("this is returned data: ",data.totalInvestmentsOverTime[0]);
-
-                        let simulation1;
-                        if(data){
-                            simulation1 = data[0]; // safely get the first item
-                        }
-                        if (simulation1?.InvestmentsOverTime) {
-                        for (const x of simulation1.InvestmentsOverTime) {
-                            console.log(x); // x is one of those [Array] entries — probably an array of numbers
-                        }
-                        } else {
-                            console.error("InvestmentsOverTime is missing.");
-                        }
-                        console.log(data);
-                        // hash simulation values
-                        if(data){
-                            for(let raw_vals of data){
-                                hashIntoTotal(totalInvestmentsOverTime[rangeIndex], raw_vals.InvestmentsOverTime);
-                                hashIntoTotal(totalIncomeOverTime[rangeIndex], raw_vals.IncomeOverTime);
-                                hashIntoTotal(totalExpensesOverTime[rangeIndex], raw_vals.ExpensesOverTime);
-                                hashIntoTotal(totalEarlyWithdrawalTax[rangeIndex], raw_vals.earlyWithdrawalTax);
-                                hashIntoTotal(totalPercentageTotalDiscretionary[rangeIndex], raw_vals.percentageTotalDiscretionary);
-                                hashIntoTotal(totalYealyIncome[rangeIndex], raw_vals.yearlyIncome);
-                                hashIntoTotal(totalYearlyExpenses[rangeIndex], raw_vals.yearlyExpenses);
-                            }
-                        }
-                    });
+                    workerPromises.push(workerPromise);
                 }
-                // 
+                
+                // wait for all to finish
+                await Promise.all(workerPromises);
 
                 // update plan based on parameter 2
                 if(algorithmType === "2d"){
@@ -208,6 +217,8 @@ export const createSimulation = async (req: any, res: any) => {
         let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
         output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         output.expensesOrder.push(...taxOrder);
+
+        // console.log(output);
 
         // OUTPUTS - FOR EACH TYPE OF ALGORITHM
         if(algorithmType === "standard" && result){ // standard
