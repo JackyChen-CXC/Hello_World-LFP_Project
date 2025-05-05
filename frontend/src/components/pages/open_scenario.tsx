@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import "../css_files/page_style.css";
 
@@ -182,8 +182,8 @@ const OpenScenario = () => {
         console.error("Failed to fetch user files:", resu.error);
         tax_file = "state_tax.yaml";
       }
-      console.log("state tax file:", tax_file);
-      const response = await fetch("http://localhost:5000/api/simulate", {
+
+      const response = await fetch("http://localhost:5000/api/simulations/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

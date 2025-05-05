@@ -41,7 +41,7 @@ app.use('/api', stateTaxRouter);
 
 app.use('/api', uploadUserFileRouter);
 
-app.use('/api', simulationRouter);
+app.use('/api/simulations', simulationRouter);
 
 app.get("/", (_, res) => {
   res.send("API is running...");

@@ -291,7 +291,7 @@ export const runSimulation = async (req: any, res: any) => {
                     writeLog(username, "Ran the Roth conversion (RC) optimizer", "log");
                 }
                 
-                // // 6. Pay non-discretionary expenses and the previous year’s taxes (Pre-tax -> +curYearIncome)
+                // // 6. Pay non-discretionary expenses and the previous year's taxes (Pre-tax -> +curYearIncome)
                 createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
 
 
@@ -435,4 +435,74 @@ export const runSimulation = async (req: any, res: any) => {
             message: "Simulation failed.",
         });
     }
+};
+export const getSimulationByPlanId = async (req: any, res: any) => {
+    try {
+        const { planId } = req.params;
+        
+        if (!planId) {
+            return res.status(400).json({
+                status: "error",
+                message: "Missing planId parameter"
+            });
+        }
+
+        const simulation = await Simulation.findOne({ planId });
+        
+        if (!simulation) {
+            return res.status(404).json({
+                status: "error",
+                message: "No simulation found for this plan"
+            });
+        }
+
+        return res.status(200).json({
+            status: "success",
+            data: simulation
+        });
+    } catch (error) {
+        console.error("Error fetching simulation by plan ID:", error);
+        return res.status(500).json({
+            status: "error",
+            message: "Error fetching simulation",
+            details: error instanceof Error ? error.message : String(error)
+        });
+    }
+};
+
+// Add a new function to get simulation results by ID
+export const getSimulationResults = async (req: any, res: any) => {
+  try {
+    const { resultsId } = req.params;
+    
+    // Validate the results ID
+    if (!resultsId) {
+      return res.status(400).json({
+        status: "error",
+        message: "Missing results ID parameter"
+      });
+    }
+
+    // Find the simulation results by ID
+    const simulationResults = await SimulationResult.findById(resultsId);
+    
+    if (!simulationResults) {
+      return res.status(404).json({
+        status: "error",
+        message: "Simulation results not found"
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      data: simulationResults
+    });
+  } catch (error) {
+    console.error("Error fetching simulation results:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Server error while fetching simulation results",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
 };
