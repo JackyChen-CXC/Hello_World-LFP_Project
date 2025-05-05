@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "../css_files/page_style.css";
 
 interface ScenarioData {
@@ -68,7 +68,8 @@ const OpenScenario = () => {
   const [investmentDetails, setInvestmentDetails] = useState<InvestmentTypeData[]>([]);
   const location = useLocation();
   const dateCreated = (location.state as any)?.dateCreated;
-
+  const navigate = useNavigate();
+  
 
   useEffect(() => {
     const fetchScenario = async () => {
@@ -259,6 +260,33 @@ const OpenScenario = () => {
       </div>
 
       <div className="scenario-container" style={{ width: "70%", height: "auto" }}>
+      <img
+          src="/images/edit.png"
+          height={40}
+          width={40}
+          alt="Edit"
+          style={{ cursor: "pointer" , marginLeft:"95%", marginBottom:"2%"}}
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              const response = await fetch(`http://localhost:5000/api/plans/${id}`);
+              if (!response.ok) throw new Error("Failed to fetch plan details");
+              
+              const planData = await response.json(); // shape { data: {...actualPlanObject...} }
+              
+              navigate("/create-plan", {
+                state: {
+                  formData: planData.data, // <-- pass planData.data instead
+                  isEditing: true,
+                  planId: scenario.id
+                }
+              });
+            } catch (err) {
+              console.error("Failed to load plan for editing", err);
+              alert("Could not load the plan for editing.");
+            }
+          }}
+        />
         <div className="split-container">
           <div className="left-container">
             <div className="normal-text" style={{ fontWeight: "bold" }}>Title: {capitalizeWords(scenario.name)}</div>

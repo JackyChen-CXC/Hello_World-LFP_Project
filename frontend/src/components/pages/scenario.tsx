@@ -38,11 +38,11 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
               const response = await fetch(`http://localhost:5000/api/plans/${scenario.id}`);
               if (!response.ok) throw new Error("Failed to fetch plan details");
               
-              const planData = await response.json(); // shape { data: {...actualPlanObject...} }
+              const planData = await response.json(); 
               
               navigate("/create-plan", {
                 state: {
-                  formData: planData.data, // <-- pass planData.data instead
+                  formData: planData.data, 
                   isEditing: true,
                   planId: scenario.id
                 }

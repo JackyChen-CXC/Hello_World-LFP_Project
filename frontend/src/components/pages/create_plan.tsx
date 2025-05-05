@@ -1613,12 +1613,22 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
           )}
         </div>
       </div>
+      <div style ={{display:"flex", flexDirection: "column", width:"80%", marginTop:"5%", fontSize:"14px", color:"#db0404"}}>
+        <div style ={{fontWeight:"bold"}}>
+          Note:
+        </div>
+        This simulation makes several simplifying assumptions. It assumes all users take the federal standard deduction and that investments 
+        have no capital gains at the start of the simulation. Simulations begin in the current calendar year. Tax calculations are approximate and 
+        do not include detailed state-specific deductions or credits beyond the selected residence state. Inflation, investment returns, and income 
+        distributions follow the statistical models specified by the user. The simulation also assumes no fees, penalties, or required minimum 
+        distributions (RMDs) unless explicitly configured. Investment growth is treated as tax-deferred or tax-free based on account type.
+      </div>
 
       {/* ------------------------------------------Basic Information------------------------------------------ */}
       <div className="subheading">Basic Information</div>
       <div className="question">
         {/* Plan Name */}
-        <div className="normal-text">Name Your Plan *(Required)*</div>
+        <div className="normal-text">Name Your Plan <span style={{ color: "#db0404" }}>(*Required*)</span></div>
         <input
           className="input-boxes"
           type="text"
@@ -1628,7 +1638,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
         />
 
         {/* Plan Type */}
-        <div className="normal-text">Plan Type *(Required)*</div>
+        <div className="normal-text">Plan Type <span style={{ color: "#db0404" }}>(*Required*)</span></div>
         <RadioGroup
           name="planType"
           selectedValue={formData.planType}
@@ -1640,7 +1650,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
         />
 
         {/* Current Age & Birth Year */}
-        <div className="normal-text">What Year Were You Born *(Required)*</div>
+        <div className="normal-text">What Year Were You Born <span style={{ color: "#db0404" }}>(*Required*)</span></div>
         <input
           className="input-boxes"
           type="text"
@@ -1706,7 +1716,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
         {/* Spouse's Age & Birth Year (only for joint plan) */}
         {formData.planType === "joint" && (
           <div>
-            <div className="normal-text">Spouse's Birth Year *(Required)*</div>
+            <div className="normal-text">Spouse's Birth Year <span style={{ color: "#db0404" }}>(*Required*)</span></div>
             <input
               className="input-boxes"
               type="text"
@@ -1771,7 +1781,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
           
         )}
 
-        <div className="normal-text ">What state are you in? *(Required)*</div>
+        <div className="normal-text ">What state are you in? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
         <select
           className="collapse-options"
           name="residentState"
@@ -1793,7 +1803,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
     {/* ------------------------------------------Investments & Savings------------------------------------------ */}
     <div className="subheading">Investments & Savings</div>
 
-    <div className="normal-text">What is your financial goal? *(Required)*</div>
+    <div className="normal-text">What is your financial goal? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
     <input
       className="input-boxes"
       type="text"
@@ -1863,7 +1873,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                   value={investment.investmentTypeName}
                   onChange={(e) => handleInvestmentChange(index, e)}
                 />
-                <div className="normal-text">Brief Description of Investment *(Required)*</div>
+                <div className="normal-text">Brief Description of Investment <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                 <textarea
                   className="input-boxes textarea-box"
                   rows="4"
@@ -1871,7 +1881,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                   value={investment.investmentDescription}
                   onChange={(e) => handleInvestmentChange(index, e)}
                 ></textarea>
-                <div className="normal-text">How would you like to express the investment's annual return? *(Required)*</div>
+                <div className="normal-text">How would you like to express the investment's annual return? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                 <div className="split-container">
                   <div className="left-side">
                     <RadioGroup
@@ -1940,7 +1950,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                 </div>
 
                 <br />
-                <div className="normal-text">Expected annual income from dividends or interest? *(Required)*</div>
+                <div className="normal-text">Expected annual income from dividends or interest? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                 <div className="split-container">
                   <div className="left-side">
                     <RadioGroup
@@ -2007,7 +2017,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                   </div>
                 </div>
                 {/* Taxability & Account Type */}
-                <div className="normal-text">Is this investment taxable? *(Required)*</div>
+                <div className="normal-text">Is this investment taxable? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                   <label className="normal-text">
                   <RadioGroup
                     name={`taxability-${index}`}
@@ -2085,7 +2095,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               onChange={(e) => handleInvestmentChange(index, e)}
             />
             {/* Value + account type (these apply to both) */}
-            <div className="normal-text">What is the current value of this investment? *(Required)*</div>
+            <div className="normal-text">What is the current value of this investment? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
             <input
               className="input-boxes"
               type="text"
@@ -2094,7 +2104,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               onChange={(e) => handleInvestmentChange(index, e)}
             />
 
-            <div className="normal-text">Account Type *(Required)*</div>
+            <div className="normal-text">Account Type <span style={{ color: "#db0404" }}>(*Required*)</span></div>
             <select
               className="collapse-options"
               name="accountType"
@@ -2144,7 +2154,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               <div className="split-container">
                 <div className="left-side">
                   {/* Common Select Field */}
-                  <div className="normal-text">Select Event Series Type *(Required)*</div>
+                  <div className="normal-text">Select Event Series Type <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                   <select
                     className="collapse-options"
                     name="type"
@@ -2433,7 +2443,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
 
                 </div>
                 <div className="right-side">
-                  <div className="normal-text">Name of Event Series *(Required)*</div>
+                  <div className="normal-text">Name of Event Series <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                   <input
                     className="input-boxes"
                     type="text"
@@ -2455,7 +2465,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               {(lifeEvent.type === "income" || lifeEvent.type === "expense") && (
               <>
                 {/* Initial Amount */}
-                <div className="normal-text">What is the initial amount for this event? *(Required)*</div>
+                <div className="normal-text">What is the initial amount for this event? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                 <input
                   className="input-boxes"
                   type="text"
@@ -2466,7 +2476,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                 />
 
                 {/* Expected Annual Change */}
-                <div className="normal-text">How should the annual change be expressed? *(Required)*</div>
+                <div className="normal-text">How should the annual change be expressed? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
                 <div className="split-container">
                   <div className="left-side">
                     <label className="normal-text">
@@ -2618,7 +2628,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
 
               {/* Start Date */}
               <div className="normal-text">
-                How would you like to express the start date of this event? (select 1) *(Required)*
+                How would you like to express the start date of this event? (select 1) <span style={{ color: "#db0404" }}>(*Required*)</span>
               </div>
               <div className="split-container">
                 <div className="left-side">
@@ -2763,7 +2773,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
 
               {/* Duration */}
               <br />
-              <div className="normal-text">How should the duration of this event be expressed? *(Required)*</div>
+              <div className="normal-text">How should the duration of this event be expressed? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
               <div className="split-container">
                 <div className="left-side">
                   <label className="normal-text">
@@ -2875,7 +2885,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
         ADD
       </button>
       {/* Inflation */}
-      <div className="normal-text">How would you like to assume inflation? *(Required)*</div>
+      <div className="normal-text">How would you like to assume inflation? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
 <div className="split-container">
   <div className="left-side">
     <RadioGroup
