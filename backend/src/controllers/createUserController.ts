@@ -120,56 +120,61 @@ export const endUser = async (req: any, res: any) => {
 export const sharePlanWithUser = async (req: any, res: any) => {
     try {
         const { email, planId } = req.body;
-        
+    
         if (!email || !planId) {
             return res.status(400).json({
-                status: "ERROR",
-                error: true,
-                message: "User email and plan ID are required"
+            status: "ERROR",
+            error: true,
+            message: "User email and plan ID are required"
             });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(404).json({
-                status: "ERROR",
-                error: true,
-                message: "User not found with this email"
+            status: "ERROR",
+            error: true,
+            message: "User not found with this email"
             });
         }
 
         const plan = await FinancialPlan.findById(planId);
         if (!plan) {
             return res.status(404).json({
-                status: "ERROR",
-                error: true,
-                message: "Plan not found"
+            status: "ERROR",
+            error: true,
+            message: "Plan not found"
             });
         }
 
+        // Ensure user.sharedPlans exists
         if (!user.sharedPlans) {
             user.sharedPlans = [];
         }
-
+    
         let planShared = false;
-
+    
         if (!user.sharedPlans.includes(planId)) {
             user.sharedPlans.push(planId);
             await user.save();
             planShared = true;
         }
 
-        if (!plan.sharedUsersId) {
-            plan.sharedUsersId = [];
-        }
-
         if (!plan.sharedUserPerms) {
             plan.sharedUserPerms = [];
         }
 
-        if (user.googleId && !plan.sharedUsersId.includes(user.googleId)) {
+        const alreadyShared = plan.sharedUserPerms.some(p => p.userId === user.googleId);
+    
+        if (!alreadyShared && user.googleId) {
+            plan.sharedUserPerms.push({
+            userId: user.googleId,
+            perm: "view"
+            });
+            if (!plan.sharedUsersId) {
+                plan.sharedUsersId = [];
+            }
             plan.sharedUsersId.push(user.googleId);
-            plan.sharedUserPerms.push("view"); 
             await plan.save();
         }
 
@@ -178,8 +183,8 @@ export const sharePlanWithUser = async (req: any, res: any) => {
             error: false,
             message: planShared ? "Plan shared successfully" : "Plan was already shared with this user"
         });
-
-    } catch (error) {
+    
+        } catch (error) {
         console.error("Error sharing plan with user:", error);
         return res.status(500).json({
             status: "ERROR",
@@ -188,7 +193,6 @@ export const sharePlanWithUser = async (req: any, res: any) => {
         });
     }
 };
-
 
 
 export const getSharedPlans = async (req: any, res: any) => {
@@ -257,49 +261,54 @@ export const getSharedPlans = async (req: any, res: any) => {
 export const stopSharingPlan = async (req: any, res: any) => {
     try {
         const { email, planId } = req.body;
-        
+    
         if (!email || !planId) {
             return res.status(400).json({
-                status: "ERROR",
-                error: true,
-                message: "User email and plan ID are required"
+            status: "ERROR",
+            message: "Missing email or plan ID"
             });
         }
-        
-        
+    
         const user = await User.findOne({ email });
-        
-        if (!user) {
+        if (!user || !user.googleId) {
             return res.status(404).json({
-                status: "ERROR",
-                error: true,
-                message: "User not found with this email"
+            status: "ERROR",
+            message: "User not found"
             });
         }
-        
-        
-        if (user.sharedPlans && user.sharedPlans.includes(planId)) {
-            user.sharedPlans = user.sharedPlans.filter(id => id !== planId);
-            await user.save();
-            
-            return res.status(200).json({
-                status: "SUCCESS",
-                error: false,
-                message: "Plan sharing removed successfully"
-            });
-        } else {
-            return res.status(200).json({
-                status: "SUCCESS",
-                error: false,
-                message: "Plan was not shared with this user"
+    
+        const plan = await FinancialPlan.findById(planId);
+        if (!plan) {
+            return res.status(404).json({
+            status: "ERROR",
+            message: "Plan not found"
             });
         }
-    } catch (error) {
-        console.error("Error removing shared plan:", error);
+    
+        // Remove plan from user's sharedPlans
+        user.sharedPlans = (user.sharedPlans || []).filter((id: string) => id !== planId);
+        await user.save();
+    
+        // Remove user from sharedUsersId
+        plan.sharedUsersId = plan.sharedUsersId.filter((id: string) => id !== user.googleId);
+    
+        // Remove user's permission entry
+        plan.sharedUserPerms = plan.sharedUserPerms.filter(
+            (entry: any) => entry.userId !== user.googleId
+        );
+    
+        await plan.save();
+    
+        return res.status(200).json({
+            status: "SUCCESS",
+            message: `User ${email} removed from shared access`
+        });
+    
+        } catch (error) {
+        console.error("Error stopping plan sharing:", error);
         return res.status(500).json({
             status: "ERROR",
-            error: true,
-            message: "Failed to remove shared plan"
+            message: "Server error while stopping plan sharing"
         });
     }
 };
@@ -338,25 +347,53 @@ export const getSharedUsers = async (req: any, res: any) => {
 };
 
 // controllers/createUserController.ts
-export const updateAccess = async (req: any, res:any ) => {
-    const { planId, email, accessLevel } = req.body;
-  
+export const updateAccess = async (req: any, res: any) => {
     try {
-      const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ message: "User not found" });
+        const { email, planId, accessLevel } = req.body;
+    
+        if (!email || !planId || !["view", "edit"].includes(accessLevel)) {
+            return res.status(400).json({
+            status: "ERROR",
+            message: "Missing required fields or invalid access level"
+            });
+        }
   
-      const plan = await FinancialPlan.findById(planId);
-      if (!plan) return res.status(404).json({ message: "Plan not found" });
-  
-      const index = plan.sharedUsersId.findIndex(id => id === user.googleId);
-      if (index === -1) return res.status(400).json({ message: "User not shared with this plan" });
-  
-      plan.sharedUserPerms[index] = accessLevel;
-      await plan.save();
-  
-      return res.json({ status: "SUCCESS", message: `Access level updated to ${accessLevel}` });
-    } catch (err) {
-      return res.status(500).json({ status: "ERROR", message: "Failed to update access level", error: err });
+        const user = await User.findOne({ email });
+        if (!user || !user.googleId) {
+            return res.status(404).json({
+            status: "ERROR",
+            message: "User not found"
+            });
+        }
+    
+        const plan = await FinancialPlan.findById(planId);
+        if (!plan) {
+            return res.status(404).json({
+            status: "ERROR",
+            message: "Plan not found"
+            });
+        }
+    
+        // Update the user's permission in sharedUserPerms
+        const existingPerm = plan.sharedUserPerms.find((entry: any) => entry.userId === user.googleId);
+        if (existingPerm) {
+            existingPerm.perm = accessLevel;
+        } else {
+            plan.sharedUserPerms.push({ userId: user.googleId, perm: accessLevel });
+        }
+    
+        await plan.save();
+    
+        return res.status(200).json({
+            status: "SUCCESS",
+            message: `Access updated for ${email}`
+        });
+    
+        } catch (error) {
+        console.error("Error updating access level:", error);
+        return res.status(500).json({
+            status: "ERROR",
+            message: "Server error while updating access level"
+        });
     }
-  };
-  
+};

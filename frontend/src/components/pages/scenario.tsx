@@ -86,69 +86,64 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
                 
                 } else {
                     const userList = sharedUsers.map(user => `- ${user.email || user.username}`).join('\n');
-                    const manageAction = prompt(
-                      `This plan is currently shared with:\n${userList}\n\nEnter:\n1 to delete a user\n2 to manage view/edit access.`
+                    const emailToManage = prompt(
+                      `Enter the email of the user you want to manage sharing for:\n${userList}`
                     );
-
+                    if (!emailToManage) return;
+                    
+                    const manageAction = prompt(
+                      `What would you like to do for ${emailToManage}?\nEnter:\n1 to stop sharing\n2 to update view/edit access.`
+                    );
+                    
                     if (manageAction === "1") {
-                      const emailToRemove = prompt(
-                        `Enter the email of the user you want to stop sharing with:\n${userList}`
-                      );
-                      if (!emailToRemove) return;
-
+                      // Stop sharing
                       const stopSharingResponse = await fetch(`http://localhost:5000/api/users/stop-sharing`, {
                         method: "POST",
                         headers: {
                           "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                          email: emailToRemove,
+                          email: emailToManage,
                           planId: scenario.id
                         }),
                       });
-
+                    
                       if (stopSharingResponse.ok) {
-                        alert(`Plan is no longer shared with ${emailToRemove}`);
+                        alert(`Plan is no longer shared with ${emailToManage}`);
+                        refresh();
                       } else {
                         alert("Failed to stop sharing.");
                       }
                     } else if (manageAction === "2") {
-                      
+                      // Update access
                       const accessLevel = prompt(
-                        `Set access level for all shared users:\nType "edit" for edit access or "view" for view-only access.`
+                        `Enter new access level for ${emailToManage}:\nType "edit" for edit access or "view" for view-only access.`
                       );
                     
-                      
                       if (accessLevel === "edit" || accessLevel === "view") {
                         try {
-                          for (const user of sharedUsers) {
-                            const email = user.email;
-                      
-                            const response = await fetch(`http://localhost:5000/api/users/update-access`, {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({
-                                email: email,
-                                planId: scenario.id,
-                                accessLevel: accessLevel
-                              }),
-                            });
-                      
-                            if (!response.ok) {
-                              throw new Error(`Failed to update access for ${email}`);
-                            }
+                          const response = await fetch(`http://localhost:5000/api/users/update-access`, {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              email: emailToManage,
+                              planId: scenario.id,
+                              accessLevel: accessLevel
+                            }),
+                          });
+                    
+                          if (!response.ok) {
+                            throw new Error(`Failed to update access for ${emailToManage}`);
                           }
-                      
-                          alert(`Access level for all shared users set to "${accessLevel}"`);
-                          refresh(); 
+                    
+                          alert(`Access for ${emailToManage} set to "${accessLevel}"`);
+                          refresh();
                         } catch (err) {
-                          console.error("Error updating access levels:", err);
-                          alert("There was a problem setting access levels. Please try again.");
+                          console.error("Error updating access level:", err);
+                          alert("There was a problem updating access level. Please try again.");
                         }
-                      
-                      
                       } else {
                         alert("Invalid input. Please type either 'edit' or 'view'.");
                       }
@@ -301,7 +296,7 @@ const Scenario: FC = () => {
   
       const result = await response.json();
       const ownedPlans = result.data || [];
-      
+  
       // Fetch user's shared plans
       const sharedResponse = await fetch(`http://localhost:5000/api/users/shared-plans`, {
         method: "POST",
@@ -310,32 +305,44 @@ const Scenario: FC = () => {
         },
         body: JSON.stringify({ userId }),
       });
-      
+  
       let sharedPlans = [];
       if (sharedResponse.ok) {
         const sharedResult = await sharedResponse.json();
         sharedPlans = sharedResult.data || [];
       }
-      
+  
       // Combine owned and shared plans
       const allPlans = [...ownedPlans, ...sharedPlans];
-      
+  
       // Format all plans for display
-      const formatted = allPlans.map((item: any, index: number) => ({
-        id: item._id || index,
-        title: (item.name || "Untitled Plan") + (item.isShared ? " (Shared)" : ""),
-        planType: item.maritalStatus === "couple" ? "Joint" : "Individual",
-        financialGoal: item.financialGoal?.toString() || "N/A",
-        dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
-        isShared: !!item.isShared,
-        sharedAccess: item.sharedUserPerms?.[0] || undefined
-      }));
+      const formatted = allPlans.map((item: any, index: number) => {
+        let sharedAccess: "view" | "edit" | undefined = undefined;
+  
+        if (item.isShared && Array.isArray(item.sharedUserPerms)) {
+          const match = item.sharedUserPerms.find((entry: any) => entry.userId === userId);
+          if (match) {
+            sharedAccess = match.perm;
+          }
+        }
+  
+        return {
+          id: item._id || index,
+          title: (item.name || "Untitled Plan") + (item.isShared ? " (Shared)" : ""),
+          planType: item.maritalStatus === "couple" ? "Joint" : "Individual",
+          financialGoal: item.financialGoal?.toString() || "N/A",
+          dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
+          isShared: !!item.isShared,
+          sharedAccess,
+        };
+      });
   
       setScenarios(formatted);
     } catch (error) {
       console.error("Error loading scenarios:", error);
     }
   };
+  
   useEffect(() => {
     fetchScenarios();
   }, []);

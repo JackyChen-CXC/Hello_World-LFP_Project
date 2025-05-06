@@ -124,7 +124,10 @@ export interface IFinancialPlan extends Document {
     // Sharing Controls
     // for now 2 seperate arrays (not sure if can tuple)
     sharedUsersId: string[];
-    sharedUserPerms: string[];
+    sharedUserPerms: {
+        userId: string;
+        perm: "view" | "edit";
+      }[];
     version: number;
 }
 
@@ -149,7 +152,13 @@ const financialplanSchema = new Schema<IFinancialPlan>({
     financialGoal: { type: Number, required: true },
     residenceState: { type: String, required: true },
     sharedUsersId: { type: [String], required: true, default: [] }, 
-    sharedUserPerms: { type: [String], required: true, default: [] },
+    sharedUserPerms: {
+        type: [{
+          userId: { type: String, required: true },
+          perm: { type: String, enum: ["view", "edit"], required: true }
+        }],
+        default: []
+      },
     version: { type: Number, required: true, default: 1 },
 });
 
