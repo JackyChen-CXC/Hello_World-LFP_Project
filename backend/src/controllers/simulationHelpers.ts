@@ -9,6 +9,7 @@ import * as yaml from "js-yaml";
 import { inflate } from "zlib";
 import { writeLog } from "./logHelper";
 import { scenarioExplorationParams, simulationOutput, purchasePrice } from "./simulationController";
+import { start } from "repl";
 
 // Helper Functions
 
@@ -1790,15 +1791,26 @@ export function payDiscretionary(
 ///
 ///
 ///Helper function for part 8
-export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: boolean, list_of_purchase_price: Record<string, purchasePrice>, investmax: number): void {
+export function runInvestEvents(
+  financialplan: IFinancialPlan, 
+  glidePathValue: boolean, 
+  list_of_purchase_price: Record<string, purchasePrice>, 
+  investmax: number,
+  list_of_invest_Schedule: Record<string, [number, number]>,
+  year: number,
+  startingYear: number,
+): void {
     let total_cash =
       financialplan.investments.find((inv) => inv.id === "cash")?.value || 0;
   
-    const my_investment = financialplan.eventSeries.filter((inv) => inv.type === "invest");
+    const my_investment = financialplan.eventSeries.filter((inv) => inv.type === "invest" &&
+    startingYear+year >= list_of_invest_Schedule[inv.name][0] &&
+    startingYear+year < list_of_invest_Schedule[inv.name][0] + list_of_invest_Schedule[inv.name][1] 
+    );
   
+    //console.log("the years: ",my_investment) ;
     //stores all investment with type 'invest' in my_investment
     for (const investments of my_investment) {
-
       //calculate total cash fot investment
       const excess_cash = investments.maxCash ?? 0;
       const invest_amount = Math.min(excess_cash, total_cash);
@@ -1846,7 +1858,7 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
       //contribution limit
       const L_contributionLimit = financialplan.afterTaxContributionLimit;
   
-      console.log("B: ",B_total_purchase, "scale: ",(L_contributionLimit/B_total_purchase));
+      //console.log("B: ",B_total_purchase, "scale: ",(L_contributionLimit/B_total_purchase));
       if (B_total_purchase > L_contributionLimit) {
         const scalefactor = L_contributionLimit / B_total_purchase;
   
@@ -1874,7 +1886,6 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
         cash_invest.value -= L_contributionLimit;
       }
 
-      console.log("item costs:", item);
       let x = 0;
       //buys investment
       for (const investment of item) {

@@ -415,6 +415,37 @@ export const runSimulation = async (req: any, res: any) => {
             // });
         }
 
+
+        let list_of_invest_Schedule: Record<string, [number, number]> = {};
+        plan.eventSeries.forEach((inv: any) => {
+            if (inv.type !== "invest") return;
+            let startYear: number;
+            if (inv.start.type === "fixed") {
+                startYear = inv.start.value;
+            } else if (inv.start.type === "normal") {
+                startYear = generateNormal(inv.start.mean ?? 0, inv.start.stdev ?? 0);
+            } else if (inv.start.type === "uniform") {
+                startYear = generateUniform(inv.start.lower ?? 0, inv.start.upper ?? 0);
+            } else {
+                throw new Error("Unknown start type");
+            }
+
+            let duration: number;
+            if (inv.duration.type === "fixed") {
+                duration = inv.duration.value;
+            } else if (inv.duration.type === "normal") {
+                duration = generateNormal(inv.duration.mean ?? 0, inv.duration.stdev ?? 0);
+            } else if (inv.duration.type === "uniform") {
+                duration = generateUniform(inv.duration.lower ?? 0, inv.duration.upper ?? 0);
+            } else {
+                throw new Error("Unknown duration type");
+            }
+
+            list_of_invest_Schedule[inv.name] = [startYear, duration];
+            console.log("------",startYear,duration);
+        });
+
+        console.log(list_of_invest_Schedule);
         //const num_years = 3;
         const num_years = lifeExpectancy - age;
         // get specified spouse year of death if spouse exists
@@ -584,7 +615,7 @@ export const runSimulation = async (req: any, res: any) => {
 
             // // 8. Run the invest events scheduled for the current year
             createLog(username, `b4 8, investments: ${JSON.stringify(plan.investments)}`);
-            runInvestEvents(plan, glidePathValue,list_of_purchase_price, investmax);
+            runInvestEvents(plan, glidePathValue,list_of_purchase_price, investmax, list_of_invest_Schedule,year, startingYear);
             createLog(username, `after 8, investments: ${JSON.stringify(plan.investments)}`);
             glidePathValue = !glidePathValue;
             
@@ -630,7 +661,6 @@ export const runSimulation = async (req: any, res: any) => {
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
         // console.log(earlyWithdrawalTax);
-        console.log(plan.eventSeries);
 
         res.status(200).json({
             status: "OK",
@@ -726,3 +756,17 @@ export const getSimulationResults = async (req: any, res: any) => {
     });
   }
 };
+
+
+
+function generateNormal(mean: number, std: number): number {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random(); // avoid 0
+    while (v === 0) v = Math.random();
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return z * std + mean;
+}
+
+function generateUniform(bot: number, top: number): number {
+    return Math.random() * (top - bot) + bot;
+}
