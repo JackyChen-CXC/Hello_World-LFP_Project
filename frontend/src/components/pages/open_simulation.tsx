@@ -856,7 +856,7 @@ const ScenarioOptionSelector = ({
   );
 };
 
-// Scenario Exploration Chart
+// Scenario Exploration Chart - Using real API data for both probability and investments
 const ScenarioExplorationChart = ({ 
   parameterKey,
   parameterValues,
@@ -868,192 +868,307 @@ const ScenarioExplorationChart = ({
   metric?: 'probabilityOfSuccess' | 'investments',
   customData?: any
 }) => {
-  const years = [2025, 2026, 2027, 2028, 2029];
+  // Add a small debug log to check the data structure
+  if (customData) {
+    console.log(`Data structure check - metric: ${metric}`);
+    
+    if (metric === 'probabilityOfSuccess' && customData.probabilityOverTime) {
+      console.log(`probabilityOverTime type: ${typeof customData.probabilityOverTime}`);
+      if (Array.isArray(customData.probabilityOverTime)) {
+        console.log(`probabilityOverTime is array with ${customData.probabilityOverTime.length} items`);
+        if (customData.probabilityOverTime.length > 0) {
+          console.log(`First item type: ${typeof customData.probabilityOverTime[0]}`);
+          console.log(`Sample value: ${customData.probabilityOverTime[0][0]}`);
+        }
+      }
+    }
+    
+    if (metric === 'investments' && customData.medianInvestmentsOverTime) {
+      console.log(`medianInvestmentsOverTime type: ${typeof customData.medianInvestmentsOverTime}`);
+      if (Array.isArray(customData.medianInvestmentsOverTime)) {
+        console.log(`medianInvestmentsOverTime is array with ${customData.medianInvestmentsOverTime.length} items`);
+        if (customData.medianInvestmentsOverTime.length > 0) {
+          console.log(`First item type: ${typeof customData.medianInvestmentsOverTime[0]}`);
+          console.log(`Sample value: ${customData.medianInvestmentsOverTime[0][0]}`);
+        }
+      }
+    }
+  }
   
-  // Get baseline data - use customData if provided, otherwise use mock data
-  const baselineData = customData 
-    ? customData.baseline?.[metric] || mockScenarioResults.baseline[metric]
-    : mockScenarioResults.baseline[metric];
+  // Check if we have parameter data with different values
+  const hasParameters = parameterKey && 
+                       Array.isArray(parameterValues) && 
+                       parameterValues.length > 0;
   
-  // Transform data for chart - handle customData if available
+  // Check if the API response contains the data we need based on the metric
+  const hasProbabilityData = metric === 'probabilityOfSuccess' && 
+                            customData && 
+                            customData.probabilityOverTime && 
+                            Array.isArray(customData.probabilityOverTime) && 
+                            customData.probabilityOverTime.length > 0;
+
+  const hasInvestmentsData = metric === 'investments' && 
+                           customData && 
+                           customData.medianInvestmentsOverTime && 
+                           Array.isArray(customData.medianInvestmentsOverTime) && 
+                           customData.medianInvestmentsOverTime.length > 0;
+
+  // Select the appropriate data based on the metric
+  let metricData = [];
+  if (hasProbabilityData) {
+    metricData = customData.probabilityOverTime;
+  } else if (hasInvestmentsData) {
+    metricData = customData.medianInvestmentsOverTime;
+  }
+  
+  // Generate years for X-axis (current year to current year + 39)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 40 }, (_, i) => currentYear + i);
+  
+  // Helper to get parameter display names
+  const getParameterDisplayName = (paramValue: number | boolean): string => {
+    // Handle special cases like roth optimizer
+    if (parameterKey === 'rothConversionOpt' && paramValue === true) {
+      return 'Enabled';
+    }
+    
+    // For numeric values, format appropriately based on the parameter type
+    if (typeof paramValue === 'number') {
+      if (parameterKey === 'startYear' || parameterKey === 'duration') {
+        return `${paramValue}`;
+      } else if (parameterKey === 'initialAmount') {
+        return `$${paramValue.toLocaleString()}`;
+      } else if (parameterKey === 'investmentPercentage' || parameterKey.includes('Allocation')) {
+        return `${paramValue}%`;
+      } else {
+        return `${paramValue}`;
+      }
+    }
+    
+    // Default fallback
+    return paramValue.toString();
+  };
+  
+  // Create chart data using real data if available
   const chartData = years.map((year, yearIndex) => {
     const dataPoint: any = { year };
     
-    // Add baseline
-    dataPoint.baseline = baselineData[yearIndex];
-    
-    // Add data for each parameter value
-    if (parameterKey === 'rothConversionOpt' && parameterValues.includes(true)) {
-      // Use custom data if available, otherwise fall back to mock data
-      const rothData = customData 
-        ? customData.rothOptimizerEnabled?.true?.[metric] || mockScenarioResults.rothOptimizerEnabled.true[metric]
-        : mockScenarioResults.rothOptimizerEnabled.true[metric];
-      
-      dataPoint.rothOptimizer = rothData[yearIndex];
-    } else if (parameterKey !== 'rothConversionOpt') {
-      // For numeric parameters
-      parameterValues.forEach(value => {
-        if (typeof value === 'number') {
-          // Get data from custom data if available, otherwise use mock
-          const valueData = customData 
-            ? customData[parameterKey]?.[value]?.[metric] || 
-              (mockScenarioResults[parameterKey] && mockScenarioResults[parameterKey][value] 
-                ? mockScenarioResults[parameterKey][value][metric] 
-                : null)
-            : (mockScenarioResults[parameterKey] && mockScenarioResults[parameterKey][value] 
-                ? mockScenarioResults[parameterKey][value][metric] 
-                : null);
+    // Add real data from API if available
+    if ((hasProbabilityData || hasInvestmentsData) && metricData.length > 0) {
+      metricData.forEach((dataArray, index) => {
+        if (index < parameterValues.length && Array.isArray(dataArray) && yearIndex < dataArray.length) {
+          const paramValue = parameterValues[index];
+          let rawValue = dataArray[yearIndex];
           
-          if (valueData) {
-            dataPoint[`value_${value}`] = valueData[yearIndex];
+          // Ensure value is a number
+          let value = parseFloat(rawValue);
+          
+          // Check if we got a valid number
+          if (!isNaN(value)) {
+            // Only convert probability values if they're decimal format
+            if (metric === 'probabilityOfSuccess' && value <= 1) {
+              value = value * 100; // Convert to percentage
+            }
+            
+            dataPoint[`param_${paramValue}`] = value;
+          } else {
+            console.warn(`Invalid number at index ${yearIndex} for parameter ${paramValue}: ${rawValue}`);
+            // Use a default value instead of undefined
+            dataPoint[`param_${paramValue}`] = metric === 'probabilityOfSuccess' ? 0 : 0;
           }
         }
       });
+    } else {
+      // Use synthetic data if no real data available
+      if (hasParameters) {
+        parameterValues.forEach((paramValue, index) => {
+          const value = metric === 'probabilityOfSuccess' 
+            ? 70 + (index * 10) // Example probability percentages
+            : 90000 + (index * 15000); // Example investment values
+          dataPoint[`param_${paramValue}`] = value;
+        });
+      }
     }
     
     return dataPoint;
   });
-  
-  // Update formatValue to handle a wider range of values
-  const formatValue = (value: number) => {
-    if (metric === 'probabilityOfSuccess') {
-      // Check if value is already a percentage (0-100) or decimal (0-1)
-      return value > 1 ? `${value.toFixed(1)}%` : `${(value * 100).toFixed(1)}%`;
-    }
-    return `$${value.toLocaleString()}`;
+
+  // Create data for the parameter vs final value chart
+  const getFinalValueData = () => {
+    // Create data points for each parameter value
+    const finalValueData = parameterValues.map((paramValue, index) => {
+      const dataPoint: any = { 
+        paramValue: typeof paramValue === 'number' ? paramValue : paramValue ? 1 : 0,
+        paramLabel: getParameterDisplayName(paramValue)
+      };
+      
+      // Use the real data if available
+      if ((hasProbabilityData || hasInvestmentsData) && metricData.length > 0 && 
+          index < metricData.length && Array.isArray(metricData[index])) {
+        
+        // Get the last value in the array (final value)
+        const lastIndex = metricData[index].length - 1;
+        if (lastIndex >= 0) {
+          let rawValue = metricData[index][lastIndex];
+          let finalValue = parseFloat(rawValue);
+          
+          if (!isNaN(finalValue)) {
+            // Convert probability to percentage if needed
+            if (metric === 'probabilityOfSuccess' && finalValue <= 1) {
+              finalValue = finalValue * 100;
+            }
+            dataPoint.finalValue = finalValue;
+          } else {
+            // Use a default if value is not valid
+            dataPoint.finalValue = metric === 'probabilityOfSuccess' ? 0 : 0;
+          }
+        }
+      } else {
+        // Use synthetic data if no real data
+        dataPoint.finalValue = metric === 'probabilityOfSuccess' 
+          ? 70 + (index * 10) 
+          : 90000 + (index * 15000);
+      }
+      
+      return dataPoint;
+    });
+    
+    // Sort by parameter value for proper line rendering
+    return finalValueData.sort((a, b) => a.paramValue - b.paramValue);
   };
   
-  const colors = ["#8884d8", "#82ca9d", "#ff7300", "#0088FE", "#00C49F", "#FFBB28"];
+  const finalValueData = getFinalValueData();
+  
+  // Format values for tooltip to avoid errors
+  const formatValue = (value: any) => {
+    // Handle null, undefined, or non-number values
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    
+    // Try to convert to number if it's not already
+    const numValue = typeof value === 'number' ? value : parseFloat(value);
+    
+    // Check if conversion was successful
+    if (isNaN(numValue)) {
+      return 'N/A';
+    }
+    
+    if (metric === 'probabilityOfSuccess') {
+      return `${numValue.toFixed(1)}%`;
+    }
+    return `$${numValue.toLocaleString()}`;
+  };
+  
+  // Simplified colors for clarity
+  const colors = ["#ff7300", "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#44A3C9"];
   
   const getYAxisLabel = () => {
     if (metric === 'probabilityOfSuccess') return "Probability of Success";
-    return "Total Investments ($)";
+    return "Median Total Investments ($)";
   };
-
-  // Update the chart rendering to handle API response format
-  const processBackendData = (response: any) => {
-    // If no custom data, return early with mock data 
-    if (!customData) return chartData;
-    
-    try {
-      console.log("Processing backend data:", customData);
-      
-      // Extract the data from the API response
-      const processedData = years.map((year, yearIndex) => {
-        const dataPoint: any = { year };
-        
-        // Try to extract data from the API response
-        if (customData.scenarios) {
-          // Backend may return an array of scenarios
-          customData.scenarios.forEach((scenario: any, index: number) => {
-            if (scenario.type === 'baseline') {
-              dataPoint.baseline = metric === 'probabilityOfSuccess' 
-                ? scenario.probabilityOfSuccess[yearIndex] * 100 // Convert to percentage
-                : scenario.investments[yearIndex]; // Use investments data
-            } else if (scenario.type === 'rothConversionOpt') {
-              dataPoint.rothOptimizer = metric === 'probabilityOfSuccess'
-                ? scenario.probabilityOfSuccess[yearIndex] * 100 // Convert to percentage
-                : scenario.investments[yearIndex]; // Use investments data
-            } else if (scenario.paramValue !== undefined) {
-              // Handle parameter variations
-              dataPoint[`value_${scenario.paramValue}`] = metric === 'probabilityOfSuccess'
-                ? scenario.probabilityOfSuccess[yearIndex] * 100 // Convert to percentage 
-                : scenario.investments[yearIndex]; // Use investments data
-            }
-          });
-        } else if (customData.baseline) {
-          // Alternative structure: separate objects for each scenario
-          dataPoint.baseline = metric === 'probabilityOfSuccess'
-            ? customData.baseline.probabilityOfSuccess[yearIndex] * 100
-            : customData.baseline.investments[yearIndex];
-          
-          if (customData.rothOptimizer) {
-            dataPoint.rothOptimizer = metric === 'probabilityOfSuccess'
-              ? customData.rothOptimizer.probabilityOfSuccess[yearIndex] * 100
-              : customData.rothOptimizer.investments[yearIndex];
-          }
-          
-          // Handle parameter variations
-          if (customData.paramVariations) {
-            customData.paramVariations.forEach((variation: any) => {
-              const value = variation.paramValue;
-              dataPoint[`value_${value}`] = metric === 'probabilityOfSuccess'
-                ? variation.probabilityOfSuccess[yearIndex] * 100
-                : variation.investments[yearIndex];
-            });
-          }
-        }
-        
-        return dataPoint;
-      });
-      
-      console.log("Processed chart data:", processedData);
-      return processedData.length > 0 ? processedData : chartData;
-    } catch (error) {
-      console.error("Error processing backend data:", error);
-      return chartData; // Fallback to mock data on error
-    }
-  };
-
-  // Use the processed data
-  const finalChartData = customData ? processBackendData(customData) : chartData;
 
   return (
-    <LineChart width={700} height={400} data={finalChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-    <XAxis dataKey="year">
-      <Label value="Year" offset={-5} position="insideBottom" />
-    </XAxis>
-    <YAxis>
-      <Label
-          value={getYAxisLabel()}
-        angle={-90}
-        position="insideLeft"
-        style={{ textAnchor: "middle" }}
-      />
-    </YAxis>
-      <Tooltip formatter={(value) => formatValue(value as number)} />
-      <Legend />
+    <div>
+      <h3 style={{ textAlign: 'center', marginBottom: 10 }}>
+        {parameterKey ? `${parameterKey} Parameter Comparison Over Time` : 'Scenario Comparison Over Time'}
+      </h3>
       
-      {/* Baseline */}
-      <Line
-        type="monotone"
-        dataKey="baseline"
-        stroke="#8884d8"
-        name="Baseline"
-        strokeDasharray="5 5"
-      />
-      
-      {/* Roth Optimizer */}
-      {parameterKey === 'rothConversionOpt' && parameterValues.includes(true) && (
-        <Line
-          type="monotone"
-          dataKey="rothOptimizer"
-          stroke="#82ca9d"
-          name="Roth Optimizer Enabled"
-        />
+      {(hasProbabilityData || hasInvestmentsData) && (
+        <div style={{ textAlign: 'center', marginBottom: 15, color: '#4285F4' }}>
+          <small><strong>Using real {metric} data from API response</strong></small>
+        </div>
       )}
       
-      {/* Numeric parameter values */}
-      {parameterKey !== 'rothConversionOpt' && parameterValues.map((value, index) => {
-        if (typeof value === 'number') {
-          // Safely get the label with a fallback to avoid the error
-          const label = scenarioOptions[parameterKey]?.label || parameterKey;
+      {/* Debug info for data problems */}
+      {!hasProbabilityData && !hasInvestmentsData && customData && (
+        <div style={{ textAlign: 'center', marginBottom: 15, color: '#FF5722', fontSize: '0.8rem' }}>
+          <small>
+            Note: No valid {metric} data found in API response. Using example data.
+          </small>
+        </div>
+      )}
+      
+      {/* First Chart - Values Over Time */}
+      <LineChart width={700} height={400} data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="year"
+          tick={{ fontSize: 12 }}
+          tickFormatter={(value) => String(value)}
+          interval={Math.max(1, Math.floor(chartData.length / 10))} // Show maximum 10 ticks
+        >
+          <Label value="Year" offset={-5} position="insideBottom" />
+        </XAxis>
+        <YAxis domain={metric === 'probabilityOfSuccess' ? [0, 100] : [0, 'auto']}>
+          <Label
+            value={getYAxisLabel()}
+            angle={-90}
+            position="insideLeft"
+            style={{ textAnchor: "middle" }}
+          />
+        </YAxis>
+        <Tooltip 
+          formatter={(value) => formatValue(value)} 
+          labelFormatter={(value) => `Year: ${value}`}
+        />
+        <Legend />
+        
+        {/* Parameter value lines */}
+        {hasParameters && parameterValues.map((paramValue, index) => (
+          <Line
+            key={`param_${paramValue}`}
+            type="monotone"
+            dataKey={`param_${paramValue}`}
+            stroke={colors[index % colors.length]}
+            name={`${parameterKey}: ${getParameterDisplayName(paramValue)}`}
+            strokeWidth={2}
+          />
+        ))}
+      </LineChart>
+      
+      {/* Second Chart - Final Values vs Parameter */}
+      {hasParameters && (
+        <div style={{ marginTop: 40 }}>
+          <h3 style={{ textAlign: 'center', marginBottom: 10 }}>
+            Final {metric === 'probabilityOfSuccess' ? 'Probability of Success' : 'Median Investment'} vs {parameterKey}
+          </h3>
           
-          return (
-            <Line
-              key={`${parameterKey}_${value}`}
-              type="monotone"
-              dataKey={`value_${value}`}
-              stroke={colors[(index + 1) % colors.length]}
-              name={`${label}: ${value}`}
+          <LineChart width={700} height={300} data={finalValueData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="paramValue"
+              type="number"
+              domain={['dataMin', 'dataMax']}
+              tickFormatter={(value) => getParameterDisplayName(value)}
+              tick={{ fontSize: 12 }}
+            >
+              <Label value={parameterKey} offset={-5} position="insideBottom" />
+            </XAxis>
+            <YAxis domain={metric === 'probabilityOfSuccess' ? [0, 100] : [0, 'auto']}>
+              <Label
+                value={`Final ${getYAxisLabel()}`}
+                angle={-90}
+                position="insideLeft"
+                style={{ textAnchor: "middle" }}
+              />
+            </YAxis>
+            <Tooltip 
+              formatter={(value) => formatValue(value)}
+              labelFormatter={(value) => `${parameterKey}: ${getParameterDisplayName(value)}`}
             />
-          );
-        }
-        return null;
-      })}
-  </LineChart>
-);
+            <Line
+              type="monotone"
+              dataKey="finalValue"
+              stroke="#4285F4"
+              name={`Final ${metric === 'probabilityOfSuccess' ? 'Probability' : 'Investment'}`}
+              strokeWidth={3}
+              dot={{ fill: '#4285F4', r: 6 }}
+            />
+          </LineChart>
+        </div>
+      )}
+    </div>
+  );
 };
 
 interface ToggleButtonProps {
@@ -1747,8 +1862,8 @@ const OpenSimulation: React.FC = () => {
 
   // Function to run scenario with selected parameter
   const runScenarioWithParameter = async () => {
-    // Check if a parameter has been selected
-    if (!selectedParameter) {
+    // Check if a parameter has been selected, but skip this check if Roth optimizer is enabled
+    if (!selectedParameter && !rothOptimizerEnabled) {
       setScenarioError("Please select a parameter to modify first.");
       return;
     }
@@ -1764,7 +1879,11 @@ const OpenSimulation: React.FC = () => {
     setIsRunningScenario(true);
 
     try {
-      console.log(`Running scenario with parameter: ${selectedParameter}`);
+      if (rothOptimizerEnabled) {
+        console.log("Running scenario with Roth Conversion Optimizer enabled");
+      } else {
+        console.log(`Running scenario with parameter: ${selectedParameter}`);
+      }
       console.log(`Using plan ID: ${currentPlanId}`);
       
       // Get user ID from localStorage
@@ -1789,7 +1908,7 @@ const OpenSimulation: React.FC = () => {
       
       // If Roth optimizer is enabled, add Roth parameters
       if (rothOptimizerEnabled) {
-        console.log("Running scenario with Roth Conversion Optimizer enabled");
+        console.log("Setting up Roth Conversion Optimizer parameters");
         requestBody.parameters = [{
           itemType: "rothConversionOpt",
           itemId: "rothConversionOpt",
@@ -1853,7 +1972,8 @@ const OpenSimulation: React.FC = () => {
           max,
           step
         });
-      } else {
+      } else if (!rothOptimizerEnabled) {
+        // Only show this error if Roth optimizer is not enabled
         setScenarioError("No parameter selected for scenario exploration");
         setIsRunningScenario(false);
         return;
@@ -2510,20 +2630,20 @@ const OpenSimulation: React.FC = () => {
             {/* Run button */}
             <button
               onClick={runScenarioWithParameter}
-              disabled={!selectedParameter || isRunningScenario || rothOptimizerEnabled}
+              disabled={((!selectedParameter && !rothOptimizerEnabled) || isRunningScenario)}
               style={{
                 padding: '10px 20px',
-                backgroundColor: !selectedParameter || rothOptimizerEnabled ? '#ccc' : '#4285F4',
+                backgroundColor: (!selectedParameter && !rothOptimizerEnabled) ? '#ccc' : '#4285F4',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: !selectedParameter || isRunningScenario || rothOptimizerEnabled ? 'not-allowed' : 'pointer',
+                cursor: ((!selectedParameter && !rothOptimizerEnabled) || isRunningScenario) ? 'not-allowed' : 'pointer',
                 marginTop: '15px',
                 fontWeight: 'bold',
                 width: '100%'
               }}
             >
-              {isRunningScenario ? 'Running Scenario...' : 'Run Scenario'}
+              {isRunningScenario ? 'Running Scenario...' : rothOptimizerEnabled ? 'Run Scenario with Roth Optimizer' : 'Run Scenario'}
             </button>
 
             {/* Loading indicator */}
