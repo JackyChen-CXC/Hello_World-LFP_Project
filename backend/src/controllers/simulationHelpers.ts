@@ -12,7 +12,7 @@ import { scenarioExplorationParams, simulationOutput } from "./simulationControl
 
 // Helper Functions
 
-// use plan without mutating original copy
+// use plan without mutating original copy (issues, don't use)
 export function deepCopyDocument<T extends Document>(doc: T): T {
     const plainObject = doc.toObject();
     const deepCopy = JSON.parse(JSON.stringify(plainObject));
@@ -32,28 +32,28 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
       case "start":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
         if(temp.start.value)
-          temp.start.value += params.index;
+          temp.start.value = params.index;
         break;
       case "duration":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
         if(temp.duration.value)
-          temp.duration.value += params.index;
+          temp.duration.value = params.index;
         break;
-      case "initalAmount":
+      case "initialAmount":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
         if(temp.initialAmount)
-          temp.initialAmount += params.index;
+          temp.initialAmount = params.index;
         break;
       case "percentage":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-        // fix later (?)
-        // if(temp.assetAllocation){
-        //   temp.assetAllocation[0] += step;
-        //   temp.assetAllocation[1] -= step;
-        // }
+        if(temp.assetAllocation){
+          temp.assetAllocation[0] = params.index;
+          temp.assetAllocation[1] = 1 - params.index;
+        }
+        console.log(temp.assetAllocation);
         break;
       default:
-        console.log(`ISSUE AT STEP PARAM 1:${params.index, params.index2}`)
+        console.log(`ISSUE AT STEP PARAM 1: ${params.itemType}, ${params.index}, ${params.index2}`)
     }
     // param 2
     if(params.algorithmType === "2d") {
@@ -66,28 +66,29 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
         case "start":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.start.value)
-            temp.start.value += params.index2;
+            temp.start.value = params.index2;
           break;
         case "duration":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.duration.value)
-            temp.duration.value += params.index2;
+            temp.duration.value = params.index2;
           break;
-        case "initalAmount":
+        case "initialAmount":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.initialAmount)
-            temp.initialAmount += params.index2;
+            temp.initialAmount = params.index2;
           break;
         case "percentage":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          // fix later (?)
-          // if(temp.assetAllocation){
-          //   temp.assetAllocation[0] += step;
-          //   temp.assetAllocation[1] -= step;
-          // }
+          if(temp.assetAllocation){
+            console.log("b4",temp.assetAllocation);
+            temp.assetAllocation[0] = params.index;
+            temp.assetAllocation[1] = 1 - params.index;
+            console.log("after",temp.assetAllocation);
+          }
           break;
         default:
-          console.log(`ISSUE AT STEP PARAM 2:${params.index, params.index2}`)
+          console.log(`ISSUE AT STEP PARAM 2: ${params.itemType2}, ${params.index}, ${params.index2}`);
       }
     }
   }
@@ -95,10 +96,14 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
 
 // Scenario Exploration Updater (param 1 or 2)
 export function updateScenarioParameter(plan: IFinancialPlan, params: scenarioExplorationParams, index: 1 | 2): void {
-  if(index === 1){
-    params.index += params.step;
-  } else if(index === 2){
-    params.index2 += params.step2;
+  try {
+    if(index === 1){
+      params.index += params.step;
+    } else if(index === 2){
+      params.index2 += params.step2;
+    } 
+  } catch(error){
+    console.log("cannot update",error)
   }
 }
 
@@ -255,18 +260,17 @@ export function getTotalAssetValue(investments: IInvestment[]): number {
   return investments.reduce((total, investment) => total + investment.value, 0);
 }
 
-// Helper for 2, Parameters: eventSeries, inflationRate, SpouseDeath
+// Helper for part 2, Parameters: eventSeries, inflationRate, SpouseDeath
 // @Output = array of income amounts by order of income events
-export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): any[] {
+export function updateIncomeEvents(eventSeries: ILifeEvent[], year: number, startingYear: number,inflationRate: number, deathSpouse: boolean): any[] {
     let income = [];
     let socialSecurity = 0;
-    const year = new Date().getFullYear();
     const incomeEvents = getLifeEventsByType(eventSeries, "income");
     for(let event of incomeEvents){
         if(event.initialAmount){
             let cash = 0; // to preserve order with 0 values if not active
-            // if active
-            if(event.start.value && event.duration.value && year >= event.start.value && year < event.start.value + event.duration.value){
+            // if active and not first year
+            if(year!==0 && event.start.value && event.duration.value && startingYear + year >= event.start.value && startingYear + year < event.start.value + event.duration.value){
                 // depending on death of spouse & userFraction (could fix to one time function for all values on spouse death)
                 if(!deathSpouse){ // no spouse or spouse alive
                     // sum up last year's income liquidity
