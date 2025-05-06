@@ -2,7 +2,9 @@ import { parentPort, workerData } from 'worker_threads';
 import { runSimulation } from './simulationController';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-
+import seedrandom from 'seedrandom';
+import { deepCopyDocument, enforceScenarioParameter } from './simulationHelpers';
+import FinancialPlan from '../models/FinancialPlan';
 
 //console.log(process.env.MONGO_URI);
 dotenv.config();
@@ -10,7 +12,8 @@ dotenv.config();
 mongoose.connect('mongodb://localhost:27017/mydatabase');
 
 process.on('message', async (data: any) => {
-    const { reqData, numSimulations, workerId } = data;
+    const { reqData, numSimulations, workerId, seed, params } = data;
+    seedrandom(seed, { global: true });
 
     const fakeRes: any = {
         data: null,

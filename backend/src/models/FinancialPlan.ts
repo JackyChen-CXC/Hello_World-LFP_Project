@@ -1,5 +1,4 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { IUser } from "./User";
 // import Investment, { IInvestment } from "./Investment";
 // import LifeEvent, { ILifeEvent } from "./LifeEvent";
 import { DistributionSchema, IDistribution } from "./Distribution";
@@ -17,7 +16,7 @@ const InvestmentSchema = new Schema<IInvestment>({
     investmentType: { type: String, required: true },
     value: { type: Number, required: true },
     taxStatus: { type: String, enum: ["non-retirement", "pre-tax", "after-tax"], required: true },
-    id: { type: String, required: true , unique: true},
+    id: { type: String, required: true , unique: false},
     },
     { _id: false }
 );

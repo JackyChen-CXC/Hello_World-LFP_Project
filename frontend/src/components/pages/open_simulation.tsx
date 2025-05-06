@@ -322,7 +322,8 @@ const StackedBarChart = ({
   avgIncome = [],
   medianExpenses = [],
   avgExpenses = [],
-  aggregationThreshold = 5000
+  aggregationThreshold = 5000,
+  categoryFilter = null
 }: { 
   useMedian?: boolean, 
   customData?: any,
@@ -335,7 +336,8 @@ const StackedBarChart = ({
   avgIncome?: number[][],
   medianExpenses?: number[][],
   avgExpenses?: number[][],
-  aggregationThreshold?: number
+  aggregationThreshold?: number,
+  categoryFilter?: 'investments' | 'income' | 'expenses' | null
 }) => {
   // Transform the data based on selected metric (median or average)
   const getStackedData = () => {
@@ -563,8 +565,56 @@ const StackedBarChart = ({
     return result;
   };
 
-  const stackedData = getStackedData();
-  console.log("Stacked bar chart data:", stackedData);
+  // Apply category filter to data if needed
+  const applyFilter = (rawData: any[]) => {
+    if (!categoryFilter) return rawData; // No filter, return all data
+    
+    // Determine which keys to keep based on filter
+    let keysToKeep: string[] = [];
+    
+    if (categoryFilter === 'investments') {
+      keysToKeep = investmentOrder.length > 0 ? investmentOrder : ["401k", "RothIRA", "Brokerage"];
+    } else if (categoryFilter === 'income') {
+      keysToKeep = incomeOrder.length > 0 ? incomeOrder : ["Job", "Pension"];
+    } else if (categoryFilter === 'expenses') {
+      keysToKeep = expensesOrder.length > 0 ? expensesOrder : ["Housing", "Food"];
+    }
+    
+    console.log(`Applying ${categoryFilter} filter. Keeping keys:`, keysToKeep);
+    
+    // Create new data with only the filtered categories
+    return rawData.map(dataPoint => {
+      const filteredPoint: any = { year: dataPoint.year };
+      
+      // Keep only the categories that match the filter
+      let hasAggregatedValues = false;
+      Object.entries(dataPoint).forEach(([key, value]) => {
+        if (key !== 'year' && key !== 'Other' && keysToKeep.includes(key)) {
+          filteredPoint[key] = value;
+        } else if (key === 'Other' && dataPoint.Other > 0) {
+          // Only keep "Other" if it has a positive value and we're not filtering to a single category
+          if (keysToKeep.length > 1) {
+            filteredPoint.Other = dataPoint.Other;
+            hasAggregatedValues = true;
+          }
+        }
+      });
+      
+      // Initialize Other to 0 if it doesn't exist yet but we have multiple categories
+      if (!filteredPoint.Other && keysToKeep.length > 1) {
+        filteredPoint.Other = 0;
+      }
+      
+      return filteredPoint;
+    });
+  };
+
+  // Get stacked data and apply filters
+  const rawStackedData = getStackedData();
+  const filteredData = applyFilter(rawStackedData);
+  const stackedData = filteredData;
+  
+  console.log("Stacked bar chart data (after filtering):", stackedData);
   
   // Determine which categories to display in the chart
   const getBarSegments = () => {
@@ -583,36 +633,86 @@ const StackedBarChart = ({
     const hasIncomeOrder = incomeOrder.length > 0;
     const hasExpensesOrder = expensesOrder.length > 0;
     
-    // Filter out keys that were aggregated (will only be in 'Other')
-    const investmentSegments = hasInvestmentOrder 
-      ? investmentOrder.filter(key => allKeys.has(key)) 
-      : ["401k", "RothIRA", "Brokerage"].filter(key => allKeys.has(key));
+    // Filter based on category filter
+    let segments: string[] = [];
     
-    const incomeSegments = hasIncomeOrder 
-      ? incomeOrder.filter(key => allKeys.has(key)) 
-      : ["Job", "Pension"].filter(key => allKeys.has(key));
+    if (!categoryFilter || categoryFilter === 'investments') {
+      const investmentSegments = hasInvestmentOrder 
+        ? investmentOrder.filter(key => allKeys.has(key)) 
+        : ["401k", "RothIRA", "Brokerage"].filter(key => allKeys.has(key));
+      segments.push(...investmentSegments);
+    }
     
-    const expensesSegments = hasExpensesOrder 
-      ? expensesOrder.filter(key => allKeys.has(key)) 
-      : ["Housing", "Food"].filter(key => allKeys.has(key));
+    if (!categoryFilter || categoryFilter === 'income') {
+      const incomeSegments = hasIncomeOrder 
+        ? incomeOrder.filter(key => allKeys.has(key)) 
+        : ["Job", "Pension"].filter(key => allKeys.has(key));
+      segments.push(...incomeSegments);
+    }
     
-    // Always include "Other" in the list of segments
-    // And check if it exists in allKeys and has a value above 0 in any data point
+    if (!categoryFilter || categoryFilter === 'expenses') {
+      const expensesSegments = hasExpensesOrder 
+        ? expensesOrder.filter(key => allKeys.has(key)) 
+        : ["Housing", "Food"].filter(key => allKeys.has(key));
+      segments.push(...expensesSegments);
+    }
+    
+    // Only include "Other" if it exists in the data and has values
     const hasOtherCategory = allKeys.has("Other") && stackedData.some(d => d.Other > 0);
-    console.log("Has Other category:", hasOtherCategory);
-    
-    // Combine all segments in the desired order
-    const segments = [...investmentSegments, ...incomeSegments, ...expensesSegments];
-    
-    // Always add "Other" to the segments even if it doesn't have values
-    // This ensures the "Other" category always appears in the legend
-    segments.push("Other");
+    if (hasOtherCategory) {
+      segments.push("Other");
+    }
     
     return segments;
   };
   
   // Get segments to render
   const barSegments = getBarSegments();
+  
+  // Create a more diverse color palette for investment categories
+  const getSegmentColor = (key: string, index: number) => {
+    // Default color for "Other"
+    if (key === "Other") return "#666666";
+    
+    // Investment categories - use a more diverse color palette
+    if (investmentOrder.includes(key) || ["401k", "RothIRA", "Brokerage"].includes(key)) {
+      // Map specific investment types to specific colors
+      if (key.includes("Cash") || key === "Cash") return "#4b3f72"; // purple
+      if (key.includes("pre-tax") || key === "401k") return "#007a99"; // teal
+      if (key.includes("after-tax") || key === "RothIRA") return "#2f855a"; // green
+      if (key.includes("non-retirement") || key === "Brokerage") return "#805ad5"; // lavender
+      if (key.includes("500")) return "#3182ce"; // blue
+      if (key.includes("Bond")) return "#dd6b20"; // orange
+      
+      // For any other investment categories, use this extended color palette
+      const investmentColors = [
+        "#4b3f72", // purple
+        "#007a99", // teal
+        "#2f855a", // green
+        "#805ad5", // lavender
+        "#3182ce", // blue
+        "#dd6b20", // orange
+        "#b83280", // pink
+        "#2c5282", // navy
+        "#285e61", // dark teal
+        "#702459"  // maroon
+      ];
+      return investmentColors[index % investmentColors.length];
+    } 
+    // Income categories (yellows/oranges)
+    else if (incomeOrder.includes(key) || ["Job", "Pension"].includes(key)) {
+      const incomeColors = ["#b7791f", "#cc3300", "#d69e2e", "#ed8936"];
+      return incomeColors[index % incomeColors.length];
+    } 
+    // Expense categories (reds/greens)
+    else if (expensesOrder.includes(key) || ["Housing", "Food"].includes(key)) {
+      const expenseColors = ["#7f9c00", "#3f9142", "#38a169", "#48bb78"];
+      return expenseColors[index % expenseColors.length];
+    }
+    
+    // If category type couldn't be determined
+    return `hsl(${(index * 50) % 360}, 70%, 50%)`;
+  };
   
   return (
     <BarChart width={700} height={400} data={stackedData}>
@@ -637,28 +737,12 @@ const StackedBarChart = ({
 
       {/* Render all bar segments dynamically */}
       {barSegments.map((key, index) => {
-        // Determine color based on category
-        let fill = "#666666"; // Default color for "Other"
-        
-        // Investment categories (blues/purples)
-        if (investmentOrder.includes(key) || ["401k", "RothIRA", "Brokerage"].includes(key)) {
-          fill = ["#4b3f72", "#007a99", "#2f855a"][index % 3];
-        } 
-        // Income categories (yellows/oranges)
-        else if (incomeOrder.includes(key) || ["Job", "Pension"].includes(key)) {
-          fill = ["#b7791f", "#cc3300"][index % 2];
-        } 
-        // Expense categories (greens)
-        else if (expensesOrder.includes(key) || ["Housing", "Food"].includes(key)) {
-          fill = ["#7f9c00", "#3f9142"][index % 2];
-        }
-        
         return (
           <Bar 
             key={key} 
             dataKey={key} 
             stackId="a" 
-            fill={fill} 
+            fill={getSegmentColor(key, index)} 
             name={key === "Other" ? "Other (Below Threshold)" : key} 
           />
         );
@@ -1004,6 +1088,9 @@ const OpenSimulation: React.FC = () => {
   
   // Add state variable for aggregation threshold
   const [aggregationThreshold, setAggregationThreshold] = useState<number>(5000);
+  
+  // Add in state variable definition section (near the beginning of the component)
+  const [categoryFilter, setCategoryFilter] = useState<'investments' | 'income' | 'expenses' | null>(null);
   
   useEffect(() => {
     const path = window.location.pathname;
@@ -1563,43 +1650,9 @@ const OpenSimulation: React.FC = () => {
             />
           </div>
         ))}
-
-      {selectedGraphs.includes("stacked") && (
-        <div style={{ marginBottom: 40 }}>
-          {/* Add aggregation threshold slider */}
-          <div style={{ marginBottom: 20, width: 700, margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Aggregation Threshold: ${aggregationThreshold.toLocaleString()}</span>
-              <input
-                type="range"
-                min="0"
-                max="50000"
-                step="1000"
-                value={aggregationThreshold}
-                onChange={(e) => setAggregationThreshold(Number(e.target.value))}
-                style={{ width: '60%' }}
-              />
-            </div>
-            <div style={{ fontSize: 12, color: '#666', marginTop: 5 }}>
-              Categories with values below this threshold will be grouped as "Other"
-            </div>
-          </div>
-          
-          <StackedBarChart 
-            useMedian={useMedianValues} 
-            investmentOrder={investmentOrder}
-            incomeOrder={incomeOrder}
-            expensesOrder={expensesOrder}
-            medianInvestments={medianInvestments}
-            avgInvestments={avgInvestments}
-            medianIncome={medianIncome}
-            avgIncome={avgIncome}
-            medianExpenses={medianExpenses}
-            avgExpenses={avgExpenses}
-            aggregationThreshold={aggregationThreshold}
-          />
-        </div>
-      )}
+        
+      {/* Note: The stacked bar chart is rendered in the main component return,
+          not here, to avoid duplication */}
     </>
   );
 
@@ -2326,32 +2379,19 @@ const ShadedLineChart = ({
       <div className="open-simulation">
         <div className="subheading">Simulation Results and Graphs</div>
 
-        {/* top‑row buttons */}
+        {/* Top-row buttons - simplified to just two main options */}
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", marginTop: "2%" }}>
-          {[
-            ["line", "Line Chart"],
-            ["shaded", "Shaded Line Chart"],
-            ["stacked", "Stacked Bar Chart"],
-          ].map(([val, label]) => (
-            <ToggleButton
-              key={val}
-              value={val}
-              label={label}
-              selected={selectedGraphs.includes(val)}
-              onToggle={(v) =>
-                setSelectedGraphs((prev) =>
-                  prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
-                )
-              }
-            />
-          ))}
-          
-          {/* Scenario exploration button */}
+          <ToggleButton
+            value="graphs"
+            label="View Graphs"
+            selected={!showScenarioExploration}
+            onToggle={() => setShowScenarioExploration(false)}
+          />
           <ToggleButton
             value="scenario"
             label="Scenario Exploration"
             selected={showScenarioExploration}
-            onToggle={() => setShowScenarioExploration(!showScenarioExploration)}
+            onToggle={() => setShowScenarioExploration(true)}
           />
         </div>
         
@@ -2365,13 +2405,50 @@ const ShadedLineChart = ({
               fontWeight: 'bold'
             }}>
               Loading simulation data...
+            </div>
           </div>
-        </div>
         )}
         
         {!showScenarioExploration && (
           <div>
             <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
+            
+            {/* Chart Type Selection */}
+            <div style={{ marginTop: 20, textAlign: "center" }}>
+              <div className="normal-text" style={{ fontWeight: 'bold', marginBottom: 10 }}>Select Chart Types:</div>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px" }}>
+                <ToggleButton
+                  value="line"
+                  label="Line Chart"
+                  selected={selectedGraphs.includes("line")}
+                  onToggle={(v) =>
+                    setSelectedGraphs((prev) =>
+                      prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                    )
+                  }
+                />
+                <ToggleButton
+                  value="shaded"
+                  label="Shaded Line Chart"
+                  selected={selectedGraphs.includes("shaded")}
+                  onToggle={(v) =>
+                    setSelectedGraphs((prev) =>
+                      prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                    )
+                  }
+                />
+                <ToggleButton
+                  value="stacked"
+                  label="Stacked Bar Chart"
+                  selected={selectedGraphs.includes("stacked")}
+                  onToggle={(v) =>
+                    setSelectedGraphs((prev) =>
+                      prev.includes(v) ? prev.filter((g) => g !== v) : [...prev, v]
+                    )
+                  }
+                />
+              </div>
+            </div>
 
             {selectedGraphs.includes("shaded") && (
               <div style={{ marginTop: 20 }}>
@@ -2389,34 +2466,113 @@ const ShadedLineChart = ({
                     }
                   />
                 ))}
-        </div>
-        )}
+              </div>
+            )}
 
             {selectedGraphs.includes("stacked") && (
-              <div style={{ margin: "20px 0" }}>
-                <div className="normal-text">Select Stacked Bar Chart Metrics:</div>
-                <ToggleButton
-                  label="Median Values"
-                  value="median"
-                  selected={useMedianValues}
-                  onToggle={() => setUseMedianValues(true)}
-                />
-                <ToggleButton
-                  label="Average Values"
-                  value="average"
-                  selected={!useMedianValues}
-                  onToggle={() => setUseMedianValues(false)}
+              <div style={{ marginBottom: 40 }}>
+                <div style={{ marginBottom: 20, width: 700, margin: '0 auto' }}>
+                  {/* Category filter controls */}
+                  <div style={{ marginBottom: 15 }}>
+                    <div className="normal-text" style={{ fontWeight: 'bold', marginBottom: 5 }}>Filter Categories:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <ToggleButton
+                        label="All Categories"
+                        value="all"
+                        selected={!categoryFilter}
+                        onToggle={() => setCategoryFilter(null)}
+                      />
+                      <ToggleButton
+                        label="Investments Only"
+                        value="investments"
+                        selected={categoryFilter === 'investments'}
+                        onToggle={() => setCategoryFilter('investments')}
+                      />
+                      <ToggleButton
+                        label="Income Only"
+                        value="income"
+                        selected={categoryFilter === 'income'}
+                        onToggle={() => setCategoryFilter('income')}
+                      />
+                      <ToggleButton
+                        label="Expenses Only"
+                        value="expenses"
+                        selected={categoryFilter === 'expenses'}
+                        onToggle={() => setCategoryFilter('expenses')}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Median/Average toggle */}
+                  <div style={{ marginBottom: 15 }}>
+                    <div className="normal-text" style={{ fontWeight: 'bold', marginBottom: 5 }}>Select Values Type:</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <ToggleButton
+                        label="Median Values"
+                        value="median"
+                        selected={useMedianValues}
+                        onToggle={() => setUseMedianValues(true)}
+                      />
+                      <ToggleButton
+                        label="Average Values"
+                        value="average"
+                        selected={!useMedianValues}
+                        onToggle={() => setUseMedianValues(false)}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Aggregation threshold slider */}
+                  <div style={{ marginTop: 15 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Aggregation Threshold: ${aggregationThreshold.toLocaleString()}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="50000"
+                        step="1000"
+                        value={aggregationThreshold}
+                        onChange={(e) => setAggregationThreshold(Number(e.target.value))}
+                        style={{ width: '60%' }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 5 }}>
+                      Categories with values below this threshold will be grouped as "Other"
+                    </div>
+                  </div>
+                </div>
+                
+                <StackedBarChart 
+                  useMedian={useMedianValues} 
+                  investmentOrder={investmentOrder}
+                  incomeOrder={incomeOrder}
+                  expensesOrder={expensesOrder}
+                  medianInvestments={medianInvestments}
+                  avgInvestments={avgInvestments}
+                  medianIncome={medianIncome}
+                  avgIncome={avgIncome}
+                  medianExpenses={medianExpenses}
+                  avgExpenses={avgExpenses}
+                  aggregationThreshold={aggregationThreshold}
+                  categoryFilter={categoryFilter}
                 />
               </div>
             )}
             <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
+          
+            {/* Graphs display */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {renderNormalGraphs()}
+            </div>
           </div>
         )}
 
-        {/* graphs */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          {showScenarioExploration ? renderScenarioExploration() : renderNormalGraphs()}
-        </div>
+        {/* Show scenario exploration if selected */}
+        {showScenarioExploration && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {renderScenarioExploration()}
+          </div>
+        )}
       </div>
     </div>
   );

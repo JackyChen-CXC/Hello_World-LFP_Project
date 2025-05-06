@@ -115,8 +115,6 @@ const CreatePlan = () => {
 
   function initializeFormData(incoming) {
     if (!incoming) return defaultFormData;
-
-    // Start with a copy of your defaults.
     const mapped = JSON.parse(JSON.stringify(defaultFormData));
 
     // ----------------- Map Top-Level Fields ----------------- //
@@ -278,6 +276,11 @@ const CreatePlan = () => {
       if (ev.type === "expense") {
         out.expenseSource = ev.discretionary ? "Discretionary" : "nonDiscretionary";
       }
+      if (ev.type === "investment") {
+        out.glidePath = ev.glidePath ?? false;
+        out.assetAllocation = ev.assetAllocation || { Stocks: "", Bonds: "", Cash: "" };
+        out.assetAllocation2 = ev.assetAllocation2 || { Stocks: "", Bonds: "" };
+      }
     
       // Start distribution
       if (ev.start) {
@@ -340,17 +343,17 @@ const CreatePlan = () => {
       }
     
       // Inflation config (if separate per event)
-      if (ev.inflationType) {
-        out.inflationType = ev.inflationType;
+      if (ev.inflationAssumptionType) {
+        out.inflationAssumptionType = ev.inflationAssumptionType;
       }
-      if (ev.inflationMean != null) {
-        out.inflationMean = String(ev.inflationMean);
+      if (ev.inflationAssumptionMean != null) {
+        out.inflationAssumptionMean = String(ev.inflationAssumptionMean);
       }
-      if (ev.inflationStdev != null) {
-        out.inflationStdev = String(ev.inflationStdev);
+      if (ev.inflationAssumptionStdev != null) {
+        out.inflationAssumptionStdev = String(ev.inflationAssumptionStdev);
       }
-      if (ev.inflationFixed != null) {
-        out.inflationFixed = String(ev.inflationFixed);
+      if (ev.inflationAssumptionFixed != null) {
+        out.inflationAssumptionFixed = String(ev.inflationAssumptionFixed);
       }
       if (ev.inflationAmtOrPct) {
         out.inflationAmtOrPct = ev.inflationAmtOrPct;
@@ -707,15 +710,21 @@ const CreatePlan = () => {
       };
     } else {
       newLifeEvents[index][cleanName] = type === "checkbox" ? checked : value;
-    }    
-    
-    // Update changeDistribution fields directly
-    if (["annualChangeType", "annualChangeFixed", "annualChangeMean", "annualChangeStdev", "annualChangeMin", "annualChangeMax"].includes(cleanName)) {
+    }
+
+    if (
+      [
+        "annualChangeType",
+        "annualChangeFixed",
+        "annualChangeMean",
+        "annualChangeStdev",
+        "annualChangeMin",
+        "annualChangeMax",
+      ].includes(cleanName)
+    ) {
       const event = newLifeEvents[index];
-      const currentType = event.annualChangeType;
-
       const updatedChangeDist = { ...event.changeDistribution };
-
+  
       if (cleanName === "annualChangeType") {
         updatedChangeDist.type = value;
       } else if (cleanName === "annualChangeFixed") {
@@ -729,9 +738,43 @@ const CreatePlan = () => {
       } else if (cleanName === "annualChangeMax") {
         updatedChangeDist.upper = value;
       }
-
+  
       newLifeEvents[index].changeDistribution = updatedChangeDist;
     }
+
+    if (
+      [
+        "inflationAssumptionType",
+        "inflationAssumptionFixed",
+        "inflationAssumptionMean",
+        "inflationAssumptionStdev",
+        "inflationAssumptionLower",
+        "inflationAssumptionUpper",
+      ].includes(cleanName)
+    ) {
+      const event = newLifeEvents[index];
+  
+      if (cleanName === "inflationAssumptionType") {
+        event.inflationAssumptionType = value;
+      } else if (cleanName === "inflationAssumptionFixed") {
+        event.inflationAssumptionFixed = value;
+      } else if (cleanName === "inflationAssumptionMean") {
+        event.inflationAssumptionMean = value;
+      } else if (cleanName === "inflationAssumptionStdev") {
+        event.inflationAssumptionStdev = value;
+      } else if (cleanName === "inflationAssumptionLower") {
+        event.inflationAssumptionLower = value;
+      } else if (cleanName === "inflationAssumptionUpper") {
+        event.inflationAssumptionUpper = value;
+      }
+  
+      newLifeEvents[index] = event;
+    }
+
+    if (["startWith", "startEndEvent"].includes(cleanName)) {
+      newLifeEvents[index][cleanName] = value;
+    }
+    console.log("Submitting life events:", formData.lifeEvents);
 
   
     setFormData((prevData) => ({
@@ -739,6 +782,7 @@ const CreatePlan = () => {
       lifeEvents: newLifeEvents,
     }));
   };
+  
   
 
 useEffect(() => {
@@ -809,47 +853,41 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
     // -- Life Expectancy Array
     lifeExpectancy: isJoint
       ? [
-          // USER
           formData.lifeExpectancyRadio === "yes"
             ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
             : { type: "normal", mean: parseInt(formData.lifeExpectancyMean), stdev: parseInt(formData.lifeExpectancyStd) },
 
-          // SPOUSE
           formData.spouseLifeExpectancyRadio === "yes"
             ? { type: "fixed", value: parseInt(formData.spouseLifeExpectancyYears) }
             : { type: "normal", mean: parseInt(formData.spouseLifeExpectancyMean), stdev: parseInt(formData.spouseLifeExpectancyStd) },
         ]
       : [
-          // SINGLE PLAN
           formData.lifeExpectancyRadio === "yes"
             ? { type: "fixed", value: parseInt(formData.lifeExpectancyYears) }
             : { type: "normal", mean: parseInt(formData.lifeExpectancyMean), stdev: parseInt(formData.lifeExpectancyStd) },
         ],
-
-    // -- Example inflation assumption
-    inflationAssumption: (() => {
-      const type = formData.inflationAssumptionType;
-    
-      if (type === "normal") {
-        return {
-          type: "normal",
-          mean: parseFloat(formData.inflationAssumptionMean || "0"),
-          stdev: parseFloat(formData.inflationAssumptionStdev || "0"),
-        };
-      } else if (type === "uniform") {
-        return {
-          type: "uniform",
-          lower: parseFloat(formData.inflationAssumptionLower || "0"),
-          upper: parseFloat(formData.inflationAssumptionUpper || "0"),
-        };
-      }
-    
-      // default to fixed
-      return {
-        type: "fixed",
-        value: parseFloat(formData.inflationAssumptionFixed || "0"),
-      };
-    })(),
+        inflationAssumption: (() => {
+          const type = formData.inflationAssumptionType;
+        
+          if (type === "normal") {
+            return {
+              type: "normal",
+              mean: parseFloat(formData.inflationAssumptionMean || "0"),
+              stdev: parseFloat(formData.inflationAssumptionStdev || "0"),
+            };
+          } else if (type === "uniform") {
+            return {
+              type: "uniform",
+              lower: parseFloat(formData.inflationAssumptionLower || "0"),
+              upper: parseFloat(formData.inflationAssumptionUpper || "0"),
+            };
+          } else {
+            return {
+              type: "fixed",
+              value: parseFloat(formData.inflationAssumptionFixed || "0"),
+            };
+          }
+        })(),
 
     RMDStrategy: rmdOrder,
     expenseWithdrawalStrategy: expenseOrder,
@@ -901,7 +939,7 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
         id: inv.investmentName || "", 
         investmentTypeName: inv.investmentTypeName || "",
         investmentDescription: inv.investmentDescription || "",
-        investmentType: inv.investmentType|| "",
+        investmentType: inv.investmentTypeName|| "",
         value: inv.investmentValue !== undefined && inv.investmentValue !== ""
           ? parseFloat(inv.investmentValue)
           : 0,
@@ -1007,15 +1045,21 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
               userFraction: parseFloat(event.userFraction || "1"),
               socialSecurity: isIncome && event.incomeSource === "socialSecurity",
               discretionary: isExpense && event.expenseSource === "Discretionary",
-              inflationType: event.inflationType || "fixed",
+              inflationAssumptionType: event.inflationAssumptionType || "fixed",
               inflationAmtOrPct: event.inflationAmtOrPct || "amount",
-              ...(event.inflationType === "fixed"
-                ? { inflationFixed: parseFloat(event.inflationFixed || "0") }
+              ...(event.inflationAssumptionType === "fixed"
+                ? { inflationAssumptionFixed: parseFloat(event.inflationAssumptionFixed || "0") }
                 : {}),
-              ...(event.inflationType === "normal"
+              ...(event.inflationAssumptionType === "normal"
                 ? {
-                    inflationMean: parseFloat(event.inflationMean || "0"),
-                    inflationStdev: parseFloat(event.inflationStdev || "0"),
+                    inflationAssumptionMean: parseFloat(event.inflationAssumptionMean || "0"),
+                    inflationAssumptionStdev: parseFloat(event.inflationAssumptionStdev || "0"),
+                  }
+                : {}),
+              ...(event.inflationAssumptionType === "uniform"
+                ? {
+                    inflationAssumptionLower: parseFloat(event.inflationAssumptionLower || "0"),
+                    inflationAssumptionUpper: parseFloat(event.inflationAssumptionUpper || "0"),
                   }
                 : {}),
             }
@@ -1069,26 +1113,6 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
 
 const [existingInvestmentTypes, setExistingInvestmentTypes] = useState([]);
 
-/** 
-useEffect(() => {
-  const fetchInvestmentTypes = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/investment-types/all");
-      if (!res.ok) throw new Error("Failed to fetch investment types");
-      const data = await res.json();
-      setExistingInvestmentTypes(data);
-      console.log("Fetched investment types:", data);
-
-
-    } catch (error) {
-      console.error("Error fetching investment types:", error);
-    }
-  };
-
-  fetchInvestmentTypes();
-}, []);
-*/
-
 useEffect(() => {
   const preTaxInvestments = formData.investments.filter(inv => inv.accountType === "pre-tax");
   const allInvestments = formData.investments;
@@ -1117,13 +1141,81 @@ useEffect(() => {
 
 // Sync strategy dropdowns with saved data on edit mode
 useEffect(() => {
-  if (!isEditMode) return;
+  if (!isEditMode || !formData?.lifeEvents) return;
+
+  const updatedEvents = formData.lifeEvents.map((ev) => {
+  const updatedEvent = { ...ev };
+
+  // Investment event setup
+  if (ev.type === "invest") {
+    const isGlide = ev.glidePath === true;
+    updatedEvent.allocationMode = isGlide ? "glide" : "fixed";
+    updatedEvent.selectedInvestments = ev.selectedInvestments || [];
+    updatedEvent.glideInitial = isGlide ? ev.assetAllocation || {} : {};
+    updatedEvent.glideFinal = isGlide ? ev.assetAllocation2 || {} : {};
+    updatedEvent.fixedAllocation = isGlide ? {} : ev.assetAllocation || {};
+    updatedEvent.maxCash = ev.maxCash || "";
+  }
+
+  // Rebalance event setup
+  if (ev.type === "rebalance") {
+    const keys = Object.keys(ev.assetAllocation || {});
+    const [primaryInvestment, secondaryInvestment] = keys;
+    const primaryAccountType =
+      formData.investments.find((inv) => inv.investmentName === primaryInvestment)?.accountType || "";
+
+    updatedEvent.primaryInvestment = primaryInvestment;
+    updatedEvent.secondaryInvestment = secondaryInvestment;
+    updatedEvent.primaryAccountType = primaryAccountType;
+    updatedEvent.assetAllocation = ev.assetAllocation || {};
+  }
+
+  // Change Distribution (apply to all)
+  updatedEvent.changeAmtOrPct = ev.changeAmtOrPct || "amount";
+  updatedEvent.changeDistribution = ev.changeDistribution || { type: "fixed", value: 0 };
+
+  return updatedEvent;
+  });
+
+  setFormData((prev) => ({
+    ...prev,
+    lifeEvents: updatedEvents,
+  }));
+  
+}, [isEditMode]);
+
+useEffect(() => {
+  if (!isEditMode || !formData) return;
+
+  // Extract unique investmentType IDs from existing investments
+  const typeIdsInPlan = formData.investments.map(inv => inv.investmentType);
+  const missingTypes = typeIdsInPlan.filter(
+    id => !existingInvestmentTypes.some(type => type._id === id)
+  );
+
+  // If any investmentTypes are missing from existingInvestmentTypes, fetch them
+  if (missingTypes.length > 0) {
+    Promise.all(
+      missingTypes.map(id =>
+        fetch(`/api/investmenttypes/${id}`).then(res => res.json())
+      )
+    ).then(fetchedTypes => {
+      setExistingInvestmentTypes(prev => [...prev, ...fetchedTypes]);
+    });
+  }
+}, [isEditMode, formData, existingInvestmentTypes]);
+
+
+useEffect(() => {
+  if (!isEditMode || !formData) return;
 
   setRmdOrder(formData.rmdStrategy || []);
   setRothOrder(formData.rothconversionstrategy || []);
   setExpenseOrder(formData.expenseWithdrawalStrategy || []);
   setSpendingOrder(formData.spendingStrategy || []);
 }, [isEditMode, formData]);
+
+
 
 
 function buildDistribution(distType, mean, stdev, fixedValue) {
@@ -1303,6 +1395,12 @@ if (formData.inflationAssumptionType === "uniform" &&
   return;
 }
 
+console.log("Form Data at Submit:", formData);
+console.log("First Life Event:", formData.lifeEvents?.[0]);
+console.log("Inflation Type:", formData.lifeEvents?.[0]?.inflationAssumptionType);
+console.log("Inflation Fixed Value:", formData.lifeEvents?.[0]?.inflationAssumptionFixed);
+
+
 for (const [i, ev] of formData.lifeEvents.entries()) {
   if (!ev.eventName || ev.eventName.trim() === "") {
     alert(`Life Event ${i + 1}: Event name is required.`);
@@ -1334,11 +1432,14 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
     return;
   }
 
-  if ((ev.startType === "startWith" || ev.startType === "startEndEvent") &&
-      !ev.startEvent && !ev.startEndEvent) {
+  if (
+    (ev.startType === "startWith" && !ev.startWith) ||
+    (ev.startType === "startEndEvent" && !ev.startEndEvent)
+  ) {
     alert(`Life Event ${i + 1}: You must select an event to sync with.`);
     return;
   }
+  
 
   if (!ev.durationType) {
     alert(`Life Event ${i + 1}: Duration type is required.`);
@@ -1745,7 +1846,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               <option value="">--Select--</option>
               <option value="create_new">-- Create New Investment Type --</option>
               {localInvestmentTypes.map((type) => (
-                <option key={type._id} value={type._id}>
+                <option key={type.name} value={type.name}>
                   {type.name}
                 </option>
               ))}
@@ -2340,7 +2441,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                     value={lifeEvent.eventName}
                     onChange={(e) => handleLifeEventChange(index, e)}
                   />
-                  <div className="normal-text">Brief Description of Event Series *(Required)*</div>
+                  <div className="normal-text">Brief Description of Event Series </div>
                   <textarea
                     className="input-boxes textarea-box"
                     rows="4"
@@ -2766,91 +2867,6 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
                   )}
                 </div>
               </div>
-
-
-
-              {/* Inflation */}
-              <div className="normal-text">How would you like to assume inflation? *(Required)*</div>
-              <div className="split-container">
-                <div className="left-side">
-                <RadioGroup
-                  name={`inflationType-${index}`}
-                  selectedValue={lifeEvent.inflationType || ""}
-                  onChange={(e) => handleLifeEventChange(index, {
-                    target: {
-                      name: "inflationType",
-                      value: e.target.value,
-                    },
-                  })}
-
-                  options={[
-                    { label: "Fixed Percentage", value: "fixed" },
-                    { label: "Normal Distribution", value: "normal" },
-                    { label: "Uniform Distribution", value: "uniform" },
-                  ]}
-                />
-                </div>
-
-                <div className="right-side">
-                  {lifeEvent.inflationType === "fixed" && (
-                    <>
-                      <div className="normal-text">Fixed Inflation Rate (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="number"
-                        name="inflationFixed"
-                        value={lifeEvent.inflationFixed || ""}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
-
-                  {lifeEvent.inflationType === "normal" && (
-                    <>
-                      <div className="normal-text">Mean Inflation Rate (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="number"
-                        name="inflationMean"
-                        value={lifeEvent.inflationMean || ""}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                      <div className="normal-text">Standard Deviation (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="number"
-                        name="inflationStdev"
-                        value={lifeEvent.inflationStdev || ""}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
-
-                  {lifeEvent.inflationType === "uniform" && (
-                    <>
-                      <div className="normal-text">Lower Bound (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="number"
-                        name="inflationLower"
-                        value={lifeEvent.inflationLower || ""}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                      <div className="normal-text">Upper Bound (%)</div>
-                      <input
-                        className="input-boxes"
-                        type="number"
-                        name="inflationUpper"
-                        value={lifeEvent.inflationUpper || ""}
-                        onChange={(e) => handleLifeEventChange(index, e)}
-                      />
-                    </>
-                  )}
-                </div>
-
-              </div>
-
-
             </>
           )}
         </div>
@@ -2858,6 +2874,110 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
       <button className="page-buttons" onClick={handleAddLifeEvents}>
         ADD
       </button>
+      {/* Inflation */}
+      <div className="normal-text">How would you like to assume inflation? *(Required)*</div>
+<div className="split-container">
+  <div className="left-side">
+    <RadioGroup
+      name="inflationAssumptionType"
+      selectedValue={formData.inflationAssumptionType || ""}
+      onChange={(e) =>
+        setFormData((prev) => ({
+          ...prev,
+          inflationAssumptionType: e.target.value,
+        }))
+      }
+      options={[
+        { label: "Fixed Percentage", value: "fixed" },
+        { label: "Normal Distribution", value: "normal" },
+        { label: "Uniform Distribution", value: "uniform" },
+      ]}
+    />
+  </div>
+
+  <div className="right-side">
+    {formData.inflationAssumptionType === "fixed" && (
+      <>
+        <div className="normal-text">Fixed Inflation Rate (%)</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="inflationAssumptionFixed"
+          value={formData.inflationAssumptionFixed || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              inflationAssumptionFixed: e.target.value,
+            }))
+          }
+        />
+      </>
+    )}
+
+    {formData.inflationAssumptionType === "normal" && (
+      <>
+        <div className="normal-text">Mean Inflation Rate (%)</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="inflationAssumptionMean"
+          value={formData.inflationAssumptionMean || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              inflationAssumptionMean: e.target.value,
+            }))
+          }
+        />
+        <div className="normal-text">Standard Deviation (%)</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="inflationAssumptionStdev"
+          value={formData.inflationAssumptionStdev || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              inflationAssumptionStdev: e.target.value,
+            }))
+          }
+        />
+      </>
+    )}
+
+    {formData.inflationAssumptionType === "uniform" && (
+      <>
+        <div className="normal-text">Lower Bound (%)</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="inflationAssumptionLower"
+          value={formData.inflationAssumptionLower || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              inflationAssumptionLower: e.target.value,
+            }))
+          }
+        />
+        <div className="normal-text">Upper Bound (%)</div>
+        <input
+          className="input-boxes"
+          type="number"
+          name="inflationAssumptionUpper"
+          value={formData.inflationAssumptionUpper || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              inflationAssumptionUpper: e.target.value,
+            }))
+          }
+        />
+      </>
+    )}
+  </div>
+</div>
+
 {/**----------------------------------- STRATEGY ORDERING-------------------------------------------- */}
       <div className="normal-text" style={{ marginTop: "20px" }}>
       How do you want to order your RMD strategy 

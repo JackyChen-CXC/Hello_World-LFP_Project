@@ -180,13 +180,13 @@ export const createSimulation = async (req: any, res: any) => {
 
                 // update plan based on parameter 2
                 if(algorithmType === "2d"){
-                    updateScenarioParameter(plan, itemType2, itemId2, step2);
+                    updateScenarioParameter(plan, itemType2, itemId2);
                 }
                 rangeIndex++;
             }
             // update plan based on parameter 1
             if(algorithmType === "1d" || algorithmType === "2d"){
-                updateScenarioParameter(plan, itemType, itemId, step);
+                updateScenarioParameter(plan, itemType, itemId);
             }
         }
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
@@ -532,7 +532,6 @@ export const runSimulation = async (req: any, res: any) => {
             // // 8. Run the invest events scheduled for the current year
             writeLog(username, `b4 8, investments: ${JSON.stringify(plan.investments)}`,"log");
             const my_investment = plan.eventSeries.filter((inv: any) => inv.type === "invest");
-            console.log("type989: ",my_investment)
             runInvestEvents(plan, glidePathValue,list_of_purchase_price);
             writeLog(username, `after 8, investments: ${JSON.stringify(plan.investments)}`,"log");
             glidePathValue = !glidePathValue;

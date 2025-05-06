@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import "../css_files/page_style.css";
 
@@ -381,7 +381,7 @@ const OpenScenario = () => {
 
                 <div className="scenario-info-container">
                   Investment Type:
-                  <div>{capitalizeWords(inv?.name || "N/A")}</div>
+                  <div>{capitalizeWords(meta.investmentType || "N/A")}</div>
                 </div>
 
                 <div className="scenario-info-container">
@@ -399,22 +399,24 @@ const OpenScenario = () => {
         )}
         <hr />
 
-        {/**-----------------------------------Event Seriess------------------------------------------------------ */}
-        <div className="normal-text" style={{ fontWeight: "bold" }}>Event Seriess:</div>
+        {/**-----------------------------------Event Series------------------------------------------------------ */}
+        <div className="normal-text" style={{ fontWeight: "bold" }}>Event Series:</div>
         {scenario.eventSeries.length === 0 ? (
         <div className="normal-text">No Event Seriess added.</div>
         ) : (
           scenario.eventSeries.map((event, index) => (
             <div key={index} style={{ marginBottom: "1rem" }}>
               <div className="normal-text" style={{ fontWeight: "bold" }}>
-                {index + 1}.{capitalizeWords(event.name)}
+                {index + 1}. {capitalizeWords(event.name)}
               </div>
               <div className="normal-text" style={{ marginLeft: "5%" }}>
 
+              {event.description && (
                 <div className="scenario-info-container">
                   Brief Description:{" "}
-                  <div >{capitalizeWords(event.description)}</div>
+                  <div>{capitalizeWords(event.description)}</div>
                 </div>
+              )}
 
                 <div className="scenario-info-container">
                   Type: <div >{capitalizeWords(event.type)}</div>
@@ -486,10 +488,25 @@ const OpenScenario = () => {
                     <div >{capitalizeWords(event.changeAmtOrPct)}</div>
                   </div>
                 )}
+                {event.changeDistribution && (
+                <>
+                  <div className="scenario-info-container">
+                    <div>Change Distribution Type:</div>
+                    <div>{capitalizeWords(event.changeDistribution.type)} Distribution</div>
+                  </div>
+
+                  {event.changeDistribution.value !== undefined && (
+                    <div className="scenario-info-container">
+                      <div>Value:</div>
+                      <div>{event.changeDistribution.value}</div>
+                    </div>
+                  )}
+                </>
+              )}
                 <>
                   <div className="scenario-info-container">
                     <div>Start Year Type:</div>
-                    <div>{capitalizeWords(event.start?.type)}</div>
+                    <div>{capitalizeWords(event.start?.type)} Year</div>
                   </div>
 
                   {event.start?.value !== undefined && (
@@ -518,7 +535,7 @@ const OpenScenario = () => {
                 <>
                   <div className="scenario-info-container">
                     <div>Duration Type:</div>
-                    <div>{capitalizeWords(event.duration.type)}</div>
+                    <div>{capitalizeWords(event.duration.type)} Distribution</div>
                   </div>
 
                   {event.duration.value !== undefined && (
@@ -530,21 +547,7 @@ const OpenScenario = () => {
                 </>
               )}
 
-              {event.changeDistribution && (
-                <>
-                  <div className="scenario-info-container">
-                    <div>Change Distribution Type:</div>
-                    <div>{capitalizeWords(event.changeDistribution.type)}</div>
-                  </div>
-
-                  {event.changeDistribution.value !== undefined && (
-                    <div className="scenario-info-container">
-                      <div>Value:</div>
-                      <div>{event.changeDistribution.value}</div>
-                    </div>
-                  )}
-                </>
-              )}
+              
 
                 {event.inflationAdjusted !== undefined && (
                   <div className="scenario-info-container">
@@ -575,8 +578,8 @@ const OpenScenario = () => {
 
                 <>
                 <div className="scenario-info-container" style={{ marginTop: "0.5rem" }}>
-                  <div>Inflation Assumption:</div>
-                  <div>{capitalizeWords(scenario.inflationAssumption.type)}</div>
+                  <div>Inflation Assumption Type:</div>
+                  <div>{capitalizeWords(scenario.inflationAssumption.type)} Distribution</div>
                 </div>
 
                 {scenario.inflationAssumption.type === "fixed" ? (

@@ -8,7 +8,7 @@ import * as path from "path";
 import * as yaml from "js-yaml";
 import { inflate } from "zlib";
 import { writeLog } from "./logHelper";
-import { purchasePrice, simulationOutput } from "./simulationController";
+import { scenarioExplorationParams, simulationOutput, purchasePrice } from "./simulationController";
 
 // Helper Functions
 
@@ -18,43 +18,97 @@ export function deepCopyDocument<T extends Document>(doc: T): T {
     const deepCopy = JSON.parse(JSON.stringify(plainObject));
     return deepCopy as T;
 }
-
-// Scenario Exploration Updater
-export function updateScenarioParameter(plan: IFinancialPlan, itemType: string, itemId: string, step: number): void {
+// Scenario Exploration Enforcer
+export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioExplorationParams): void {
+  // param 1
   let temp: ILifeEvent;
-  switch(itemType){
-    case "rothConversionOpt":
-      plan.RothConversionOpt = false;
-      break;
-    case "start":
-      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
-      if(temp.start.value)
-        temp.start.value += step;
-      break;
-    case "duration":
-      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
-      if(temp.duration.value)
-        temp.duration.value += step;
-      break;
-    case "initalAmount":
-      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
-      if(temp.initialAmount)
-        temp.initialAmount += step;
-      break;
-    case "percentage":
-      temp = plan.eventSeries.filter(event => event.name === itemId)[0];
-      if(temp.assetAllocation){
-        temp.assetAllocation[0] += step;
-        temp.assetAllocation[1] -= step;
+  if(params.algorithmType !== "standard") { // 1d & 2d
+    switch(params.itemType){
+      case "rothConversionOpt":
+        for(let i = 0;  i < params.index; i++){
+          plan.RothConversionOpt = !plan.RothConversionOpt;
+        }
+        break;
+      case "start":
+        temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+        if(temp.start.value)
+          temp.start.value = params.index;
+        break;
+      case "duration":
+        temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+        if(temp.duration.value)
+          temp.duration.value = params.index;
+        break;
+      case "initialAmount":
+        temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+        if(temp.initialAmount)
+          temp.initialAmount = params.index;
+        break;
+      case "percentage":
+        temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+        if(temp.assetAllocation){
+          temp.assetAllocation[0] = params.index;
+          temp.assetAllocation[1] = 1 - params.index;
+        }
+        console.log(temp.assetAllocation);
+        break;
+      default:
+        console.log(`ISSUE AT STEP PARAM 1: ${params.itemType}, ${params.index}, ${params.index2}`)
+    }
+    // param 2
+    if(params.algorithmType === "2d") {
+      switch(params.itemType){
+        case "rothConversionOpt":
+          for(let i = 0;  i < params.index2; i++){
+            plan.RothConversionOpt = !plan.RothConversionOpt;
+          }
+          break;
+        case "start":
+          temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+          if(temp.start.value)
+            temp.start.value = params.index2;
+          break;
+        case "duration":
+          temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+          if(temp.duration.value)
+            temp.duration.value = params.index2;
+          break;
+        case "initialAmount":
+          temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+          if(temp.initialAmount)
+            temp.initialAmount = params.index2;
+          break;
+        case "percentage":
+          temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
+          if(temp.assetAllocation){
+            console.log("b4",temp.assetAllocation);
+            temp.assetAllocation[0] = params.index;
+            temp.assetAllocation[1] = 1 - params.index;
+            console.log("after",temp.assetAllocation);
+          }
+          break;
+        default:
+          console.log(`ISSUE AT STEP PARAM 2: ${params.itemType2}, ${params.index}, ${params.index2}`);
       }
-      break;
-    default:
-      console.log(`ISSUE AT STEP ${step}`)
+    }
+  }
+}
+
+// Scenario Exploration Updater (param 1 or 2)
+export function updateScenarioParameter(plan: IFinancialPlan, params: scenarioExplorationParams, index: 1 | 2): void {
+  try {
+    if(index === 1){
+      params.index += params.step;
+    } else if(index === 2){
+      params.index2 += params.step2;
+    } 
+  } catch(error){
+    console.log("cannot update",error)
   }
 }
 
 // store algorithm output as simulationOutput
-export function generateOutput(goal: number){
+export function generateOutput(){
     const output: simulationOutput = {
       probabilityOverTime: [],
       financialGoal: 0,
@@ -258,10 +312,11 @@ export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: num
 }
 
 // Return a number given Distribution types: "fixed" | "normal" | "uniform"
-export function generateFromDistribution(dist: IDistribution | undefined): number | undefined {
+export function generateFromDistribution(dist: IDistribution | undefined): number {
     if(dist){
         switch (dist.type) { // fixed number
             case "fixed":
+              if(dist.value)
                 return dist.value;
             case "normal": // normal distibution
                 if (typeof dist.mean === "number" && typeof dist.stdev === "number") {
@@ -275,12 +330,9 @@ export function generateFromDistribution(dist: IDistribution | undefined): numbe
                 if (typeof dist.lower === "number" && typeof dist.upper === "number") {
                     return dist.lower + Math.random() * (dist.upper - dist.lower);
                 }
-            default:
-                // wrong use of function
-                console.log("Wrong use of Distribution function");
-                return undefined;
         }
-    }      
+    }
+    return new Date().getFullYear();
 }
 
 // for start & duration that need a specific year start from a Distribution
@@ -290,8 +342,8 @@ export function standardizeTimeRangesForEventSeries(eventSeries: ILifeEvent[]): 
     // fix all normal and uniform start/durations
     for(const event of eventSeries){
         // Start
-        if(event.start.type === "normal" || event.start.type === "uniform"){
-            event.start = { type: "fixed", value: generateFromDistribution(event.start)};
+        if(event.start.type === "normal" || event.start.type === "uniform" && event.start){
+            event.start = { type: "fixed", value: Math.floor(generateFromDistribution(event.start))};
         }
         else if (event.start.type === "startWith" || event.start.type === "endWhen"){
             roundTwo.push(event);
