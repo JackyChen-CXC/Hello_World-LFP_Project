@@ -860,18 +860,22 @@ const ScenarioOptionSelector = ({
 const ScenarioExplorationChart = ({ 
   parameterKey,
   parameterValues,
-  metric = 'probabilityOfSuccess'
+  metric = 'probabilityOfSuccess',
+  customData = null
 }: {
   parameterKey: string,
   parameterValues: (number | boolean)[],
-  metric?: 'probabilityOfSuccess' | 'investments'
+  metric?: 'probabilityOfSuccess' | 'investments',
+  customData?: any
 }) => {
   const years = [2025, 2026, 2027, 2028, 2029];
   
-  // Get baseline data
-  const baselineData = mockScenarioResults.baseline[metric];
+  // Get baseline data - use customData if provided, otherwise use mock data
+  const baselineData = customData 
+    ? customData.baseline?.[metric] || mockScenarioResults.baseline[metric]
+    : mockScenarioResults.baseline[metric];
   
-  // Transform data for chart
+  // Transform data for chart - handle customData if available
   const chartData = years.map((year, yearIndex) => {
     const dataPoint: any = { year };
     
@@ -879,13 +883,30 @@ const ScenarioExplorationChart = ({
     dataPoint.baseline = baselineData[yearIndex];
     
     // Add data for each parameter value
-    if (parameterKey === 'rothOptimizerEnabled' && parameterValues.includes(true)) {
-      dataPoint.rothOptimizer = mockScenarioResults.rothOptimizerEnabled.true[metric][yearIndex];
-    } else if (parameterKey !== 'rothOptimizerEnabled') {
+    if (parameterKey === 'rothConversionOpt' && parameterValues.includes(true)) {
+      // Use custom data if available, otherwise fall back to mock data
+      const rothData = customData 
+        ? customData.rothOptimizerEnabled?.true?.[metric] || mockScenarioResults.rothOptimizerEnabled.true[metric]
+        : mockScenarioResults.rothOptimizerEnabled.true[metric];
+      
+      dataPoint.rothOptimizer = rothData[yearIndex];
+    } else if (parameterKey !== 'rothConversionOpt') {
       // For numeric parameters
       parameterValues.forEach(value => {
-        if (typeof value === 'number' && mockScenarioResults[parameterKey] && mockScenarioResults[parameterKey][value]) {
-          dataPoint[`value_${value}`] = mockScenarioResults[parameterKey][value][metric][yearIndex];
+        if (typeof value === 'number') {
+          // Get data from custom data if available, otherwise use mock
+          const valueData = customData 
+            ? customData[parameterKey]?.[value]?.[metric] || 
+              (mockScenarioResults[parameterKey] && mockScenarioResults[parameterKey][value] 
+                ? mockScenarioResults[parameterKey][value][metric] 
+                : null)
+            : (mockScenarioResults[parameterKey] && mockScenarioResults[parameterKey][value] 
+                ? mockScenarioResults[parameterKey][value][metric] 
+                : null);
+          
+          if (valueData) {
+            dataPoint[`value_${value}`] = valueData[yearIndex];
+          }
         }
       });
     }
@@ -893,9 +914,11 @@ const ScenarioExplorationChart = ({
     return dataPoint;
   });
   
+  // Update formatValue to handle a wider range of values
   const formatValue = (value: number) => {
     if (metric === 'probabilityOfSuccess') {
-      return `${(value * 100).toFixed(1)}%`;
+      // Check if value is already a percentage (0-100) or decimal (0-1)
+      return value > 1 ? `${value.toFixed(1)}%` : `${(value * 100).toFixed(1)}%`;
     }
     return `$${value.toLocaleString()}`;
   };
@@ -907,20 +930,88 @@ const ScenarioExplorationChart = ({
     return "Total Investments ($)";
   };
 
+  // Update the chart rendering to handle API response format
+  const processBackendData = (response: any) => {
+    // If no custom data, return early with mock data 
+    if (!customData) return chartData;
+    
+    try {
+      console.log("Processing backend data:", customData);
+      
+      // Extract the data from the API response
+      const processedData = years.map((year, yearIndex) => {
+        const dataPoint: any = { year };
+        
+        // Try to extract data from the API response
+        if (customData.scenarios) {
+          // Backend may return an array of scenarios
+          customData.scenarios.forEach((scenario: any, index: number) => {
+            if (scenario.type === 'baseline') {
+              dataPoint.baseline = metric === 'probabilityOfSuccess' 
+                ? scenario.probabilityOfSuccess[yearIndex] * 100 // Convert to percentage
+                : scenario.investments[yearIndex]; // Use investments data
+            } else if (scenario.type === 'rothConversionOpt') {
+              dataPoint.rothOptimizer = metric === 'probabilityOfSuccess'
+                ? scenario.probabilityOfSuccess[yearIndex] * 100 // Convert to percentage
+                : scenario.investments[yearIndex]; // Use investments data
+            } else if (scenario.paramValue !== undefined) {
+              // Handle parameter variations
+              dataPoint[`value_${scenario.paramValue}`] = metric === 'probabilityOfSuccess'
+                ? scenario.probabilityOfSuccess[yearIndex] * 100 // Convert to percentage 
+                : scenario.investments[yearIndex]; // Use investments data
+            }
+          });
+        } else if (customData.baseline) {
+          // Alternative structure: separate objects for each scenario
+          dataPoint.baseline = metric === 'probabilityOfSuccess'
+            ? customData.baseline.probabilityOfSuccess[yearIndex] * 100
+            : customData.baseline.investments[yearIndex];
+          
+          if (customData.rothOptimizer) {
+            dataPoint.rothOptimizer = metric === 'probabilityOfSuccess'
+              ? customData.rothOptimizer.probabilityOfSuccess[yearIndex] * 100
+              : customData.rothOptimizer.investments[yearIndex];
+          }
+          
+          // Handle parameter variations
+          if (customData.paramVariations) {
+            customData.paramVariations.forEach((variation: any) => {
+              const value = variation.paramValue;
+              dataPoint[`value_${value}`] = metric === 'probabilityOfSuccess'
+                ? variation.probabilityOfSuccess[yearIndex] * 100
+                : variation.investments[yearIndex];
+            });
+          }
+        }
+        
+        return dataPoint;
+      });
+      
+      console.log("Processed chart data:", processedData);
+      return processedData.length > 0 ? processedData : chartData;
+    } catch (error) {
+      console.error("Error processing backend data:", error);
+      return chartData; // Fallback to mock data on error
+    }
+  };
+
+  // Use the processed data
+  const finalChartData = customData ? processBackendData(customData) : chartData;
+
   return (
-    <LineChart width={700} height={400} data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+    <LineChart width={700} height={400} data={finalChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
       <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="year">
-        <Label value="Year" offset={-5} position="insideBottom" />
-      </XAxis>
-      <YAxis>
-        <Label
+    <XAxis dataKey="year">
+      <Label value="Year" offset={-5} position="insideBottom" />
+    </XAxis>
+    <YAxis>
+      <Label
           value={getYAxisLabel()}
-          angle={-90}
-          position="insideLeft"
-          style={{ textAnchor: "middle" }}
-        />
-      </YAxis>
+        angle={-90}
+        position="insideLeft"
+        style={{ textAnchor: "middle" }}
+      />
+    </YAxis>
       <Tooltip formatter={(value) => formatValue(value as number)} />
       <Legend />
       
@@ -934,7 +1025,7 @@ const ScenarioExplorationChart = ({
       />
       
       {/* Roth Optimizer */}
-      {parameterKey === 'rothOptimizerEnabled' && parameterValues.includes(true) && (
+      {parameterKey === 'rothConversionOpt' && parameterValues.includes(true) && (
         <Line
           type="monotone"
           dataKey="rothOptimizer"
@@ -944,15 +1035,18 @@ const ScenarioExplorationChart = ({
       )}
       
       {/* Numeric parameter values */}
-      {parameterKey !== 'rothOptimizerEnabled' && parameterValues.map((value, index) => {
-        if (typeof value === 'number' && mockScenarioResults[parameterKey] && mockScenarioResults[parameterKey][value]) {
+      {parameterKey !== 'rothConversionOpt' && parameterValues.map((value, index) => {
+        if (typeof value === 'number') {
+          // Safely get the label with a fallback to avoid the error
+          const label = scenarioOptions[parameterKey]?.label || parameterKey;
+          
           return (
             <Line
               key={`${parameterKey}_${value}`}
               type="monotone"
               dataKey={`value_${value}`}
               stroke={colors[(index + 1) % colors.length]}
-              name={`${scenarioOptions[parameterKey].label}: ${value}`}
+              name={`${label}: ${value}`}
             />
           );
         }
@@ -1003,6 +1097,12 @@ const ToggleButton: React.FC<ToggleButtonProps> = ({
 
 /* ---------------- MAIN COMPONENT ---------------- */
 const OpenSimulation: React.FC = () => {
+  // Get planId from URL params
+  const { planId } = useParams();
+  
+  // Log the planId value from useParams at the very beginning
+  console.log("planId from useParams:", planId);
+  
   // State for UI
   const [activeGraph, setActiveGraph] = useState("line");
   const [donutSeries, setDonutSeries] = useState<number[]>([]);
@@ -1070,9 +1170,6 @@ const OpenSimulation: React.FC = () => {
   // State for loading
   const [isLoading, setIsLoading] = useState(false);
   
-  // Get planId from URL params
-  const { planId } = useParams();
-  
   // Add new state variables for order data
   const [investmentOrder, setInvestmentOrder] = useState<string[]>([]);
   const [incomeOrder, setIncomeOrder] = useState<string[]>([]);
@@ -1092,6 +1189,24 @@ const OpenSimulation: React.FC = () => {
   // Add in state variable definition section (near the beginning of the component)
   const [categoryFilter, setCategoryFilter] = useState<'investments' | 'income' | 'expenses' | null>(null);
   
+  // In the state variable section, add a new variable to track if Roth is enabled
+  const [planHasRothEnabled, setPlanHasRothEnabled] = useState<boolean>(false);
+  
+  // Add a new state for scenario results and loading
+  const [scenarioResults, setScenarioResults] = useState<any>(null);
+  const [isScenarioLoading, setIsScenarioLoading] = useState<boolean>(false);
+  const [scenarioError, setScenarioError] = useState<string | null>(null);
+  
+  // Add state variable for simulation count
+  const [simulationCount, setSimulationCount] = useState<number>(3);
+  
+  // Add a new state for tracking if the scenario is running
+  const [isRunningScenario, setIsRunningScenario] = useState(false);
+  
+  // Add a state variable to store the current plan ID regardless of source
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  
+  // Update the useEffect to set the currentPlanId from the URL path
   useEffect(() => {
     const path = window.location.pathname;
     const scenarioId = path.split('/').pop(); // Get the last segment of the URL path
@@ -1100,18 +1215,20 @@ const OpenSimulation: React.FC = () => {
     console.log("Plan ID:", scenarioId);
     console.log("Full URL path:", path);
     
-    // Fetch scenario details to get event series
+    // Store the ID in state for later use
     if (scenarioId) {
+      setCurrentPlanId(scenarioId);
       fetchEventSeries(scenarioId);
       // Add function to fetch simulation object and extract resultsId
       fetchSimulationResultId(scenarioId);
     }
   }, []);
   
-  // Fetch simulation data when planId changes
+  // Fetch simulation data when planId from useParams changes
   useEffect(() => {
     if (planId) {
       console.log("Loading simulation data for plan:", planId);
+      setCurrentPlanId(planId);
       fetchSimulationResultId(planId);
     }
   }, [planId]);
@@ -1423,9 +1540,22 @@ const OpenSimulation: React.FC = () => {
       // Log the raw response to debug
       console.log("API Response:", result);
       
-      // Log event series names if they exist - check both result and result.data paths
+      // Access the plan data
       const plan = result.plan || result.data;
       
+      // Check if plan has Roth Conversion Optimizer enabled
+      if (plan) {
+        // Check for RothConversionOpt attribute
+        const hasRothEnabled = plan.RothConversionOpt === true;
+        console.log("Plan has Roth Conversion Optimizer enabled:", hasRothEnabled);
+        setPlanHasRothEnabled(hasRothEnabled);
+        
+        // Initialize Roth optimizer state based on plan setting
+        setRothOptimizerEnabled(hasRothEnabled);
+        handleOptionChange('rothOptimizerEnabled', hasRothEnabled);
+      }
+      
+      // Log event series names if they exist - check both result and result.data paths
       if (plan && plan.eventSeries && Array.isArray(plan.eventSeries)) {
         console.log("Event Series Names:", plan.eventSeries.map((event: any) => event.name));
         
@@ -1540,6 +1670,12 @@ const OpenSimulation: React.FC = () => {
   };
 
   const handleRothOptimizerChange = (enabled: boolean) => {
+    // Only allow enabling if the plan has Roth enabled
+    if (enabled && !planHasRothEnabled) {
+      console.log("Cannot enable Roth Optimizer - not enabled in original plan");
+      return;
+    }
+    
     setRothOptimizerEnabled(enabled);
     
     // If enabling Roth optimizer, clear numeric option selections
@@ -1589,8 +1725,14 @@ const OpenSimulation: React.FC = () => {
   };
 
   // Generate parameter values based on min/max/step
-  const generateParameterValues = (parameter: string) => {
-    if (!selectedParameter || selectedParameter !== parameter) return [];
+  const generateParameterValues = (parameter: string | null) => {
+    if (!parameter) return [];
+    
+    // Make sure the parameter exists in our parameterValues object
+    if (!(parameter in parameterValues)) {
+      console.warn(`Parameter "${parameter}" not found in parameterValues!`);
+      return [];
+    }
     
     const { min, max, step } = parameterValues[parameter as keyof typeof parameterValues];
     const values = [];
@@ -1599,20 +1741,150 @@ const OpenSimulation: React.FC = () => {
       values.push(value);
     }
     
+    console.log(`Generated parameter values for ${parameter}:`, values);
     return values;
   };
 
   // Function to run scenario with selected parameter
-  const runScenarioWithParameter = () => {
-    if (!selectedParameter) return;
-    
-    console.log("Running scenario with parameter:", {
-      parameter: selectedParameter,
-      event: selectedEvent,
-      values: generateParameterValues(selectedParameter)
-    });
-    
-    setRunScenario(true);
+  const runScenarioWithParameter = async () => {
+    // Check if a parameter has been selected
+    if (!selectedParameter) {
+      setScenarioError("Please select a parameter to modify first.");
+      return;
+    }
+
+    // Make sure we have a valid planId
+    // Use currentPlanId which may come from either useParams or URL path
+    if (!currentPlanId) {
+      setScenarioError("No plan ID available. Please reload the page.");
+      return;
+    }
+
+    setScenarioError('');
+    setIsRunningScenario(true);
+
+    try {
+      console.log(`Running scenario with parameter: ${selectedParameter}`);
+      console.log(`Using plan ID: ${currentPlanId}`);
+      
+      // Get user ID from localStorage
+      const userId = localStorage.getItem("userId");
+      if (!userId) {
+        setScenarioError("User ID not found. Please log in again.");
+        setIsRunningScenario(false);
+        return;
+      }
+
+      // Get user state tax file from localStorage or use a default
+      const stateTaxFile = localStorage.getItem("stateTaxFile") || "state_tax.yaml";
+      
+      // Base request parameters
+      const requestBody: any = {
+        state_tax_file: stateTaxFile,
+        username: localStorage.getItem("name") || "user",
+        id: currentPlanId, // Use the current plan ID from state
+        simulations: simulationCount, // Use user-specified simulation count
+        algorithmType: "1d", // Using 1d since we only have one parameter
+      };
+      
+      // If Roth optimizer is enabled, add Roth parameters
+      if (rothOptimizerEnabled) {
+        console.log("Running scenario with Roth Conversion Optimizer enabled");
+        requestBody.parameters = [{
+          itemType: "rothConversionOpt",
+          itemId: "rothConversionOpt",
+          parameterName: "enabled",
+          min: 1, // true
+          max: 1, // true
+          step: 1
+        }];
+      } 
+      // Otherwise, use selected parameter
+      else if (selectedParameter && selectedEvent) {
+        // Determine itemType based on selectedParameter
+        let itemType = "";
+        let parameterName = selectedParameter;
+        
+        switch (selectedParameter) {
+          case 'startYear':
+            itemType = "start";
+            break;
+          case 'duration':
+            itemType = "duration";
+            break;
+          case 'initialAmount':
+            itemType = "initialAmount";
+            break;
+          case 'investmentPercentage':
+            itemType = "percentage";
+            break;
+          default:
+            console.error("Unknown parameter:", selectedParameter);
+            setScenarioError(`Unknown parameter: ${selectedParameter}`);
+            setIsRunningScenario(false);
+            return;
+        }
+        
+        const { min, max, step } = parameterValues[selectedParameter as keyof typeof parameterValues];
+        
+        // Find the event in the eventSeries
+        const event = eventSeries.find(e => e.name === selectedEvent);
+        if (!event) {
+          setScenarioError(`Event not found: ${selectedEvent}`);
+          setIsRunningScenario(false);
+          return;
+        }
+        
+        // Add parameter details to request
+        requestBody.parameters = [{
+          itemType,
+          itemId: selectedEvent, // Use event name as ID
+          parameterName,
+          min,
+          max,
+          step
+        }];
+        
+        console.log("Running scenario with parameters:", {
+          parameter: selectedParameter,
+          itemType,
+          event: selectedEvent,
+          min,
+          max,
+          step
+        });
+      } else {
+        setScenarioError("No parameter selected for scenario exploration");
+        setIsRunningScenario(false);
+        return;
+      }
+      
+      console.log('Scenario API request:', requestBody);
+
+      const response = await fetch('http://localhost:5000/api/simulations/simulate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Scenario API response:', data);
+
+      // Store the results
+      setScenarioResults(data.data || data);
+      setRunScenario(true);
+    } catch (error) {
+      console.error('Error running scenario:', error);
+      setScenarioError(`Failed to run scenario: ${error.message}`);
+    } finally {
+      setIsRunningScenario(false);
+    }
   };
 
   const renderNormalGraphs = () => (
@@ -1669,24 +1941,152 @@ const OpenSimulation: React.FC = () => {
         padding: '20px',
         borderRadius: '8px'
       }}>
-        {/* Roth Optimizer Option */}
-        <ScenarioOptionSelector
-          option={scenarioOptions.rothOptimizerEnabled}
-          values={optionValues.rothOptimizerEnabled as boolean}
-          onChange={(value) => handleRothOptimizerChange(value as boolean)}
-        />
+        {/* Simulation Count Input */}
+        <div style={{ marginBottom: 15 }}>
+          <div style={{ marginBottom: 5, fontWeight: 'bold' }}>Number of Simulations</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input 
+                type="number" 
+                value={simulationCount}
+                min={1}
+                max={10}
+                step={1}
+                onChange={(e) => setSimulationCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  width: '120px',
+                  marginRight: '10px'
+                }}
+              />
+              <div style={{ fontSize: '0.9em', color: '#666' }}>
+                (Min: 1, Max: 10)
+              </div>
+            </div>
+            
+            <div style={{ width: '100%' }}>
+              <input 
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={simulationCount}
+                onChange={(e) => setSimulationCount(parseInt(e.target.value))}
+                style={{ width: '100%' }}
+              />
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                fontSize: '0.8em', 
+                color: '#777',
+                marginTop: '2px'
+              }}>
+                <span>1</span>
+                <span>3</span>
+                <span>5</span>
+                <span>7</span>
+                <span>10</span>
+              </div>
+            </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              fontSize: '0.85em', 
+              marginTop: '5px',
+              backgroundColor: simulationCount < 3 ? '#fff3cd' :
+                        simulationCount < 5 ? '#d4edda' :
+                        simulationCount < 8 ? '#cce5ff' : '#e2e3e5',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              color: '#333'
+            }}>
+              <div style={{ 
+                width: '10px', 
+                height: '10px', 
+                borderRadius: '50%',
+                backgroundColor: simulationCount < 3 ? '#ffc107' :
+                          simulationCount < 5 ? '#28a745' :
+                          simulationCount < 8 ? '#0d6efd' : '#6c757d',
+                marginRight: '8px'
+              }}></div>
+              {simulationCount < 3 ? 
+                'Quick but less accurate results' :
+                simulationCount < 5 ? 
+                'Good balance of speed and accuracy' :
+                simulationCount < 8 ?
+                'More accurate but slower processing' :
+                'Maximum accuracy, longest processing time'}
+            </div>
+          </div>
+        </div>
+
+        {/* Roth Optimizer Option - only show if plan has it enabled */}
+        {planHasRothEnabled ? (
+          <div style={{ marginBottom: 15 }}>
+            <div style={{ marginBottom: 5, fontWeight: 'bold' }}>Roth Conversion Optimizer</div>
+            <div>
+              <label style={{ marginRight: 20 }}>
+                <input 
+                  type="checkbox" 
+                  checked={rothOptimizerEnabled} 
+                  onChange={() => handleRothOptimizerChange(!rothOptimizerEnabled)}
+                /> 
+                Enable Roth Conversion Optimizer
+              </label>
+              <div style={{ fontSize: '0.9em', color: '#666', marginTop: 5 }}>
+                This plan has Roth Conversion Optimizer available. You can toggle it on or off.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 15, opacity: 0.6 }}>
+            <div style={{ marginBottom: 5, fontWeight: 'bold' }}>Roth Conversion Optimizer</div>
+            <div>
+              <label style={{ marginRight: 20 }}>
+                <input 
+                  type="checkbox" 
+                  disabled={true}
+                  checked={false}
+                /> 
+                Enable Roth Conversion Optimizer
+              </label>
+              <div style={{ fontSize: '0.9em', color: '#666', marginTop: 5 }}>
+                This plan does not have Roth Conversion Optimizer enabled. You cannot modify this setting.
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Event Selection Section */}
         {eventSeries.length > 0 && (
           <div style={{ margin: '20px 0', padding: '15px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+            {rothOptimizerEnabled && (
+              <div style={{ 
+                padding: '10px', 
+                marginBottom: '15px', 
+                backgroundColor: '#e6f7ef', 
+                border: '1px solid #7EC995', 
+                borderRadius: '5px',
+                fontSize: '0.9em'
+              }}>
+                <strong>Note:</strong> Event parameters are locked when Roth Conversion Optimizer is enabled. 
+                Disable the optimizer above to modify event parameters.
+              </div>
+            )}
+            
             <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Select an Event to Modify:</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
               {eventSeries.map((event, index) => (
                 <button
                   key={index}
                   onClick={() => {
-                    setSelectedEvent(event.name);
-                    setSelectedParameter(null);
+                    if (!rothOptimizerEnabled) {
+                      setSelectedEvent(event.name);
+                      setSelectedParameter(null);
+                    }
                   }}
                   style={{
                     padding: '8px 12px',
@@ -1694,16 +2094,18 @@ const OpenSimulation: React.FC = () => {
                     color: selectedEvent === event.name ? 'white' : '#333',
                     border: 'none',
                     borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: selectedEvent === event.name ? 'bold' : 'normal'
+                    cursor: rothOptimizerEnabled ? 'not-allowed' : 'pointer',
+                    fontWeight: selectedEvent === event.name ? 'bold' : 'normal',
+                    opacity: rothOptimizerEnabled ? 0.6 : 1
                   }}
+                  disabled={rothOptimizerEnabled}
                 >
                   {event.name} ({event.type})
                 </button>
               ))}
             </div>
             
-            {selectedEvent && (
+            {selectedEvent && !rothOptimizerEnabled && (
               <div>
                 <div style={{ fontWeight: 'bold', marginBottom: '15px' }}>
                   Select one parameter to modify (you can only select one at a time):
@@ -1713,7 +2115,7 @@ const OpenSimulation: React.FC = () => {
                   {/* START YEAR PARAMETER */}
                   <div 
                     className={`parameter-option ${selectedParameter && selectedParameter !== 'startYear' ? 'disabled' : ''}`}
-            style={{
+                    style={{
                       padding: '15px', 
                       backgroundColor: selectedParameter === 'startYear' ? '#e6f7ef' : '#fff', 
                       border: `1px solid ${selectedParameter === 'startYear' ? '#7EC995' : '#ddd'}`,
@@ -2087,25 +2489,147 @@ const OpenSimulation: React.FC = () => {
               </div>
             )}
             
+            {selectedEvent && rothOptimizerEnabled && (
+              <div style={{ 
+                padding: '15px', 
+                backgroundColor: '#f5f5f5', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#666'
+              }}>
+                <p style={{ margin: '0 0 10px 0' }}>
+                  <i className="fas fa-lock" style={{ marginRight: '8px' }}></i>
+                  Parameters are locked while Roth Conversion Optimizer is enabled
+                </p>
+                <p style={{ margin: 0, fontSize: '0.9em' }}>
+                  Disable the Roth Conversion Optimizer above to modify event parameters
+                </p>
+              </div>
+            )}
+            
+            {/* Run button */}
             <button
               onClick={runScenarioWithParameter}
+              disabled={!selectedParameter || isRunningScenario || rothOptimizerEnabled}
               style={{
-                padding: '12px 24px',
-                backgroundColor: '#7EC995',
+                padding: '10px 20px',
+                backgroundColor: !selectedParameter || rothOptimizerEnabled ? '#ccc' : '#4285F4',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '16px',
+                cursor: !selectedParameter || isRunningScenario || rothOptimizerEnabled ? 'not-allowed' : 'pointer',
+                marginTop: '15px',
                 fontWeight: 'bold',
-                marginTop: '20px',
-                display: 'block',
-                margin: '20px auto 0'
+                width: '100%'
               }}
-              disabled={!selectedEvent || !selectedParameter}
             >
-              Run Scenario With Selected Parameters
+              {isRunningScenario ? 'Running Scenario...' : 'Run Scenario'}
             </button>
+
+            {/* Loading indicator */}
+            {isRunningScenario && (
+              <div style={{ textAlign: 'center', margin: '20px 0' }}>
+                <div style={{ 
+                  display: 'inline-block',
+                  width: '50px',
+                  height: '50px',
+                  border: '5px solid #f3f3f3',
+                  borderTop: '5px solid #7EC995',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }}></div>
+                <style>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+                <p style={{ marginTop: '10px' }}>Running scenario exploration...</p>
+              </div>
+            )}
+
+            {/* Debug information - only shown if there's an error */}
+            {scenarioError && (
+              <div style={{ 
+                margin: '10px 0 0 0', 
+                padding: '10px', 
+                backgroundColor: '#f8f9fa', 
+                border: '1px dashed #ccc',
+                borderRadius: '4px',
+                fontSize: '0.85em',
+                color: '#666',
+                textAlign: 'left'
+              }}>
+                <div><strong>Debug Info:</strong></div>
+                <div>Current Plan ID: {currentPlanId ? `"${currentPlanId}"` : 'null'}</div>
+                <div>URL Plan ID: {planId ? `"${planId}"` : 'null'}</div>
+                <div>Parameters: {JSON.stringify({
+                  selectedParameter,
+                  selectedEvent,
+                  paramValues: selectedParameter ? parameterValues[selectedParameter as keyof typeof parameterValues] : null,
+                })}</div>
+                <div>Path: {window.location.pathname}</div>
+                <div style={{ marginTop: '10px' }}>
+                  <button 
+                    onClick={() => {
+                      const path = window.location.pathname;
+                      const id = path.split('/').pop(); 
+                      console.log("Manually extracted ID:", id);
+                      if (id) {
+                        setCurrentPlanId(id);
+                        console.log("Set currentPlanId to:", id);
+                      }
+                    }}
+                    style={{
+                      padding: '5px 10px',
+                      fontSize: '0.9em',
+                      backgroundColor: '#e9ecef',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Try Manual ID Extraction
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {scenarioError && (
+              <div style={{ 
+                margin: '20px 0', 
+                padding: '15px', 
+                backgroundColor: '#ffe0e0', 
+                borderRadius: '8px',
+                color: '#d32f2f',
+                textAlign: 'center'
+              }}>
+                <p style={{ margin: 0, fontWeight: 'bold' }}>Error</p>
+                <p style={{ margin: '5px 0 0 0' }}>{scenarioError}</p>
+              </div>
+            )}
+
+            {/* Scenario results */}
+            {runScenario && scenarioResults && (
+              <div style={{ marginTop: 20 }}>
+                <h3 style={{ textAlign: 'center', marginBottom: 15 }}>Scenario Results</h3>
+                {/* Debug logging */}
+                {console.log("Rendering scenario results with:", {
+                  parameterKey: rothOptimizerEnabled ? "rothConversionOpt" : selectedEvent || "",
+                  usingRoth: rothOptimizerEnabled,
+                  selectedEvent,
+                  selectedParameter,
+                  values: rothOptimizerEnabled ? [true] : selectedParameter ? generateParameterValues(selectedParameter) : []
+                })}
+                <ScenarioExplorationChart
+                  parameterKey={rothOptimizerEnabled ? "rothConversionOpt" : selectedEvent || ""}
+                  parameterValues={rothOptimizerEnabled ? [true] : selectedParameter ? generateParameterValues(selectedParameter) : []}
+                  metric={scenarioMetric}
+                  customData={scenarioResults}
+                />
+              </div>
+            )}
           </div>
         )}
         
@@ -2131,18 +2655,6 @@ const OpenSimulation: React.FC = () => {
             Total Investments
             </label>
         </div>
-        
-        {/* Scenario results */}
-        {runScenario && (
-          <div style={{ marginTop: 20 }}>
-            <h3 style={{ textAlign: 'center', marginBottom: 15 }}>Scenario Results</h3>
-            <ScenarioExplorationChart
-              parameterKey={selectedEvent}
-              parameterValues={[2021, 2022, 2023, 2024, 2025]} // Sample values, replace with actual parameter values
-              metric={scenarioMetric}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -2447,8 +2959,8 @@ const ShadedLineChart = ({
                     )
                   }
                 />
-              </div>
-            </div>
+        </div>
+      </div>
 
             {selectedGraphs.includes("shaded") && (
               <div style={{ marginTop: 20 }}>
@@ -2466,7 +2978,7 @@ const ShadedLineChart = ({
                     }
                   />
                 ))}
-              </div>
+        </div>
             )}
 
             {selectedGraphs.includes("stacked") && (
@@ -2484,19 +2996,19 @@ const ShadedLineChart = ({
                       />
                       <ToggleButton
                         label="Investments Only"
-                        value="investments"
+                value="investments"
                         selected={categoryFilter === 'investments'}
                         onToggle={() => setCategoryFilter('investments')}
                       />
                       <ToggleButton
                         label="Income Only"
-                        value="income"
+                value="income"
                         selected={categoryFilter === 'income'}
                         onToggle={() => setCategoryFilter('income')}
                       />
                       <ToggleButton
                         label="Expenses Only"
-                        value="expenses"
+                value="expenses"
                         selected={categoryFilter === 'expenses'}
                         onToggle={() => setCategoryFilter('expenses')}
                       />
@@ -2526,7 +3038,7 @@ const ShadedLineChart = ({
                   <div style={{ marginTop: 15 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Aggregation Threshold: ${aggregationThreshold.toLocaleString()}</span>
-                      <input
+              <input
                         type="range"
                         min="0"
                         max="50000"
@@ -2556,8 +3068,8 @@ const ShadedLineChart = ({
                   aggregationThreshold={aggregationThreshold}
                   categoryFilter={categoryFilter}
                 />
-              </div>
-            )}
+          </div>
+        )}
             <hr style={{height: "4px",backgroundColor: "#568f67", border: "none", margin: "20px 0"}} />
           
             {/* Graphs display */}
