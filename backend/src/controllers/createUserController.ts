@@ -1,6 +1,6 @@
-import User from "../models/User";
 import { v4 as uuidv4 } from "uuid";
 import FinancialPlan from "../models/FinancialPlan";
+import User from "../models/User";
 
 // backend addUser when login detects Google Login without a account
 export const addUser = async (req: any, res: any) => {
@@ -128,10 +128,8 @@ export const sharePlanWithUser = async (req: any, res: any) => {
                 message: "User email and plan ID are required"
             });
         }
-        
-        
+
         const user = await User.findOne({ email });
-        
         if (!user) {
             return res.status(404).json({
                 status: "ERROR",
@@ -139,8 +137,7 @@ export const sharePlanWithUser = async (req: any, res: any) => {
                 message: "User not found with this email"
             });
         }
-        
-        
+
         const plan = await FinancialPlan.findById(planId);
         if (!plan) {
             return res.status(404).json({
@@ -149,28 +146,39 @@ export const sharePlanWithUser = async (req: any, res: any) => {
                 message: "Plan not found"
             });
         }
-        
-        
+
         if (!user.sharedPlans) {
             user.sharedPlans = [];
         }
-        
+
+        let planShared = false;
+
         if (!user.sharedPlans.includes(planId)) {
             user.sharedPlans.push(planId);
             await user.save();
-            
-            return res.status(200).json({
-                status: "SUCCESS",
-                error: false,
-                message: "Plan shared successfully"
-            });
-        } else {
-            return res.status(200).json({
-                status: "SUCCESS",
-                error: false,
-                message: "Plan was already shared with this user"
-            });
+            planShared = true;
         }
+
+        if (!plan.sharedUsersId) {
+            plan.sharedUsersId = [];
+        }
+
+        if (!plan.sharedUserPerms) {
+            plan.sharedUserPerms = [];
+        }
+
+        if (user.googleId && !plan.sharedUsersId.includes(user.googleId)) {
+            plan.sharedUsersId.push(user.googleId);
+            plan.sharedUserPerms.push("view"); 
+            await plan.save();
+        }
+
+        return res.status(200).json({
+            status: "SUCCESS",
+            error: false,
+            message: planShared ? "Plan shared successfully" : "Plan was already shared with this user"
+        });
+
     } catch (error) {
         console.error("Error sharing plan with user:", error);
         return res.status(500).json({
@@ -180,6 +188,8 @@ export const sharePlanWithUser = async (req: any, res: any) => {
         });
     }
 };
+
+
 
 export const getSharedPlans = async (req: any, res: any) => {
     try {
@@ -326,3 +336,27 @@ export const getSharedUsers = async (req: any, res: any) => {
         });
     }
 };
+
+// controllers/createUserController.ts
+export const updateAccess = async (req: any, res:any ) => {
+    const { planId, email, accessLevel } = req.body;
+  
+    try {
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ message: "User not found" });
+  
+      const plan = await FinancialPlan.findById(planId);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+  
+      const index = plan.sharedUsersId.findIndex(id => id === user.googleId);
+      if (index === -1) return res.status(400).json({ message: "User not shared with this plan" });
+  
+      plan.sharedUserPerms[index] = accessLevel;
+      await plan.save();
+  
+      return res.json({ status: "SUCCESS", message: `Access level updated to ${accessLevel}` });
+    } catch (err) {
+      return res.status(500).json({ status: "ERROR", message: "Failed to update access level", error: err });
+    }
+  };
+  
