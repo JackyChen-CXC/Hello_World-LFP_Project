@@ -1205,16 +1205,49 @@ useEffect(() => {
   }
 }, [isEditMode, formData, existingInvestmentTypes]);
 
+useEffect(() => {
+  if (!isEditMode || !formData?.investments?.length || !existingInvestmentTypes.length) return;
+
+  const updatedInvestments = formData.investments.map((inv) => {
+    const matchingType = existingInvestmentTypes.find(
+      (type) => type.name === inv.investmentTypeName
+    );
+
+    return {
+      ...inv,
+      investmentType: matchingType?._id || "",
+    };
+  });
+
+  setFormData((prev) => ({
+    ...prev,
+    investments: updatedInvestments,
+  }));
+}, [isEditMode, formData?.investments, existingInvestmentTypes]);
 
 useEffect(() => {
-  if (!isEditMode || !formData) return;
+  if (!isEditMode || !formData?.investments?.length) return;
 
+  const allInvestmentNames = formData.investments
+    .map(inv => inv.investmentName)
+    .filter(Boolean);
+  const rawOrder = formData.expenseWithdrawalStrategy || [];
+
+  // Keep only valid, unique names
+  const filtered = rawOrder.filter(
+    (name, idx, self) =>
+      allInvestmentNames.includes(name) && self.indexOf(name) === idx
+  );
+
+  // Add missing names at the end
+  const missing = allInvestmentNames.filter(name => !filtered.includes(name));
+  const combined = [...filtered, ...missing];
+
+  setExpenseOrder(combined);
   setRmdOrder(formData.rmdStrategy || []);
   setRothOrder(formData.rothconversionstrategy || []);
-  setExpenseOrder(formData.expenseWithdrawalStrategy || []);
   setSpendingOrder(formData.spendingStrategy || []);
 }, [isEditMode, formData]);
-
 
 
 
@@ -1471,6 +1504,20 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
 
   
   try {
+    formData.investments = formData.investments.map(inv => {
+      const matchingType = [...existingInvestmentTypes, ...localInvestmentTypes].find(
+        type => type._id === inv.investmentType
+      );
+
+      if (!matchingType) {
+        console.error("No matching investment type found for:", inv.investmentTypeName);
+      }
+  
+      return {
+        ...inv,
+        investmentType: matchingType?._id || "", 
+      };
+    });
     const transformedData = transformFormData(formData, rmdOrder, expenseOrder, spendingOrder, rothOrder);
     const usedTypeIds = new Set(
       formData.investments.map((inv) => String(inv.createdTypeId || inv.investmentType))
@@ -1480,6 +1527,16 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
       usedTypeIds.has(String(type._id))
     );    
     
+    const allInvestmentIds = formData.investments.map((inv) => inv.id);
+    const selectedExpenseIds = expenseOrder.map((index) => formData.investments[index]?.id);
+    const missingExpenseIds = allInvestmentIds.filter(id => !selectedExpenseIds.includes(id));
+
+    const completedExpenseOrder = [
+      ...expenseOrder,
+      ...missingExpenseIds.map(
+        id => formData.investments.findIndex((inv) => inv.id === id)
+      ).filter(idx => idx !== -1)
+    ];
     const finalPayload = {
       ...transformedData,
       investmentTypes: usedInvestmentTypes, 
@@ -1488,10 +1545,10 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
         return inv?.investmentName || "";
       }).filter(Boolean),
       
-      expenseWithdrawalStrategy: expenseOrder.map((val, idx) => {
-        const inv = formData.investments.find((inv, i) => i === idx);
+      expenseWithdrawalStrategy: completedExpenseOrder.map((val, idx) => {
+        const inv = formData.investments[val];
         return inv?.investmentName || "";
-      }).filter(Boolean),
+      }).filter(Boolean),      
       
       RothConversionStrategy: rothOrder.map((val, idx) => {
         const inv = formData.investments.find((inv, i) => i === idx);
@@ -1856,9 +1913,10 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
               <option value="">--Select--</option>
               <option value="create_new">-- Create New Investment Type --</option>
               {localInvestmentTypes.map((type) => (
-                <option key={type.name} value={type.name}>
+                <option key={type._id} value={type._id}>
                   {type.name}
                 </option>
+              
               ))}
             </select>
 
@@ -2886,43 +2944,43 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
       </button>
       {/* Inflation */}
       <div className="normal-text">How would you like to assume inflation? <span style={{ color: "#db0404" }}>(*Required*)</span></div>
-<div className="split-container">
-  <div className="left-side">
-    <RadioGroup
-      name="inflationAssumptionType"
-      selectedValue={formData.inflationAssumptionType || ""}
-      onChange={(e) =>
-        setFormData((prev) => ({
-          ...prev,
-          inflationAssumptionType: e.target.value,
-        }))
-      }
-      options={[
-        { label: "Fixed Percentage", value: "fixed" },
-        { label: "Normal Distribution", value: "normal" },
-        { label: "Uniform Distribution", value: "uniform" },
-      ]}
-    />
-  </div>
+      <div className="split-container">
+        <div className="left-side">
+          <RadioGroup
+            name="inflationAssumptionType"
+            selectedValue={formData.inflationAssumptionType || ""}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                inflationAssumptionType: e.target.value,
+              }))
+            }
+            options={[
+              { label: "Fixed Percentage", value: "fixed" },
+              { label: "Normal Distribution", value: "normal" },
+              { label: "Uniform Distribution", value: "uniform" },
+            ]}
+          />
+        </div>
 
-  <div className="right-side">
-    {formData.inflationAssumptionType === "fixed" && (
-      <>
-        <div className="normal-text">Fixed Inflation Rate (%)</div>
-        <input
-          className="input-boxes"
-          type="number"
-          name="inflationAssumptionFixed"
-          value={formData.inflationAssumptionFixed || ""}
-          onChange={(e) =>
-            setFormData((prev) => ({
-              ...prev,
-              inflationAssumptionFixed: e.target.value,
-            }))
-          }
-        />
-      </>
-    )}
+        <div className="right-side">
+          {formData.inflationAssumptionType === "fixed" && (
+            <>
+              <div className="normal-text">Fixed Inflation Rate (%)</div>
+              <input
+                className="input-boxes"
+                type="number"
+                name="inflationAssumptionFixed"
+                value={formData.inflationAssumptionFixed || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    inflationAssumptionFixed: e.target.value,
+                  }))
+                }
+              />
+            </>
+          )}
 
     {formData.inflationAssumptionType === "normal" && (
       <>
