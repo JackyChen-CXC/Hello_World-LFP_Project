@@ -133,7 +133,7 @@ export const createSimulation = async (req: any, res: any) => {
                 step2: 1,
             }
         }
-        console.log(rangeIterator);
+        // console.log(rangeIterator);
 
         writeLog(username, "started running simulations", "csv");
         writeLog(username, "started running simulations", "log");
@@ -160,6 +160,7 @@ export const createSimulation = async (req: any, res: any) => {
         while(rangeIterator.index <= rangeIterator.max){
             // iterate through scenario parameter 2
             while(rangeIterator.index2 <= rangeIterator.max2){
+                console.log("i,j ", rangeIterator.index, rangeIterator.index2);
                 // for each rangeIndex
                 const workerPromises: Promise<any>[] = [];
                 // pseudo-random number generator (PRNG)
@@ -234,15 +235,18 @@ export const createSimulation = async (req: any, res: any) => {
 
                 console.log("Go up one step");
 
+                rangeIndex++;
+
                 // update plan based on parameter 2
                 updateScenarioParameter(plan, rangeIterator, 2);
-                rangeIndex++;
             }
             // update plan based on parameter 1
-            rangeIterator.index2 = min2;
+            rangeIterator.index2 = rangeIterator.min2;
             updateScenarioParameter(plan, rangeIterator, 1);
         }
+        // console.log(rangeIterator);
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
+        // console.log("range: ",totalInvestmentsOverTime.length,", range index: ", rangeIndex);
         const output = generateOutput();
         // 4.1 probability of success
         output.probabilityOverTime = totalInvestmentsOverTime.map(range => probabilityOfSuccess(plan.financialGoal, range));
@@ -274,7 +278,7 @@ export const createSimulation = async (req: any, res: any) => {
         // createLog(username, "input",incomeOverTimeVals);
         // createLog(username, "median output", output.medianIncomeOverTime);
         // createLog(username, "mean output", output.avgIncomeOverTime);
-        console.log(output);
+        // console.log(output);
 
         // OUTPUTS - FOR EACH TYPE OF ALGORITHM
         if(algorithmType === "standard" && result){ // standard
