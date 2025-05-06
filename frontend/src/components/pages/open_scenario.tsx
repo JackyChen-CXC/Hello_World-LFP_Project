@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "../css_files/page_style.css";
 
 interface ScenarioData {
@@ -68,7 +68,8 @@ const OpenScenario = () => {
   const [investmentDetails, setInvestmentDetails] = useState<InvestmentTypeData[]>([]);
   const location = useLocation();
   const dateCreated = (location.state as any)?.dateCreated;
-
+  const navigate = useNavigate();
+  
 
   useEffect(() => {
     const fetchScenario = async () => {

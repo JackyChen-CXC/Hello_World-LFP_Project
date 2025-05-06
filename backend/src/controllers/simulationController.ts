@@ -494,7 +494,7 @@ export const runSimulation = async (req: any, res: any) => {
             const cash = getCash(plan.investments);
             createLog(username, "b4 2, cash:", cash, "\nincome events:",getLifeEventsByType(plan.eventSeries, "income"));
             // retrieve previous year income and updates the incomeEvents after
-            let [incomeEvents, socialSecurity] = updateIncomeEvents(plan.eventSeries, inflationRate, spouseAlive);
+            let [incomeEvents, socialSecurity] = updateIncomeEvents(plan.eventSeries, year, startingYear, inflationRate, spouseAlive);
             // Add the total income to the cash investment
             IncomeOverTime.push(incomeEvents);
             curYearIncome += incomeEvents.reduce((sum: number, val: number) => sum + val, 0);
@@ -629,7 +629,8 @@ export const runSimulation = async (req: any, res: any) => {
         // const end = process.hrtime(start);
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
-        // console.log(IncomeOverTime[0])
+        // console.log(earlyWithdrawalTax);
+        console.log(plan.eventSeries);
 
         res.status(200).json({
             status: "OK",

@@ -11,9 +11,11 @@ interface ScenarioData {
   planType: string;
   financialGoal: string;
   dateCreated: string;
+  isShared?: boolean;
+  sharedAcess?: "view" | "edit"
 }
 
-const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void }> = ({ scenario, onDelete }) => {
+const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void ;refresh: ()=> void}> = ({ scenario, onDelete,refresh }) => {
   const navigate = useNavigate();
 
   return (
@@ -26,35 +28,35 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
       <div className="normal-text">Financial Goal: ${scenario.financialGoal}</div>
       <div className="normal-text">Date Created: {scenario.dateCreated}</div>
       <div style={{ display: "flex", marginLeft: "160px", marginTop: "80px" }}>
-      <img
-          src="/images/edit.png"
-          height={50}
-          width={50}
-          alt="Edit"
-          style={{ cursor: "pointer" }}
-          onClick={async (e) => {
-            e.stopPropagation();
-            try {
-              const response = await fetch(`http://localhost:5000/api/plans/${scenario.id}`);
-              if (!response.ok) throw new Error("Failed to fetch plan details");
-              
-              const planData = await response.json(); // shape { data: {...actualPlanObject...} }
-              
-              navigate("/create-plan", {
-                state: {
-                  formData: planData.data, // <-- pass planData.data instead
-                  isEditing: true,
-                  planId: scenario.id
-                }
-              });
-            } catch (err) {
-              console.error("Failed to load plan for editing", err);
-              alert("Could not load the plan for editing.");
-            }
-          }}
-          
-          
-        />
+        {(scenario.sharedAccess !== "view") && (
+          <img
+            src="/images/edit.png"
+            height={50}
+            width={50}
+            alt="Edit"
+            style={{ cursor: "pointer" }}
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                const response = await fetch(`http://localhost:5000/api/plans/${scenario.id}`);
+                if (!response.ok) throw new Error("Failed to fetch plan details");
+                
+                const planData = await response.json(); 
+                
+                navigate("/create-plan", {
+                  state: {
+                    formData: planData.data, 
+                    isEditing: true,
+                    planId: scenario.id
+                  }
+                });
+              } catch (err) {
+                console.error("Failed to load plan for editing", err);
+                alert("Could not load the plan for editing.");
+              }
+            }}
+          />
+        )}
 
         <img 
           src="/images/share.png" 
@@ -81,31 +83,71 @@ const ScenarioItem: FC<{ scenario: ScenarioData; onDelete: (id: string) => void 
                 if (actionChoice) {
                   // Share with another user
                   shareWithNewUser();
+                
                 } else {
-                  // Manage sharing - ask which user to remove
-                  const emailToRemove = prompt(
-                    `Enter the email address you want to stop sharing with:\n${userList}`
-                  );
-                  
-                  if (emailToRemove) {
-                    // Call API to stop sharing
-                    const stopSharingResponse = await fetch(`http://localhost:5000/api/users/stop-sharing`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        email: emailToRemove,
-                        planId: scenario.id
-                      }),
-                    });
+                    const userList = sharedUsers.map(user => `- ${user.email || user.username}`).join('\n');
+                    const emailToManage = prompt(
+                      `Enter the email of the user you want to manage sharing for:\n${userList}`
+                    );
+                    if (!emailToManage) return;
                     
-                    if (stopSharingResponse.ok) {
-                      alert(`Plan is no longer shared with user ${emailToRemove}`);
-                    } else {
-                      throw new Error("Failed to stop sharing plan");
+                    const manageAction = prompt(
+                      `What would you like to do for ${emailToManage}?\nEnter:\n1 to stop sharing\n2 to update view/edit access.`
+                    );
+                    
+                    if (manageAction === "1") {
+                      // Stop sharing
+                      const stopSharingResponse = await fetch(`http://localhost:5000/api/users/stop-sharing`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          email: emailToManage,
+                          planId: scenario.id
+                        }),
+                      });
+                    
+                      if (stopSharingResponse.ok) {
+                        alert(`Plan is no longer shared with ${emailToManage}`);
+                        refresh();
+                      } else {
+                        alert("Failed to stop sharing.");
+                      }
+                    } else if (manageAction === "2") {
+                      // Update access
+                      const accessLevel = prompt(
+                        `Enter new access level for ${emailToManage}:\nType "edit" for edit access or "view" for view-only access.`
+                      );
+                    
+                      if (accessLevel === "edit" || accessLevel === "view") {
+                        try {
+                          const response = await fetch(`http://localhost:5000/api/users/update-access`, {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              email: emailToManage,
+                              planId: scenario.id,
+                              accessLevel: accessLevel
+                            }),
+                          });
+                    
+                          if (!response.ok) {
+                            throw new Error(`Failed to update access for ${emailToManage}`);
+                          }
+                    
+                          alert(`Access for ${emailToManage} set to "${accessLevel}"`);
+                          refresh();
+                        } catch (err) {
+                          console.error("Error updating access level:", err);
+                          alert("There was a problem updating access level. Please try again.");
+                        }
+                      } else {
+                        alert("Invalid input. Please type either 'edit' or 'view'.");
+                      }
                     }
-                  }
                 }
               } else {
                 // If the plan is not shared, directly ask for a user to share with
@@ -254,7 +296,7 @@ const Scenario: FC = () => {
   
       const result = await response.json();
       const ownedPlans = result.data || [];
-      
+  
       // Fetch user's shared plans
       const sharedResponse = await fetch(`http://localhost:5000/api/users/shared-plans`, {
         method: "POST",
@@ -263,31 +305,44 @@ const Scenario: FC = () => {
         },
         body: JSON.stringify({ userId }),
       });
-      
+  
       let sharedPlans = [];
       if (sharedResponse.ok) {
         const sharedResult = await sharedResponse.json();
         sharedPlans = sharedResult.data || [];
       }
-      
+  
       // Combine owned and shared plans
       const allPlans = [...ownedPlans, ...sharedPlans];
-      
+  
       // Format all plans for display
-      const formatted = allPlans.map((item: any, index: number) => ({
-        id: item._id || index,
-        title: (item.name || "Untitled Plan") + (item.isShared ? " (Shared)" : ""),
-        planType: item.maritalStatus === "couple" ? "Joint" : "Individual",
-        financialGoal: item.financialGoal?.toString() || "N/A",
-        dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
-        isShared: !!item.isShared
-      }));
+      const formatted = allPlans.map((item: any, index: number) => {
+        let sharedAccess: "view" | "edit" | undefined = undefined;
+  
+        if (item.isShared && Array.isArray(item.sharedUserPerms)) {
+          const match = item.sharedUserPerms.find((entry: any) => entry.userId === userId);
+          if (match) {
+            sharedAccess = match.perm;
+          }
+        }
+  
+        return {
+          id: item._id || index,
+          title: (item.name || "Untitled Plan") + (item.isShared ? " (Shared)" : ""),
+          planType: item.maritalStatus === "couple" ? "Joint" : "Individual",
+          financialGoal: item.financialGoal?.toString() || "N/A",
+          dateCreated: new Date(item.createdAt || Date.now()).toLocaleDateString(),
+          isShared: !!item.isShared,
+          sharedAccess,
+        };
+      });
   
       setScenarios(formatted);
     } catch (error) {
       console.error("Error loading scenarios:", error);
     }
   };
+  
   useEffect(() => {
     fetchScenarios();
   }, []);
@@ -439,7 +494,7 @@ const Scenario: FC = () => {
 
       <div className="scenario-grid">
         {scenarios.map((scenario) => (
-          <ScenarioItem key={scenario.id} scenario={scenario} onDelete={handleDeleteScenario} />
+          <ScenarioItem key={scenario.id} scenario={scenario} onDelete={handleDeleteScenario} refresh={fetchScenarios} />
         ))}
       </div>
     </div>
