@@ -1,11 +1,11 @@
-import FinancialPlan, { IInvestment } from "../models/FinancialPlan";
+import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog, createLog } from "./logHelper";
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { fork } from 'child_process';
-import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
+import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, enforceScenarioParameter, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
 
@@ -29,6 +29,23 @@ export interface simulationOutput{
     medianExpensesOverTime: number[][][];
 }
 
+export interface scenarioExplorationParams{
+    algorithmType: string,
+    index: number,
+    min: number,
+    max: number,
+    step: number,
+    index2: number,
+    min2: number,
+    max2: number,
+    step2: number,
+
+    itemId?: string,
+    itemType?: string,
+    itemId2?: string,
+    itemType2?: string,
+}
+
 // Create Simulation object using Financial Plan object
 export const createSimulation = async (req: any, res: any) => {
 
@@ -37,6 +54,8 @@ export const createSimulation = async (req: any, res: any) => {
         // itemType -> rothConversionOpt, start, duration, initalAmount, percentage
         // itemType2 -> start, duriation, initalAmount, percentage
         let { state_tax_file, username, id, simulations, algorithmType, itemType, itemId, min, max, step, itemType2, itemId2, min2, max2, step2} = req.body;
+
+        console.log("new simulation", state_tax_file, username, id, simulations, algorithmType, itemType, itemId, min, max, step, itemType2, itemId2, min2, max2, step2);
 
         // Get specific financial plan to simulate
         const plan = await FinancialPlan.findById(id);
@@ -65,19 +84,56 @@ export const createSimulation = async (req: any, res: any) => {
 
         writeLog(username, "started running/queued simulation", "csv");
 
+        // set up Scenario Exploration Params
+        let rangeIterator: scenarioExplorationParams;
         if( (algorithmType === "1d" || algorithmType === "2d") && itemType && itemId && min && max && step){
             console.log("scenario parameter 1 defined");
             if(algorithmType === "2d" && itemType2 && itemId2 && min2 && max2 && step2){
                 console.log("scenario parameter 2 defined");
+                rangeIterator = {
+                    algorithmType: algorithmType,
+                    index: min,
+                    min: min,
+                    max: max,
+                    step: step,
+                    itemId: itemId,
+                    itemType: itemType,
+                    index2: min2,
+                    min2: min2,
+                    max2: max2,
+                    step2: step2,
+                    itemId2: itemId2,
+                    itemType2: itemType2,
+                };
+            } else{
+                rangeIterator = {
+                    algorithmType: algorithmType,
+                    index: min,
+                    min: min,
+                    max: max,
+                    step: step,
+                    itemId: itemId,
+                    itemType: itemType,
+                    index2: 0,
+                    min2: 0,
+                    max2: 0,
+                    step2: 1,
+                };
             }
         } else{ // fix scenario parameter 1 && 2 to single run
-            min = 0;
-            max = 1;
-            step = 1;
-            min2 = 0;
-            max2 = 1;
-            step2 = 1;
+            rangeIterator = {
+                algorithmType: algorithmType,
+                index: 0,
+                min: 0,
+                max: 0,
+                step: 1,
+                index2: 0,
+                min2: 0,
+                max2: 0,
+                step2: 1,
+            }
         }
+        // console.log(rangeIterator);
 
         writeLog(username, "started running simulations", "csv");
         writeLog(username, "started running simulations", "log");
@@ -99,15 +155,18 @@ export const createSimulation = async (req: any, res: any) => {
 
         const workerPath = path.resolve(__dirname, 'simulationWorker.ts');
 
-        let completed = 0;
         let rangeIndex = 0;
         // iterate through scenario parameter 1
-        for(let p1 = min; p1 < max; p1+=step){
+        while(rangeIterator.index <= rangeIterator.max){
             // iterate through scenario parameter 2
-            for(let p2 = min2; p2 < max2; p2+=step2){
+            while(rangeIterator.index2 <= rangeIterator.max2){
+                console.log("i,j ", rangeIterator.index, rangeIterator.index2);
                 // for each rangeIndex
                 const workerPromises: Promise<any>[] = [];
-                for(let i=0; i<total_worker; i++){
+                // pseudo-random number generator (PRNG)
+                const baseSeed = 12345;
+
+                for(let i = 0; i < total_worker; i++){
                     // initalize new nested arrays
                     totalInvestmentsOverTime[rangeIndex] = [];
                     totalIncomeOverTime[rangeIndex] = [];
@@ -118,7 +177,7 @@ export const createSimulation = async (req: any, res: any) => {
                     totalYearlyExpenses[rangeIndex] = [];
 
                     const numSimulations = simulation_per_worker + (i < extra_simulation ? 1 : 0);
-                    const tempPlan = deepCopyDocument(plan);
+
                     const workerPromise = new Promise((resolve, reject) => {
                         const child = fork(workerPath, [], {
                             execArgv: ['-r', 'ts-node/register'],
@@ -133,11 +192,12 @@ export const createSimulation = async (req: any, res: any) => {
                                     state_tax_file,
                                     username,
                                     id,
-                                    plan: tempPlan
+                                    params: rangeIterator,
                                 }
                             },
                             numSimulations: numSimulations,
-                            workerId: i
+                            workerId: i,
+                            seed: baseSeed,
                         });
 
                         
@@ -166,11 +226,6 @@ export const createSimulation = async (req: any, res: any) => {
                             console.error(`Worker ${i} error:`, err);
                             reject(err);
                         });
-
-                        child.on('error', (err) => {
-                            console.error(`Worker ${i} error:`, err);
-                            reject(err);
-                        });
                     });
                     workerPromises.push(workerPromise);
                 }
@@ -178,19 +233,21 @@ export const createSimulation = async (req: any, res: any) => {
                 // wait for all to finish
                 await Promise.all(workerPromises);
 
-                // update plan based on parameter 2
-                if(algorithmType === "2d"){
-                    updateScenarioParameter(plan, itemType2, itemId2);
-                }
+                console.log("Go up one step");
+
                 rangeIndex++;
+
+                // update plan based on parameter 2
+                updateScenarioParameter(plan, rangeIterator, 2);
             }
             // update plan based on parameter 1
-            if(algorithmType === "1d" || algorithmType === "2d"){
-                updateScenarioParameter(plan, itemType, itemId);
-            }
+            rangeIterator.index2 = rangeIterator.min2;
+            updateScenarioParameter(plan, rangeIterator, 1);
         }
+        // console.log(rangeIterator);
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
-        const output = generateOutput(plan.financialGoal);
+        // console.log("range: ",totalInvestmentsOverTime.length,", range index: ", rangeIndex);
+        const output = generateOutput();
         // 4.1 probability of success
         output.probabilityOverTime = totalInvestmentsOverTime.map(range => probabilityOfSuccess(plan.financialGoal, range));
         // 4.2 range
@@ -218,6 +275,9 @@ export const createSimulation = async (req: any, res: any) => {
         output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
         output.expensesOrder.push(...taxOrder);
 
+        // createLog(username, "input",incomeOverTimeVals);
+        // createLog(username, "median output", output.medianIncomeOverTime);
+        // createLog(username, "mean output", output.avgIncomeOverTime);
         // console.log(output);
 
         // OUTPUTS - FOR EACH TYPE OF ALGORITHM
@@ -279,22 +339,22 @@ export const createSimulation = async (req: any, res: any) => {
     }
 };
 
-
 export type purchasePrice = {
     id: string;
     purchase_price: number;
 };
 
+
 // Oversee Simulation algorithm and configure SimulationResult
 export const runSimulation = async (req: any, res: any) => {
     // Get financial plan, simulation & create simulationResult
     // const start = process.hrtime();
-    const { state_tax_file, username, id, plan } = req.body;
+    const { state_tax_file, username, id, params } = req.body;
     
 
     try {
         createLog(username, "running a simulation");
-        const planOriginal = await FinancialPlan.findById(id); // WHY THE FUCK I NEED THIS FOR TAX TO RUN????
+        const plan = await FinancialPlan.findById(id); // WHY THE FUCK I NEED THIS FOR TAX TO RUN????
         // const simulation = await Simulation.findById(simulationId);
         // const result = await SimulationResult.findOne({ simulationId: simulationId});
 
@@ -304,6 +364,8 @@ export const runSimulation = async (req: any, res: any) => {
             return;
             // return res.status(404).json({ error: 'Items not found.' });
         }
+        enforceScenarioParameter(plan, params);
+        // console.log(plan.eventSeries);
 
         // 1,000–10,000 simulations → good starting range
         // const num_simulations = simulations || 1000;
@@ -333,7 +395,6 @@ export const runSimulation = async (req: any, res: any) => {
         let glidePathValue = true;
         
         let list_of_purchase_price: Record<string, purchasePrice> = {};
-
         plan.investments.forEach((inv: any) => {
             list_of_purchase_price[inv.id] = {
                 id: inv.id,
@@ -341,6 +402,7 @@ export const runSimulation = async (req: any, res: any) => {
             };
         });
 
+        let investmax = 0;
         // get number of loops (start -> user's death)
         const lifeExpectancy = generateFromDistribution(plan.lifeExpectancy[0]);
         if(!lifeExpectancy){
@@ -353,8 +415,8 @@ export const runSimulation = async (req: any, res: any) => {
             // });
         }
 
-        const num_years = 3;
-        //const num_years = lifeExpectancy - age;
+        //const num_years = 3;
+        const num_years = lifeExpectancy - age;
         // get specified spouse year of death if spouse exists
         let spouseExpectancy: number | undefined;
         let spouseYears: number | undefined;
@@ -441,9 +503,8 @@ export const runSimulation = async (req: any, res: any) => {
             createLog(username, "after 2, cash:", cash, "\nsocial security", socialSecurity,"\nincome events:",getLifeEventsByType(plan.eventSeries, "income"));
             writeLog(username, "Ran all income events", "log");
 
-            // 3. perform RMD for last year if simulated age == 74 
-            //and with tax-status pretax and that it's a positive value
-            if(age+year >= 74 && (plan.investments?.some((inv: IInvestment) => inv.taxStatus === "pre-tax" && inv.value > 0))){
+            // 3. perform RMD for last year if simulated age == 74
+            if(age+year >= 74 && (plan.investments?.some((inv: any) => inv.taxStatus === "pre-tax" && inv.value > 0))){
                 createLog(username, "b4 3, investments:", plan.investments);
                 const rmd = await calculateRMD(plan, age + year, curYearIncome);
                 if ( rmd == -1 ){
@@ -455,11 +516,11 @@ export const runSimulation = async (req: any, res: any) => {
                 createLog(username, "after 3, investments:", plan.investments);
                 writeLog(username, "performed RMD for last year", "log");
             }
-            createLog(username, `b4 4, total_asset: ${getTotalAssetValue(plan.investments)}`);
+
             
             // 4. Update investments, expected annual return, reinvestment of income, then expenses.
             createLog(username, `total expense before part4: ${curYearExpenses}`);
-            createLog(username, `b4 4, investments: ${JSON.stringify(plan.investments)}, curYearIncome: ${curYearIncome}`);
+            createLog(username, `b4 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}`);
             createLog(username, `total expense after part4: ${curYearExpenses}`);
             // return [currentYearIncome, taxable_income, non_taxable_income];
             const incomes = calculateInvestmentValue(plan, curYearIncome);
@@ -467,34 +528,29 @@ export const runSimulation = async (req: any, res: any) => {
             const taxable_income = incomes[1];
             const non_taxable_income = incomes[2];
             curYearExpenses += incomes[3];
-            createLog(username, `after 4, investments: ${JSON.stringify(plan.investments)}, curYearIncome: ${curYearIncome}, taxable_income ${taxable_income}, non_taxable_income: ${non_taxable_income}`);
+            createLog(username, `after 4, investments: ${plan.investments}, curYearIncome: ${curYearIncome}, taxable_income ${taxable_income}, non_taxable_income: ${non_taxable_income}`);
             writeLog(username, "Updated value of investments", "log");
 
-            createLog(username, `b4 5, total_asset: ${getTotalAssetValue(plan.investments)}`);
             // 5. Run the Roth conversion (RC) optimizer, if it is enabled.
             const status = spouseAlive ? "married" : "single";
             if (plan.RothConversionOpt == true && startingYear+year >= plan.RothConversionStart && startingYear+year < plan.RothConversionEnd){
-                createLog(username, `b4 5, curYearIncome: ${curYearIncome}, socialSecurity: ${socialSecurity}, investments ${JSON.stringify(plan.investments)}`);
+                createLog(username, `b4 5, curYearIncome: ${curYearIncome}, socialSecurity: ${socialSecurity}, investments ${plan.investments}`);
                 curYearIncome = performRothOptimizer(plan, curYearIncome, socialSecurity, status, federal_tax_bracket, standard_deduction_bracket);
-                createLog(username, `after 5, curYearIncome: ${curYearIncome}, investments ${JSON.stringify(plan.investments)}`);
+                createLog(username, `after 5, curYearIncome: ${curYearIncome}, investments ${plan.investments}`);
                 writeLog(username, "Ran the Roth conversion (RC) optimizer", "log");
             }
-            createLog(username, `after 5, total_asset: ${getTotalAssetValue(plan.investments)}`);
             
             createLog(username, "b4 6, cash:", cash);
             // // 6. Pay non-discretionary expenses and the previous year's taxes (Pre-tax -> +curYearIncome)
             createLog(username, `total expense before part6: ${curYearExpenses}`);
             createLog(username, `b4 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
 
-      
-            createLog(username, `b4 6, total_asset: ${getTotalAssetValue(plan.investments)}`);
-            writeLog(username, `investments ${JSON.stringify(plan.investments)}`,"log");
+
             const vals = payNonDiscretionary(plan, previousYearIncome, previousYearSocialSecurityIncome, status, plan.residenceState, 
                 previousYearGain, previousYearEarlyWithdrawals, age, year, startingYear, curYearIncome, currentYearGain, currentYearEarlyWithdrawal,
                 standard_deduction_bracket, federal_tax_bracket, capital_tax_bracket, state_tax_bracket, list_of_purchase_price);
             
-            createLog(username, `after 6, total_asset: ${getTotalAssetValue(plan.investments)}`);
-            createLog( username, `investments ${JSON.stringify(plan.investments)}`,"log");
+                
             // TODO - add federal & state tax
             curYearIncome = vals[0];
             currentYearGain = vals[1];
@@ -516,33 +572,29 @@ export const runSimulation = async (req: any, res: any) => {
             const total_asset = getTotalAssetValue(plan.investments);
             // currYearIncome, currentYearGain, currentYearEarlyWithdrawal
             createLog(username, `b4 7, total_asset: ${total_asset}, curYearIncome: ${curYearIncome}, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
-            writeLog( username,`investments ${JSON.stringify(plan.investments)}`,"log");
-            const vals2 = payDiscretionary(plan, total_asset, curYearIncome, currentYearGain, currentYearEarlyWithdrawal, age, year, startingYear, list_of_purchase_price);
+            const vals2 = payDiscretionary(plan, total_asset, curYearIncome, currentYearGain, currentYearEarlyWithdrawal, age, year, startingYear,list_of_purchase_price);
             // TODO - OUTPUT expense output didn't add taxes
             curYearIncome = vals2[0];
             currentYearGain = vals2[1];
             currentYearEarlyWithdrawal = vals2[2];
             createLog(username, `after 7, curYearIncome: ${curYearIncome}, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
-            writeLog( username,`investments ${JSON.stringify(plan.investments)}`,"log");
             //console.log("PERCETNAGHE",vals2[3]);
             percentageTotalDiscretionary.push(vals2[3]);
             writeLog(username, "Paid discretionary expenses", "log");
 
-            createLog(username, "after4 7, cash:", cash);
             // // 8. Run the invest events scheduled for the current year
-            writeLog(username, `b4 8, investments: ${JSON.stringify(plan.investments)}`,"log");
-            const my_investment = plan.eventSeries.filter((inv: any) => inv.type === "invest");
-            runInvestEvents(plan, glidePathValue,list_of_purchase_price);
-            writeLog(username, `after 8, investments: ${JSON.stringify(plan.investments)}`,"log");
+            createLog(username, `b4 8, investments: ${JSON.stringify(plan.investments)}`);
+            runInvestEvents(plan, glidePathValue,list_of_purchase_price, investmax);
+            createLog(username, `after 8, investments: ${JSON.stringify(plan.investments)}`);
             glidePathValue = !glidePathValue;
             
             
             writeLog(username, "Ran the invest events", "log");
         
             // // 9. Run rebalance events scheduled for the current year
-            writeLog(username, `b4 9, currentYearGain: ${currentYearGain}, investments: ${JSON.stringify(plan.investments)}`,"log");
-            currentYearGain = runRebalance(plan, currentYearGain, status, capital_tax_bracket, list_of_purchase_price);
-            writeLog(username, `after 9, currentYearGain: ${currentYearGain}, investments: ${JSON.stringify(plan.investments)}`,"log");
+            createLog(username, `b4 9, currentYearGain: ${currentYearGain}, investments: ${JSON.stringify(plan.investments)}`);
+            currentYearGain = runRebalance(plan, currentYearGain, status, capital_tax_bracket,list_of_purchase_price);
+            createLog(username, `after 9, currentYearGain: ${currentYearGain}, investments: ${JSON.stringify(plan.investments)}`);
 
             writeLog(username, "Ran rebalance events", "log");
         
@@ -573,59 +625,11 @@ export const runSimulation = async (req: any, res: any) => {
             currentYearEarlyWithdrawal = 0;
         
         }
-        // reset financial plan
-        // plan = await FinancialPlan.findById(id);
-        // if (!plan) {
-        //     return;
-        //     // return res.status(404).json({ error: 'Financial Plan not found.' });
-        // }
-
-        // OUTPUT - hash simulation raw values into total arrays
-        // hashIntoTotal(totalInvestmentsOverTime, InvestmentsOverTime);
-        // hashIntoTotal(totalIncomeOverTime, IncomeOverTime);
-        // hashIntoTotal(totalYealyIncome, yearlyIncome);
-        // hashIntoTotal(totalExpensesOverTime, ExpensesOverTime);
-        // hashIntoTotal(totalYearlyExpenses, yearlyExpenses);
-        // hashIntoTotal(totalEarlyWithdrawalTax, earlyWithdrawalTax);
-        // hashIntoTotal(totalPercentageTotalDiscretionary, percentageTotalDiscretionary);
-        //}
-        // OUTPUT - compute the raw values into simulationResult (4.1 probability of success, 4.2 range and 4.3 mean/median values)
-        // 4.1 probability of success
-        // result.probabilityOverTime = probabilityOfSuccess(plan.financialGoal, totalInvestmentsOverTime);
-        // // 4.2 range
-        // result.financialGoal = plan.financialGoal;
-        // result.investmentOrder = plan.investments.map(investments => investments.id);
-        // result.investmentsRange = generateRange(totalInvestmentsOverTime);
-        // result.incomeRange = generateRange(totalYealyIncome);
-        // // console.log(totalYearlyExpenses);
-        // result.expensesRange = generateRange(totalYearlyExpenses);
-        // result.earlyWithdrawTaxRange = generateRange(totalEarlyWithdrawalTax);
-        // result.percentageDiscretionaryRange = generateRange(totalPercentageTotalDiscretionary);
-        // // 4.3 mean + median values (Generate mean/median of items for each year, TODO - incomplete)
-        // const investmentOverTimeVals = computeMeanAndMedian(totalInvestmentsOverTime);
-        // result.medianInvestmentsOverTime = investmentOverTimeVals.medians;
-        // result.avgInvestmentsOverTime = investmentOverTimeVals.means;
-        // result.investmentOrder = plan.investments.map(investments => investments.id);
-        
-        // const incomeOverTimeVals = computeMeanAndMedian(totalIncomeOverTime);
-        // result.medianIncomeOverTime = incomeOverTimeVals.medians;
-        // result.avgIncomeOverTime = incomeOverTimeVals.means;
-        // result.incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
-        
-        // const expensesOverTimeVals = computeMeanAndMedian(totalExpensesOverTime);
-        // result.medianExpensesOverTime = expensesOverTimeVals.medians;
-        // result.avgExpensesOverTime = expensesOverTimeVals.means;
-        // // expenses -> taxes ([federal income, state income, capital gains, early withdrawal tax])
-        // // let taxOrder: string[] = []; // disable taxes (before completion)
-        // let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
-        // result.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
-        // result.expensesOrder.push(...taxOrder);
-        // console.log(result);
-        //await result.save();
         
         // const end = process.hrtime(start);
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
+        // console.log(IncomeOverTime[0])
 
         res.status(200).json({
             status: "OK",
@@ -721,8 +725,3 @@ export const getSimulationResults = async (req: any, res: any) => {
     });
   }
 };
-
-
-function writeconsole(word: any){
-    console.log(word);
-}

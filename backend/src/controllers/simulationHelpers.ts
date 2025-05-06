@@ -94,7 +94,7 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
   }
 }
 
-// Scenario Exploration Updater (param 1 or 2)
+// Scenario Exploration r (param 1 or 2)
 export function updateScenarioParameter(plan: IFinancialPlan, params: scenarioExplorationParams, index: 1 | 2): void {
   try {
     if(index === 1){
@@ -1385,11 +1385,11 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         incomeVal = incomeVal ?? 0;
         if (investType.incomeAmtOrPct === "percent") {
           //Update the change in value
-          investment.value = investment.value + (investment.value * incomeVal);
+          investment.value += (investment.value * incomeVal);
           //Add the income to the investment
           investment.value += income;
         } else {
-          investment.value = investment.value + (investment.value + incomeVal);
+          investment.value += (investment.value + incomeVal);
           investment.value += income;
         }
 
@@ -1791,19 +1791,18 @@ export function payDiscretionary(
 ///
 ///
 ///Helper function for part 8
-export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: boolean, list_of_purchase_price: Record<string, purchasePrice>): void {
+export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: boolean, list_of_purchase_price: Record<string, purchasePrice>, investmax: number): void {
     let total_cash =
       financialplan.investments.find((inv) => inv.id === "cash")?.value || 0;
   
     const my_investment = financialplan.eventSeries.filter((inv) => inv.type === "invest");
-    console.log("type: ",my_investment)
   
     //stores all investment with type 'invest' in my_investment
     for (const investments of my_investment) {
 
       //calculate total cash fot investment
       const excess_cash = investments.maxCash ?? 0;
-      const invest_amount = total_cash - excess_cash;
+      const invest_amount = Math.min(excess_cash, total_cash);
   
       //gets all the investments
       const all_investment = financialplan.investments;
@@ -1823,8 +1822,11 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
       } else {
         allocationList = investments.assetAllocation || {};
       }
-      console.log("items: ",item);
-      console.log("list: ",allocationList);
+      
+      if (allocationList instanceof Map) {
+        allocationList = Object.fromEntries(allocationList.entries());
+      }
+     
       
       for (const [name, percentage] of Object.entries(allocationList)) {
         const total = percentage * invest_amount;
@@ -1833,6 +1835,7 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
         item.push([name, total, tax_status]);
       }
   
+      
       //total amount of after-tax investments
       let B_total_purchase = 0;
       for (const e of item) {
@@ -1844,6 +1847,7 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
       //contribution limit
       const L_contributionLimit = financialplan.afterTaxContributionLimit;
   
+      console.log("B: ",B_total_purchase, "scale: ",(L_contributionLimit/B_total_purchase));
       if (B_total_purchase > L_contributionLimit) {
         const scalefactor = L_contributionLimit / B_total_purchase;
   
@@ -1871,18 +1875,23 @@ export function runInvestEvents(financialplan: IFinancialPlan, glidePathValue: b
         cash_invest.value -= L_contributionLimit;
       }
 
+      console.log("item costs:", item);
+      let x = 0;
       //buys investment
       for (const investment of item) {
-        console.log("each investment: ",investment);
+        if(investmax >= financialplan.afterTaxContributionLimit){
+          break;
+        }
         const buy_investment = all_investment.find(
           (inv) => inv.id === investment[0] && inv.taxStatus === investment[2]
         );
         if (buy_investment) {
-          buy_investment.value += investment[1];
-          console.log("buying investment");
+          x = buy_investment.value;
+          investmax += x;
+          buy_investment.value = investment[1];
           //update the purchase price
           if (list_of_purchase_price[buy_investment.id]) {
-            list_of_purchase_price[buy_investment.id].purchase_price += investment[1];
+            list_of_purchase_price[buy_investment.id].purchase_price += (investment[1]-x);
           }
         }
       }
