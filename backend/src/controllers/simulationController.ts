@@ -53,10 +53,28 @@ export const createSimulation = async (req: any, res: any) => {
         // algorithmType -> standard, 1d, 2d
         // itemType -> rothConversionOpt, start, duration, initalAmount, percentage
         // itemType2 -> start, duriation, initalAmount, percentage
-        let { state_tax_file, username, id, simulations, algorithmType, itemType, itemId, min, max, step, itemType2, itemId2, min2, max2, step2} = req.body;
+        let { state_tax_file, username, id, simulations, algorithmType, parameters} = req.body;
 
-        console.log("new simulation", state_tax_file, username, id, simulations, algorithmType, itemType, itemId, min, max, step, itemType2, itemId2, min2, max2, step2);
+        console.log("new simulation", state_tax_file, username, id, simulations, algorithmType, parameters);
 
+        let itemType, itemId, min, max, step, itemType2,itemId2, min2, max2, step2;
+
+        if(algorithmType === "1d" || algorithmType === "2d"){
+            itemType = parameters[0].itemType;
+            itemId = parameters[0].itemId;
+            min = parameters[0].min;
+            max = parameters[0].max;
+            step = parameters[0].step;
+        }
+        if(algorithmType === "2d"){
+            itemType2 = parameters[1].itemType;
+            itemId2 = parameters[1].itemId;
+            min2 = parameters[1].min;
+            max2 = parameters[1].max;
+            step2 = parameters[1].step;
+        }
+        
+        console.log(itemType,itemId);
         // Get specific financial plan to simulate
         const plan = await FinancialPlan.findById(id);
 
@@ -65,6 +83,7 @@ export const createSimulation = async (req: any, res: any) => {
             // return res.status(404).json({ error: 'Financial plan not found' });
         }
 
+        // console.log(plan)
         let simulation;
         let result;
 
@@ -133,7 +152,7 @@ export const createSimulation = async (req: any, res: any) => {
                 step2: 1,
             }
         }
-        // console.log(rangeIterator);
+        console.log(rangeIterator);
 
         writeLog(username, "started running simulations", "csv");
         writeLog(username, "started running simulations", "log");
@@ -244,9 +263,9 @@ export const createSimulation = async (req: any, res: any) => {
             rangeIterator.index2 = rangeIterator.min2;
             updateScenarioParameter(plan, rangeIterator, 1);
         }
-        // console.log(rangeIterator);
+        console.log(rangeIterator);
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
-        // console.log("range: ",totalInvestmentsOverTime.length,", range index: ", rangeIndex);
+        console.log("range: ",totalInvestmentsOverTime.length,", range index: ", rangeIndex);
         const output = generateOutput();
         // 4.1 probability of success
         output.probabilityOverTime = totalInvestmentsOverTime.map(range => probabilityOfSuccess(plan.financialGoal, range));
@@ -330,11 +349,12 @@ export const createSimulation = async (req: any, res: any) => {
         });
     }
     catch (error) {
-        console.log("simulation failed to error");
+        console.log("simulation failed to error", error);
         return res.status(200).json({
             status: "ERROR",
             error: true,
             message: "Simulation failed.",
+            errormsg: error,
         });
     }
 };
@@ -630,7 +650,7 @@ export const runSimulation = async (req: any, res: any) => {
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
         // console.log(earlyWithdrawalTax);
-        console.log(plan.eventSeries);
+        // console.log(plan.eventSeries);
 
         res.status(200).json({
             status: "OK",
