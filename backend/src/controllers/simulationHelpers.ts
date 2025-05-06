@@ -12,7 +12,7 @@ import { scenarioExplorationParams, simulationOutput } from "./simulationControl
 
 // Helper Functions
 
-// use plan without mutating original copy
+// use plan without mutating original copy (issues, don't use)
 export function deepCopyDocument<T extends Document>(doc: T): T {
     const plainObject = doc.toObject();
     const deepCopy = JSON.parse(JSON.stringify(plainObject));
@@ -260,18 +260,17 @@ export function getTotalAssetValue(investments: IInvestment[]): number {
   return investments.reduce((total, investment) => total + investment.value, 0);
 }
 
-// Helper for 2, Parameters: eventSeries, inflationRate, SpouseDeath
+// Helper for part 2, Parameters: eventSeries, inflationRate, SpouseDeath
 // @Output = array of income amounts by order of income events
-export function updateIncomeEvents(eventSeries: ILifeEvent[], inflationRate: number, deathSpouse: boolean): any[] {
+export function updateIncomeEvents(eventSeries: ILifeEvent[], year: number, startingYear: number,inflationRate: number, deathSpouse: boolean): any[] {
     let income = [];
     let socialSecurity = 0;
-    const year = new Date().getFullYear();
     const incomeEvents = getLifeEventsByType(eventSeries, "income");
     for(let event of incomeEvents){
         if(event.initialAmount){
             let cash = 0; // to preserve order with 0 values if not active
-            // if active
-            if(event.start.value && event.duration.value && year >= event.start.value && year < event.start.value + event.duration.value){
+            // if active and not first year
+            if(year!==0 && event.start.value && event.duration.value && startingYear + year >= event.start.value && startingYear + year < event.start.value + event.duration.value){
                 // depending on death of spouse & userFraction (could fix to one time function for all values on spouse death)
                 if(!deathSpouse){ // no spouse or spouse alive
                     // sum up last year's income liquidity
