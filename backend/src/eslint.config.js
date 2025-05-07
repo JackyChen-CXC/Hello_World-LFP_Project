@@ -1,6 +1,6 @@
 // eslint.config.js
 const { defineConfig } = require('eslint-define-config');
-const react = require('eslint-plugin-react');
+// const react = require('eslint-plugin-react');
 const typescriptEslint = require('@typescript-eslint/eslint-plugin');
 const typescriptParser = require('@typescript-eslint/parser');
 
@@ -17,7 +17,7 @@ module.exports = defineConfig({
     },
   },
   plugins: {
-    react,
+    // react,
     '@typescript-eslint': typescriptEslint,
   },
   rules: {
