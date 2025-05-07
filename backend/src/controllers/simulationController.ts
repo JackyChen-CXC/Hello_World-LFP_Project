@@ -462,6 +462,37 @@ export const runSimulation = async (req: any, res: any) => {
             }
 
             list_of_invest_Schedule[inv.name] = [startYear, duration];
+        });
+
+
+
+
+        let list_of_rebalance_Schedule: Record<string, [number, number]> = {};
+        plan.eventSeries.forEach((inv: any) => {
+            if (inv.type !== "rebalance") return;
+            let startYear: number;
+            if (inv.start.type === "fixed") {
+                startYear = inv.start.value;
+            } else if (inv.start.type === "normal") {
+                startYear = generateNormal(inv.start.mean ?? 0, inv.start.stdev ?? 0);
+            } else if (inv.start.type === "uniform") {
+                startYear = generateUniform(inv.start.lower ?? 0, inv.start.upper ?? 0);
+            } else {
+                throw new Error("Unknown start type");
+            }
+
+            let duration: number;
+            if (inv.duration.type === "fixed") {
+                duration = inv.duration.value;
+            } else if (inv.duration.type === "normal") {
+                duration = generateNormal(inv.duration.mean ?? 0, inv.duration.stdev ?? 0);
+            } else if (inv.duration.type === "uniform") {
+                duration = generateUniform(inv.duration.lower ?? 0, inv.duration.upper ?? 0);
+            } else {
+                throw new Error("Unknown duration type");
+            }
+
+            list_of_rebalance_Schedule[inv.name] = [startYear, duration];
             console.log("------",startYear,duration);
         });
 
@@ -644,7 +675,7 @@ export const runSimulation = async (req: any, res: any) => {
         
             // // 9. Run rebalance events scheduled for the current year
             createLog(username, `b4 9, currentYearGain: ${currentYearGain}, investments: ${JSON.stringify(plan.investments)}`);
-            currentYearGain = runRebalance(plan, currentYearGain, status, capital_tax_bracket,list_of_purchase_price);
+            currentYearGain = runRebalance(plan, currentYearGain, status, capital_tax_bracket, list_of_rebalance_Schedule,year, startingYear, list_of_purchase_price);
             createLog(username, `after 9, currentYearGain: ${currentYearGain}, investments: ${JSON.stringify(plan.investments)}`);
 
             writeLog(username, "Ran rebalance events", "log");

@@ -1928,54 +1928,74 @@ export function runRebalance(
     currentYearGain: number,
     marriedStatus: "single" | "married",
     captialGainTaxBracket: any [],
-    list_of_purchase_price: Record<string, purchasePrice>
+    list_of_rebalance_Schedule: Record<string, [number, number]>,
+    year: number,
+    startingYear: number,
+    list_of_purchase_price: Record<string, purchasePrice>,
     
   ): number {
-    const rebalanceEvents = financialplan.eventSeries.filter(event => event.type === "rebalance");
-  
+    //year check
+    const rebalanceEvents = financialplan.eventSeries.filter(event => event.type === "rebalance" &&
+    startingYear+year >= list_of_rebalance_Schedule[event.name][0] &&
+    startingYear+year < list_of_rebalance_Schedule[event.name][0] + list_of_rebalance_Schedule[event.name][1]
+    );
+
+    console.log("year: ",(startingYear+year))
     for (const event of rebalanceEvents) {
-      const allocationList = event.assetAllocation || {};
-  
-      const item: [string, number, number][] = [];
-      let investSum = 0;
-  
-      for (const [name, percentage] of Object.entries(allocationList)) {
-        const investment = financialplan.investments.find(inv => inv.id === name);
-        const investmentValue = investment?.value ?? 0;
-  
-        investSum += investmentValue;
-        item.push([name, investmentValue, percentage]);
+      let allocationList: { [key: string]: number } = {};
+      allocationList = event.assetAllocation || {};
+      if (allocationList instanceof Map) {
+        allocationList = Object.fromEntries(allocationList.entries());
       }
-  
-      for (const [id, currentValue, targetPercent] of item) {
-        const targetValue = targetPercent * investSum;
-        const investment = financialplan.investments.find(inv => inv.id === id);
-  
-        if (!investment) continue;
-  
-        if (targetValue > currentValue) {
-          const diff = targetValue - currentValue;
-          investment.value += diff;
+      console.log("list----",allocationList);
+      //finds the sum of the investment
+      let sum = 0;
+      for (const [name, percentage] of Object.entries(allocationList)) {
+        console.log("names: ",name);
+        const each_investment = financialplan.investments.find((inv) => inv.id === name);
+        sum += each_investment?.value ?? 0;
+      }
+      
+      for (const [name, percentage] of Object.entries(allocationList)) {
+        const each_investment = financialplan.investments.find((inv) => inv.id === name);
 
-          //update the purchase price
-          if (list_of_purchase_price[investment.id]) {
-            list_of_purchase_price[investment.id].purchase_price += diff;
-          }
-        } else if (targetValue < currentValue) {
-          const diff = currentValue - targetValue;
-          investment.value -= diff;
+        if (each_investment) {
+          //selling
+          if(each_investment.value > (sum*percentage)){
+            const sellamount = each_investment.value - (sum * percentage);
+
+            //captialgaintax
+            if(each_investment.taxStatus == "non-retirement"){
+              const purchase_price = list_of_purchase_price[each_investment.id]?.purchase_price ?? 0;
+              const fraction = sellamount / purchase_price
+              if (currentYearGain > 0){
+                currentYearGain += fraction * (sellamount - purchase_price);
+              }
+              //decrease purchase price
+              if (list_of_purchase_price[each_investment.id]) {
+                list_of_purchase_price[each_investment.id].purchase_price -= fraction * (sellamount - purchase_price);
+              }
+            }
+
+          }else if(each_investment.value < (sum*percentage)){///buying
+            const buyamount = each_investment.value - (sum * percentage);
+
+            //increase purchase price
+            const purchase_price = list_of_purchase_price[each_investment.id]?.purchase_price ?? 0;
+            const fraction = buyamount / purchase_price
           
-          //update the purchase price
-          if (list_of_purchase_price[investment.id]) {
-            list_of_purchase_price[investment.id].purchase_price -= diff;
+            if (list_of_purchase_price[each_investment.id]) {
+              list_of_purchase_price[each_investment.id].purchase_price += fraction * (buyamount - purchase_price);
+            }
+            
           }
-
-          if (investment.taxStatus === "non-retirement") {
-            currentYearGain += getCapitalGainTaxRate(diff, marriedStatus,captialGainTaxBracket) ?? 0;
-          }
+          each_investment.value = sum * percentage;
         }
       }
+      
+     
     }
   
     return currentYearGain;
   }
+  
