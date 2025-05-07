@@ -64,12 +64,26 @@ export const editPlan = async (req: any, res: any) => {
 	}
 };
 
-export const deletePlan = async (req:any, res:any) => {
+export const deletePlan = async (req: any, res: any) => {
     try {
       const { id } = req.body;
+  
+      const plan = await FinancialPlan.findById(id);
+      if (!plan) {
+        return res.status(404).json({ status: "ERROR", message: "Plan not found" });
+      }
+  
+      // Delete associated investmentTypes
+      if (Array.isArray(plan.investmentTypes)) {
+        await InvestmentType.deleteMany({ _id: { $in: plan.investmentTypes } });
+      }
+  
+      // Delete the plan itself
       await FinancialPlan.findByIdAndDelete(id);
-      res.status(200).json({ message: "Plan deleted successfully" });
+  
+      res.status(200).json({ status: "SUCCESS", message: "Plan and investment types deleted successfully" });
     } catch (error) {
+      console.error("Error deleting plan:", error);
       res.status(500).json({
         status: "ERROR",
         error: true,
@@ -77,7 +91,6 @@ export const deletePlan = async (req:any, res:any) => {
       });
     }
   };
-  
 
 export const importPlan = async (req: any, res: any) => {
     try {
