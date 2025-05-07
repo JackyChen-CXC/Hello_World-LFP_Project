@@ -1416,8 +1416,9 @@ const generateSurfaceData = (
       // For each value of the first parameter
       for (let j = 0; j < param1Values.length; j++) {
         // Calculate the index in the metricData array
-        // second parameter iterates fully then first parameter
-        const dataIndex = i * param1Values.length + j;
+        // First parameter iterates fully before second parameter
+        // This means for data in format [param1_val1+param2_val1, param1_val1+param2_val2, param1_val2+param2_val1, param1_val2+param2_val2, ...]
+        const dataIndex = j * param2Values.length + i;
         
         if (dataIndex < metricData.length && Array.isArray(metricData[dataIndex])) {
           // For investments, we need to SUM the array values to get the total
@@ -1443,11 +1444,11 @@ const generateSurfaceData = (
                 row.push(sum);
                 console.log(`Total investment for param1=${param1Values[j]}, param2=${param2Values[i]}: ${sum} (sum of last year's values)`);
               } else {
-                console.warn(`No valid values to sum for last year at [${i},${j}] (using default)`);
+                console.warn(`No valid values to sum for last year at [${j},${i}] (using default)`);
                 row.push(100000); // Default value
               }
             } else {
-              console.warn(`Missing last year data at [${i},${j}] (using default)`);
+              console.warn(`Missing last year data at [${j},${i}] (using default)`);
               row.push(100000); // Default value
             }
           } else {
@@ -1467,17 +1468,17 @@ const generateSurfaceData = (
                 row.push(value);
                 console.log(`Final probability for param1=${param1Values[j]}, param2=${param2Values[i]}: ${value}`);
               } else {
-                console.warn(`Invalid final value at [${i},${j}]: ${rawValue} (using default)`);
+                console.warn(`Invalid final value at [${j},${i}]: ${rawValue} (using default)`);
                 // Default value
                 row.push(50); // Default probability value
               }
             } else {
-              console.warn(`Empty data array at [${i},${j}] (using default)`);
+              console.warn(`Empty data array at [${j},${i}] (using default)`);
               row.push(50); // Default probability value
             }
           }
         } else {
-          console.warn(`Missing data at index ${dataIndex} (${i},${j}) (using default)`);
+          console.warn(`Missing data at index ${dataIndex} (${j},${i}) (using default)`);
           // Default value based on metric
           row.push(metric === 'probabilityOfSuccess' ? 50 : 100000);
         }
