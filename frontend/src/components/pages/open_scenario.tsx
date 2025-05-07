@@ -199,14 +199,14 @@ const OpenScenario = () => {
       const result = await response.json();
 
       if (result.status === "OK") {
-        alert("Simulation started successfully!");
+        alert("Simulation ran succesfully!");
         console.log("Simulation ID:", result.simulationId);
       } else {
         alert("Simulation failed: " + result.message);
       }
     } catch (error) {
-      console.error("Error starting simulation:", error);
-      alert("An error occurred while starting the simulation.");
+      console.error("Error with simulation:", error);
+      alert("An error occurred while running the simulation.");
     }
   };
   return (
