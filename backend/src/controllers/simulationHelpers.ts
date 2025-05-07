@@ -23,7 +23,7 @@ export function deepCopyDocument<T extends Document>(doc: T): T {
 export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioExplorationParams): void {
   // param 1
   let temp: ILifeEvent;
-  if(params.algorithmType !== "standard") { // 1d & 2d
+  if(params.algorithmType === "1d" || params.algorithmType === "2d") { // 1d or 2d
     switch(params.itemType){
       case "rothConversionOpt":
         for(let i = 0;  i < params.index; i++){
@@ -32,13 +32,15 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
         break;
       case "start":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-        if(temp.start.value)
+        if(temp.start.value){
           temp.start.value = params.index;
+        }
         break;
       case "duration":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-        if(temp.duration.value)
+        if(temp.duration.value){
           temp.duration.value = params.index;
+        }
         break;
       case "initialAmount":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
@@ -58,7 +60,7 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
     }
     // param 2
     if(params.algorithmType === "2d") {
-      switch(params.itemType){
+      switch(params.itemType2){
         case "rothConversionOpt":
           for(let i = 0;  i < params.index2; i++){
             plan.RothConversionOpt = !plan.RothConversionOpt;
@@ -66,13 +68,15 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
           break;
         case "start":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          if(temp.start.value)
+          if(temp.start.value){
             temp.start.value = params.index2;
+          }
           break;
         case "duration":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          if(temp.duration.value)
+          if(temp.duration.value){
             temp.duration.value = params.index2;
+          }
           break;
         case "initialAmount":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
@@ -82,10 +86,8 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
         case "percentage":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.assetAllocation){
-            console.log("b4",temp.assetAllocation);
             temp.assetAllocation[0] = params.index;
             temp.assetAllocation[1] = 1 - params.index;
-            console.log("after",temp.assetAllocation);
           }
           break;
         default:

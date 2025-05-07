@@ -201,6 +201,7 @@ const CreatePlan = () => {
       const baseInv = JSON.parse(JSON.stringify(defaultFormData.investments[0]));
       const investmentTypeId = inv.investmentType || "";
       let foundTypeName = "";
+      const investmentTypeName = inv.investmentType || "";
 
       if (investmentTypeId && Array.isArray(incoming.investmentTypes)) {
         const foundTypeObj = incoming.investmentTypes.find((t) => {
@@ -224,8 +225,8 @@ const CreatePlan = () => {
         investmentName: inv.id || "",
         investmentValue: String(inv.value || ""),
         accountType: inv.taxStatus || "non-retirement",
-        investmentType: investmentTypeId,
-        investmentTypeName: finalTypeName,
+        investmentType: "", 
+        investmentTypeName,
 
         returnAmtOrPct: inv.returnAmtOrPct || "percent",
         returnDistribution: inv.returnDistribution?.type || "fixed",
@@ -1114,28 +1115,25 @@ const transformFormData = (formData, rmdOrder, expenseOrder, spendingOrder, roth
 const [existingInvestmentTypes, setExistingInvestmentTypes] = useState([]);
 
 useEffect(() => {
-  const preTaxInvestments = formData.investments.filter(inv => inv.accountType === "pre-tax");
-  const allInvestments = formData.investments;
+  const preTax = formData.investments.filter((i) => i.accountType === "pre-tax");
+  const allInv = formData.investments;
 
+  // RMD order ­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­
   setRmdOrder((prev) => {
-    const updated = [...prev];
-    while (updated.length < preTaxInvestments.length) updated.push("");
-    while (updated.length > preTaxInvestments.length) updated.pop();
-    return updated;
+    if (prev.length === preTax.length) return prev;      // nothing to do
+    const next = [...prev];
+    while (next.length < preTax.length) next.push("");
+    while (next.length > preTax.length) next.pop();
+    return next;
   });
 
+  // Expense order ­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­
   setExpenseOrder((prev) => {
-    const updated = [...prev];
-    while (updated.length < allInvestments.length) updated.push("");
-    while (updated.length > allInvestments.length) updated.pop();
-    return updated;
-  });
-
-  setRothOrder((prev) => {
-    const updated = [...prev];
-    while (updated.length < preTaxInvestments.length) updated.push("");
-    while (updated.length > preTaxInvestments.length) updated.pop();
-    return updated;
+    if (prev.length === allInv.length) return prev;
+    const next = [...prev];
+    while (next.length < allInv.length) next.push("");
+    while (next.length > allInv.length) next.pop();
+    return next;
   });
 }, [formData.investments]);
 
@@ -1187,13 +1185,11 @@ useEffect(() => {
 useEffect(() => {
   if (!isEditMode || !formData) return;
 
-  // Extract unique investmentType IDs from existing investments
   const typeIdsInPlan = formData.investments.map(inv => inv.investmentType);
   const missingTypes = typeIdsInPlan.filter(
     id => !existingInvestmentTypes.some(type => type._id === id)
   );
 
-  // If any investmentTypes are missing from existingInvestmentTypes, fetch them
   if (missingTypes.length > 0) {
     Promise.all(
       missingTypes.map(id =>
@@ -1205,25 +1201,37 @@ useEffect(() => {
   }
 }, [isEditMode, formData, existingInvestmentTypes]);
 
+const [localInvestmentTypes, setLocalInvestmentTypes] = useState(() =>
+  initializeFormData(location.state?.formData)._initialInvestmentTypes || []
+);
+
 useEffect(() => {
-  if (!isEditMode || !formData?.investments?.length || !existingInvestmentTypes.length) return;
+  const allTypes = [...existingInvestmentTypes, ...localInvestmentTypes];
+  if (!isEditMode || !formData.investments.length || allTypes.length === 0)
+    return;
 
-  const updatedInvestments = formData.investments.map((inv) => {
-    const matchingType = existingInvestmentTypes.find(
-      (type) => type.name === inv.investmentTypeName
-    );
-
+  const updated = formData.investments.map(inv => {
+    const match = allTypes.find(t => t.name === inv.investmentTypeName);
     return {
       ...inv,
-      investmentType: matchingType?._id || "",
+      investmentType: match?._id || inv.investmentType,
     };
   });
 
-  setFormData((prev) => ({
-    ...prev,
-    investments: updatedInvestments,
-  }));
-}, [isEditMode, formData?.investments, existingInvestmentTypes]);
+
+  const changed = updated.some(
+    (inv, i) => inv.investmentType !== formData.investments[i].investmentType
+  );
+  if (changed) {
+    setFormData(prev => ({ ...prev, investments: updated }));
+  }
+}, [
+  isEditMode,
+  formData.investments,          
+  existingInvestmentTypes,
+  localInvestmentTypes,
+]);
+
 
 useEffect(() => {
   if (!isEditMode || !formData?.investments?.length) return;
@@ -1266,9 +1274,7 @@ function buildDistribution(distType, mean, stdev, fixedValue) {
   };
 }
 
-const [localInvestmentTypes, setLocalInvestmentTypes] = useState(() =>
-  initializeFormData(location.state?.formData)._initialInvestmentTypes || []
-);
+
 const [localLifeEventTypes, setLocalLifeEventTypes] = useState([]);
 
 
@@ -1912,7 +1918,7 @@ for (const [i, ev] of formData.lifeEvents.entries()) {
             >
               <option value="">--Select--</option>
               <option value="create_new">-- Create New Investment Type --</option>
-              {localInvestmentTypes.map((type) => (
+              {combinedTypes.map((type) => (
                 <option key={type._id} value={type._id}>
                   {type.name}
                 </option>

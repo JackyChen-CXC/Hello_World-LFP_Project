@@ -1215,19 +1215,22 @@ const ToggleButton: React.FC<ToggleButtonProps> = ({
 const SurfacePlotChart = ({ 
   parameterKeys = ['Parameter 1', 'Parameter 2'],
   metric = 'probabilityOfSuccess',
-  customData = null
+  customData = null,
+  parameterValues
 }: {
   parameterKeys: string[],
   metric?: 'probabilityOfSuccess' | 'investments',
-  customData?: any
+  customData?: any,
+  parameterValues: any[]
 }) => {
   // Use the shared function for data generation
-  const { xValues, yValues, zValues } = generateSurfaceData(parameterKeys, metric, customData);
+  // This gets final values for probability or sums all values for investments
+  const { xValues, yValues, zValues } = generateSurfaceData(parameterKeys, metric, customData, parameterValues);
   
   // Helper functions
   const getZAxisTitle = () => {
-    if (metric === 'probabilityOfSuccess') return "Probability of Success (%)";
-    return "Median Total Investments ($)";
+    if (metric === 'probabilityOfSuccess') return "Final Probability of Success (%)";
+    return "Total Final Year Investments ($)";
   };
   
   const getColorscale = () => {
@@ -1251,8 +1254,12 @@ const SurfacePlotChart = ({
   return (
     <div>
       <h3 style={{ textAlign: 'center', marginBottom: 10 }}>
-        {`${parameterKeys[0]} vs ${parameterKeys[1]} Impact on ${metric === 'probabilityOfSuccess' ? 'Success Probability' : 'Investments'}`}
+        {`${parameterKeys[0]} vs ${parameterKeys[1]} Impact on ${metric === 'probabilityOfSuccess' ? 'Final Success Probability' : 'Total Final Year Investments'}`}
       </h3>
+      
+      <div style={{ textAlign: 'center', fontSize: '0.85rem', marginBottom: 15, color: '#666' }}>
+        <em>Note: This chart shows {metric === 'probabilityOfSuccess' ? 'the final year\'s probability value' : 'the sum of all investment types in the final year (year 40)'} for each parameter combination</em>
+      </div>
       
       <div style={{ height: 600, width: '100%' }}>
         <Plot
@@ -1274,7 +1281,7 @@ const SurfacePlotChart = ({
             }
           ]}
           layout={{
-            title: `Impact of Parameters on ${metric === 'probabilityOfSuccess' ? 'Probability of Success' : 'Median Investments'}`,
+            title: `Impact of Parameters on ${metric === 'probabilityOfSuccess' ? 'Final Probability of Success' : 'Total Final Year Investments'}`,
             autosize: true,
             scene: {
               xaxis: {
@@ -1312,42 +1319,208 @@ const SurfacePlotChart = ({
 const generateSurfaceData = (
   parameterKeys: string[],
   metric: 'probabilityOfSuccess' | 'investments',
-  customData: any = null
+  customData: any = null,
+  selectedParameterValues?: any
 ) => {
-  // X-axis values (first parameter)
-  const xValues = Array.from({ length: 10 }, (_, i) => i * 10 + 2025); // Example: years
+  console.log("Generating surface data with:", {
+    parameterKeys,
+    metric,
+    hasCustomData: !!customData,
+    selectedParameterValues
+  });
   
-  // Y-axis values (second parameter)
-  const yValues = Array.from({ length: 10 }, (_, i) => (i + 1) * 10000); // Example: amounts
+  // Check if we have real data to use
+  const hasProbabilityData = metric === 'probabilityOfSuccess' && 
+                           customData && 
+                           customData.probabilityOverTime && 
+                           Array.isArray(customData.probabilityOverTime) && 
+                           customData.probabilityOverTime.length > 0;
+
+  const hasInvestmentsData = metric === 'investments' && 
+                          customData && 
+                          customData.medianInvestmentsOverTime && 
+                          Array.isArray(customData.medianInvestmentsOverTime) && 
+                          customData.medianInvestmentsOverTime.length > 0;
   
-  // Z-axis values (metric result)
-  const zValues = [] as number[][];
+  // Get parameter values for both axes
+  let param1Values: any[] = [];
+  let param2Values: any[] = [];
   
-  for (let i = 0; i < yValues.length; i++) {
-    const row = [] as number[];
-    for (let j = 0; j < xValues.length; j++) {
-      // Create a formula that combines both parameters to create an interesting surface
-      let value = 0;
-      
-      if (metric === 'probabilityOfSuccess') {
-        // For probability, create a peak in the middle that gradually falls off
-        const xNormalized = (j - xValues.length / 2) / (xValues.length / 2); // -1 to 1
-        const yNormalized = (i - yValues.length / 2) / (yValues.length / 2); // -1 to 1
-        const distance = Math.sqrt(xNormalized * xNormalized + yNormalized * yNormalized);
-        value = Math.max(0, Math.min(100, 90 - (distance * 40))); // 90% at center, falls off with distance
-      } else {
-        // For investments, create a gradually increasing surface with some wave patterns
-        value = yValues[i] * 0.8 + (xValues[j] - 2025) * 5000 + 
-                Math.sin(i / 2) * 50000 + Math.cos(j / 2) * 40000;
-        value = Math.max(0, value);
-      }
-      
-      row.push(value);
+  // Try to get real parameter values first
+  if (selectedParameterValues && selectedParameterValues.length >= 2) {
+    const param1Generator = selectedParameterValues[0];
+    const param2Generator = selectedParameterValues[1];
+    
+    if (Array.isArray(param1Generator)) {
+      param1Values = param1Generator;
     }
-    zValues.push(row);
+    
+    if (Array.isArray(param2Generator)) {
+      param2Values = param2Generator;
+    }
   }
   
-  return { xValues, yValues, zValues };
+  // Fallback to generated values if needed
+  if (param1Values.length === 0) {
+    if (parameterKeys[0] === 'startYear') {
+      param1Values = Array.from({ length: 3 }, (_, i) => 2025 + (i * 5)); // Example: 2025, 2030, 2035
+    } else if (parameterKeys[0] === 'duration') {
+      param1Values = Array.from({ length: 3 }, (_, i) => 5 + (i * 10)); // Example: 5, 15, 25
+    } else if (parameterKeys[0] === 'initialAmount') {
+      param1Values = Array.from({ length: 3 }, (_, i) => 50000 + (i * 50000)); // Example: 50k, 100k, 150k
+    } else if (parameterKeys[0] === 'investmentPercentage') {
+      param1Values = Array.from({ length: 3 }, (_, i) => 50 + (i * 20)); // Example: 50%, 70%, 90%
+    } else {
+      param1Values = Array.from({ length: 3 }, (_, i) => i * 10); // Generic fallback
+    }
+  }
+  
+  if (param2Values.length === 0) {
+    if (parameterKeys[1] === 'startYear') {
+      param2Values = Array.from({ length: 3 }, (_, i) => 2025 + (i * 5)); // Example: 2025, 2030, 2035
+    } else if (parameterKeys[1] === 'duration') {
+      param2Values = Array.from({ length: 3 }, (_, i) => 5 + (i * 10)); // Example: 5, 15, 25
+    } else if (parameterKeys[1] === 'initialAmount') {
+      param2Values = Array.from({ length: 3 }, (_, i) => 50000 + (i * 50000)); // Example: 50k, 100k, 150k
+    } else if (parameterKeys[1] === 'investmentPercentage') {
+      param2Values = Array.from({ length: 3 }, (_, i) => 50 + (i * 20)); // Example: 50%, 70%, 90%
+    } else {
+      param2Values = Array.from({ length: 3 }, (_, i) => i * 10); // Generic fallback
+    }
+  }
+  
+  // Get data array based on metric
+  let metricData: any[] = [];
+  if (hasProbabilityData) {
+    metricData = customData.probabilityOverTime;
+    console.log("Using probabilityOverTime data with length:", metricData.length);
+  } else if (hasInvestmentsData) {
+    metricData = customData.medianInvestmentsOverTime;
+    console.log("Using medianInvestmentsOverTime data with length:", metricData.length);
+  }
+  
+  // Create Z values matrix - this will be used for both surface and contour plots
+  // Each z-value represents the FINAL VALUE (last year) for a specific parameter combination
+  const zValues: number[][] = [];
+  
+  // If we have real data, use it
+  if ((hasProbabilityData || hasInvestmentsData) && metricData.length > 0) {
+    console.log("Using real data for z-values. Each value is the SUM of all values in the time series.");
+    console.log("Parameter 1 values:", param1Values);
+    console.log("Parameter 2 values:", param2Values);
+    
+    // For each value of the second parameter
+    for (let i = 0; i < param2Values.length; i++) {
+      const row: number[] = [];
+      
+      // For each value of the first parameter
+      for (let j = 0; j < param1Values.length; j++) {
+        // Calculate the index in the metricData array
+        // First parameter iterates fully before second parameter
+        // This means for data in format [param1_val1+param2_val1, param1_val1+param2_val2, param1_val2+param2_val1, param1_val2+param2_val2, ...]
+        const dataIndex = j * param2Values.length + i;
+        
+        if (dataIndex < metricData.length && Array.isArray(metricData[dataIndex])) {
+          // For investments, we need to SUM the array values to get the total
+          if (metric === 'investments') {
+            // For investments, we need to get the last year (index 39) and sum all values in that array
+            if (metricData[dataIndex].length > 39 && Array.isArray(metricData[dataIndex][39])) {
+              const lastYearData = metricData[dataIndex][39]; // Get the last year (index 39)
+              let sum = 0;
+              let hasValidValues = false;
+              
+              // Sum all values in the last year array
+              for (let k = 0; k < lastYearData.length; k++) {
+                let rawValue = lastYearData[k];
+                let value = parseFloat(rawValue);
+                
+                if (!isNaN(value)) {
+                  sum += value;
+                  hasValidValues = true;
+                }
+              }
+              
+              if (hasValidValues) {
+                row.push(sum);
+                console.log(`Total investment for param1=${param1Values[j]}, param2=${param2Values[i]}: ${sum} (sum of last year's values)`);
+              } else {
+                console.warn(`No valid values to sum for last year at [${j},${i}] (using default)`);
+                row.push(100000); // Default value
+              }
+            } else {
+              console.warn(`Missing last year data at [${j},${i}] (using default)`);
+              row.push(100000); // Default value
+            }
+          } else {
+            // For probability, we still just want the final value (last item)
+            // Get the last value from the array (final year/year 40)
+            const lastIndex = metricData[dataIndex].length - 1;
+            if (lastIndex >= 0) {
+              let rawValue = metricData[dataIndex][lastIndex];
+              let value = parseFloat(rawValue);
+              
+              // Ensure value is a number
+              if (!isNaN(value)) {
+                // Convert probability to percentage if needed
+                if (metric === 'probabilityOfSuccess' && value <= 1) {
+                  value = value * 100;
+                }
+                row.push(value);
+                console.log(`Final probability for param1=${param1Values[j]}, param2=${param2Values[i]}: ${value}`);
+              } else {
+                console.warn(`Invalid final value at [${j},${i}]: ${rawValue} (using default)`);
+                // Default value
+                row.push(50); // Default probability value
+              }
+            } else {
+              console.warn(`Empty data array at [${j},${i}] (using default)`);
+              row.push(50); // Default probability value
+            }
+          }
+        } else {
+          console.warn(`Missing data at index ${dataIndex} (${j},${i}) (using default)`);
+          // Default value based on metric
+          row.push(metric === 'probabilityOfSuccess' ? 50 : 100000);
+        }
+      }
+      
+      zValues.push(row);
+    }
+    
+    console.log("Z-values matrix (final year values for each parameter combination):", zValues);
+  } else {
+    // Use synthetic data if no real data available
+    console.log("Using synthetic data for visualization (no real data available)");
+    
+    for (let i = 0; i < param2Values.length; i++) {
+      const row: number[] = [];
+      for (let j = 0; j < param1Values.length; j++) {
+        // Create a formula that combines both parameters to create an interesting surface
+        let value = 0;
+        
+        if (metric === 'probabilityOfSuccess') {
+          // For probability, create a peak in the middle that gradually falls off
+          const xNormalized = (j - param1Values.length / 2) / (param1Values.length / 2); // -1 to 1
+          const yNormalized = (i - param2Values.length / 2) / (param2Values.length / 2); // -1 to 1
+          const distance = Math.sqrt(xNormalized * xNormalized + yNormalized * yNormalized);
+          value = Math.max(0, Math.min(100, 90 - (distance * 40))); // 90% at center, falls off with distance
+        } else {
+          // For investments, create a gradually increasing surface with wave patterns
+          const param1 = typeof param1Values[j] === 'number' ? param1Values[j] : j * 10000;
+          const param2 = typeof param2Values[i] === 'number' ? param2Values[i] : i * 5;
+          
+          value = param1 * 0.5 + param2 * 8000 + 
+                 Math.sin(i / 1.5) * 50000 + Math.cos(j / 1.5) * 40000;
+          value = Math.max(0, value);
+        }
+        
+        row.push(value);
+      }
+      zValues.push(row);
+    }
+  }
+  
+  return { xValues: param1Values, yValues: param2Values, zValues };
 };
 
 /* ---------------- MAIN COMPONENT ---------------- */
@@ -2910,79 +3083,102 @@ const OpenSimulation: React.FC = () => {
                       parameterKeys={selectedParameters}
                       metric={scenarioMetric}
                       customData={scenarioResults}
+                      parameterValues={selectedParameters.map(param => generateParameterValues(param))}
                     />
                     
                     {/* Add 2D Contour Plot */}
                     <div style={{ marginTop: 40 }}>
                       <h3 style={{ textAlign: 'center', marginBottom: 10 }}>
-                        Contour Plot: {`${selectedParameters[0]} vs ${selectedParameters[1]} Impact on ${scenarioMetric === 'probabilityOfSuccess' ? 'Success Probability' : 'Investments'}`}
+                        Contour Plot: {`${selectedParameters[0]} vs ${selectedParameters[1]} Impact on ${scenarioMetric === 'probabilityOfSuccess' ? 'Final Success Probability' : 'Total Final Year Investments'}`}
                       </h3>
+                      
+                      <div style={{ textAlign: 'center', fontSize: '0.85rem', marginBottom: 15, color: '#666' }}>
+                        <em>Note: This chart shows {scenarioMetric === 'probabilityOfSuccess' ? 'the final year\'s probability value' : 'the sum of all investment types in the final year (year 40)'} for each parameter combination</em>
+                        <div style={{ marginTop: 5 }}>
+                          <strong>X-axis:</strong> {selectedParameters[0]} values &nbsp;|&nbsp; 
+                          <strong>Y-axis:</strong> {selectedParameters[1]} values &nbsp;|&nbsp; 
+                          <strong>Color:</strong> {scenarioMetric === 'probabilityOfSuccess' ? 'Final probability of success' : 'Total final year investment (sum of all 5 investment types)'}
+                        </div>
+                      </div>
+                      
                       <div style={{ height: 500, width: '100%' }}>
-                        <Plot
-                          data={[
-                            {
-                              type: 'contour',
-                              z: generateSurfaceData(selectedParameters, scenarioMetric).zValues,
-                              x: generateSurfaceData(selectedParameters, scenarioMetric).xValues,
-                              y: generateSurfaceData(selectedParameters, scenarioMetric).yValues,
-                              colorscale: scenarioMetric === 'probabilityOfSuccess' ? 
-                                [
-                                  [0, 'rgb(213, 62, 79)'],     // Red (low probability)
-                                  [0.5, 'rgb(253, 231, 37)'],  // Yellow (medium probability)
-                                  [1, 'rgb(50, 136, 189)']     // Blue (high probability)
-                                ] : 
-                                [
-                                  [0, 'rgb(0, 83, 117)'],      // Dark blue (low investment)
-                                  [0.5, 'rgb(0, 155, 217)'],   // Medium blue
-                                  [1, 'rgb(210, 243, 255)']    // Light blue (high investment)
-                                ],
-                              contours: {
-                                coloring: 'heatmap',
-                                showlabels: true,
-                                labelfont: {
-                                  family: 'Raleway',
-                                  size: 12,
-                                  color: 'white',
+                        {(() => {
+                          // Generate the data once to avoid multiple identical calls
+                          const surfaceData = generateSurfaceData(
+                            selectedParameters, 
+                            scenarioMetric, 
+                            scenarioResults,
+                            selectedParameters.map(param => generateParameterValues(param))
+                          );
+                          
+                          return (
+                            <Plot
+                              data={[
+                                {
+                                  type: 'contour',
+                                  z: surfaceData.zValues,
+                                  x: surfaceData.xValues,
+                                  y: surfaceData.yValues,
+                                  colorscale: scenarioMetric === 'probabilityOfSuccess' ? 
+                                    [
+                                      [0, 'rgb(213, 62, 79)'],     // Red (low probability)
+                                      [0.5, 'rgb(253, 231, 37)'],  // Yellow (medium probability)
+                                      [1, 'rgb(50, 136, 189)']     // Blue (high probability)
+                                    ] : 
+                                    [
+                                      [0, 'rgb(0, 83, 117)'],      // Dark blue (low investment)
+                                      [0.5, 'rgb(0, 155, 217)'],   // Medium blue
+                                      [1, 'rgb(210, 243, 255)']    // Light blue (high investment)
+                                    ],
+                                  contours: {
+                                    coloring: 'heatmap',
+                                    showlabels: true,
+                                    labelfont: {
+                                      family: 'Raleway',
+                                      size: 12,
+                                      color: 'white',
+                                    }
+                                  },
+                                  hoverinfo: 'x+y+z',
+                                  ncontours: 12
                                 }
-                              },
-                              hoverinfo: 'x+y+z',
-                              ncontours: 12
-                            }
-                          ]}
-                          layout={{
-                            title: `${scenarioMetric === 'probabilityOfSuccess' ? 'Probability of Success (%)' : 'Median Investments ($)'} by Parameter Values`,
-                            xaxis: {
-                              title: selectedParameters[0],
-                              titlefont: { color: '#7f7f7f', size: 14 }
-                            },
-                            yaxis: {
-                              title: selectedParameters[1],
-                              titlefont: { color: '#7f7f7f', size: 14 }
-                            },
-                            annotations: [{
-                              x: 0.5,
-                              y: 1.05,
-                              xref: 'paper',
-                              yref: 'paper',
-                              text: 'Darker regions represent optimal parameter combinations',
-                              showarrow: false,
-                              font: {
-                                family: 'Arial',
-                                size: 12,
-                                color: '#515151'
-                              },
-                              align: 'center',
-                            }],
-                            margin: {
-                              l: 65,
-                              r: 50,
-                              b: 65,
-                              t: 90,
-                            }
-                          }}
-                          useResizeHandler={true}
-                          style={{ width: '100%', height: '100%' }}
-                        />
+                              ]}
+                              layout={{
+                                title: `${scenarioMetric === 'probabilityOfSuccess' ? 'Final Probability of Success (%)' : 'Total Final Year Investments ($)'} by Parameter Values`,
+                                xaxis: {
+                                  title: selectedParameters[0],
+                                  titlefont: { color: '#7f7f7f', size: 14 }
+                                },
+                                yaxis: {
+                                  title: selectedParameters[1],
+                                  titlefont: { color: '#7f7f7f', size: 14 }
+                                },
+                                annotations: [{
+                                  x: 0.5,
+                                  y: 1.05,
+                                  xref: 'paper',
+                                  yref: 'paper',
+                                  text: 'Darker regions represent optimal parameter combinations',
+                                  showarrow: false,
+                                  font: {
+                                    family: 'Arial',
+                                    size: 12,
+                                    color: '#515151'
+                                  },
+                                  align: 'center',
+                                }],
+                                margin: {
+                                  l: 65,
+                                  r: 50,
+                                  b: 65,
+                                  t: 90,
+                                }
+                              }}
+                              useResizeHandler={true}
+                              style={{ width: '100%', height: '100%' }}
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
                   </>

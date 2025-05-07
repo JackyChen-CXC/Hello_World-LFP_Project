@@ -375,8 +375,6 @@ export const runSimulation = async (req: any, res: any) => {
     try {
         createLog(username, "running a simulation");
         const plan = await FinancialPlan.findById(id); // WHY THE FUCK I NEED THIS FOR TAX TO RUN????
-        // const simulation = await Simulation.findById(simulationId);
-        // const result = await SimulationResult.findOne({ simulationId: simulationId});
 
         // Check if everything is there
         if (!plan) {
@@ -384,8 +382,9 @@ export const runSimulation = async (req: any, res: any) => {
             return;
             // return res.status(404).json({ error: 'Items not found.' });
         }
+        // console.log(plan.eventSeries[0]);
         enforceScenarioParameter(plan, params);
-        // console.log(plan.eventSeries);
+        // console.log(plan.eventSeries[0]);
 
         // 1,000–10,000 simulations → good starting range
         // const num_simulations = simulations || 1000;
