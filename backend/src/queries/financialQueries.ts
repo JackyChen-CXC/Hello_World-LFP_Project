@@ -1,5 +1,4 @@
 import User from "../models/User";
-import FinancialPlan from "../models/FinancialPlan";
 import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 

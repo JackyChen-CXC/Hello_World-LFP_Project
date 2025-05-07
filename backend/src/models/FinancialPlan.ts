@@ -1,6 +1,4 @@
 import mongoose, { Document, Schema } from "mongoose";
-// import Investment, { IInvestment } from "./Investment";
-// import LifeEvent, { ILifeEvent } from "./LifeEvent";
 import { DistributionSchema, IDistribution } from "./Distribution";
 import { IInvestmentType, investmentTypeSchema } from "./InvestmentType";
 

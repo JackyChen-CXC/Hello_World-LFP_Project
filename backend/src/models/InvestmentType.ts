@@ -1,6 +1,6 @@
 // Investment Type is the type of Investment made, ex: specific company, bond, etc
 // People can Invest in the Investment Type (Make Investment object)
-import mongoose, { Document, ObjectId, Schema } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 import { DistributionSchema, IDistribution } from "./Distribution";
 
 export interface IInvestmentType extends Document {

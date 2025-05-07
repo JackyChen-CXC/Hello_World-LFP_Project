@@ -1,6 +1,4 @@
-import mongoose, { Document, ObjectId, Schema } from "mongoose";
-import { ISimulation } from "./Simulation";
-import { DistributionSchema, IDistribution } from "./Distribution";
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface ISimulationResult extends Document {
     _id: mongoose.Types.ObjectId;

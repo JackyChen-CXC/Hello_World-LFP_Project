@@ -1,4 +1,4 @@
-import mongoose, { Document, ObjectId, Schema } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface ISimulation extends Document {
     planId: string;

@@ -1,15 +1,11 @@
 import { IDistribution } from "../models/Distribution";
 import { IInvestment, ILifeEvent, IFinancialPlan } from "../models/FinancialPlan";
-import InvestmentType, { IInvestmentType } from "../models/InvestmentType";
+import { IInvestmentType } from "../models/InvestmentType";
 import mongoose from "mongoose";
 import { Document } from "mongodb";
 import * as fs from "fs";
-import * as path from "path";
 import * as yaml from "js-yaml";
-import { inflate } from "zlib";
-import { writeLog } from "./logHelper";
 import { scenarioExplorationParams, simulationOutput, purchasePrice } from "./simulationController";
-import { start } from "repl";
 
 // Helper Functions
 
@@ -378,44 +374,12 @@ export function getDB(){
     return db;
 }
 
-// Example uses
-// const result = await db.createCollection("new_tax_collection");
-// const collection = db.collection("tax_data");
-// const result = await collection.insertOne({
-//     year: 2025,
-//     bracket: "10%",
-//     incomeLimit: 11000
-//   });
-
-
-
-//
-//
 //Standard Deduction
 export function getStandardDeduction(status: 'single' | 'married', data: Record<string, number>): number | null {
     // Loop through the data to find the matching status
     return data[status] ?? null;
-    // console.log("inside deducytion");
-    // console.log(data)
-    // for (const item of data) {
-    //   console.log("d");
-    //   console.log("tem",item);
-    //   const { status: itemStatus, rate } = item;
-    //   console.log("inside deducytion",item);
-    //   // Check if the status matches
-    //   if (itemStatus === status) {
-    //     return rate; // Return the rate if a match is found
-    //   }
-    // }
-    // console.log("stopped dedication")
-    // // Return null if no matching status is found
-    // return null;
   }
 
-
-//
-//
-//
 //Calculate stateTax
 type TaxBracket = {
   min: number;
@@ -446,12 +410,6 @@ export function calculateStateTax(income: number, marriedStatus: "single" | "mar
     return 0;
 }
 
-
-
-
-//
-//
-//
 //captial gain tax
 export function getCapitalGainTaxRate(income: number, status: 'single' | 'married', adjusted: any[]): number | null {
     // Loop through the adjusted tax brackets
@@ -474,12 +432,6 @@ export function getCapitalGainTaxRate(income: number, status: 'single' | 'marrie
     return null;
   }
 
-
-
-
-///
-///
-///
 ///federal tax
 export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'married', adjusted: any[]): number {
     // Find the tax bracket that matches the income and marital status
@@ -501,12 +453,6 @@ export function getFederalTaxRate(income: number, marriedStatus: 'single' | 'mar
     return 0;
   }
 
-
-
-
-//
-//
-//
 //federal tax flat inflation
 export async function updateFederalTaxForFlatInflation(inflationRate: number) {
     inflationRate += 1;
@@ -540,12 +486,6 @@ export async function updateFederalTaxForFlatInflation(inflationRate: number) {
     return adjusted;
   }
 
-
-
-
-//
-//
-//
 //federal tax normal distribution inflation
 export async function updateFederalTaxForNormalDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
@@ -589,12 +529,6 @@ function generateNormal(mean: number, std: number): number {
     return z * std + mean;
 }
 
-
-
-//
-//
-//
-//
 //federal tax uniform distribution
 export async function updateFederalTaxForUniformDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
@@ -635,10 +569,6 @@ function generateUniform(bot: number, top: number): number {
 }
 
 
-//
-//
-//
-//
 //state tax for flat inflation
 export function updateStateTaxForInflation(state_tax_file: string, inflation: number, state: string) {
   const adjusted = {
@@ -737,11 +667,6 @@ export function updateStateTaxForInflation(state_tax_file: string, inflation: nu
   }
 }
 
-
-
-//
-//
-//
 //state tax normal distribution
 export function updateStateTaxForNormalDistributionInflation(mean: number, std: number, state: string) {
   state = state.toLowerCase();
@@ -782,7 +707,6 @@ export function updateStateTaxForNormalDistributionInflation(mean: number, std: 
         state_data = fallbackData.states[state];
       }
      
-          
       for (const single of state_data.single) {
         adjusted.single.push({
           min: parseFloat((single.min * (1 + inflation)).toFixed(2)),
@@ -807,12 +731,6 @@ export function updateStateTaxForNormalDistributionInflation(mean: number, std: 
   }
 }
 
-
-
-//
-//
-//
-//
 //state tax uniform distribution
 export function updateStateTaxForUniformDistributionInflation(bot: number, top: number, state: string){
   state = state.toLowerCase();
@@ -851,7 +769,6 @@ export function updateStateTaxForUniformDistributionInflation(bot: number, top: 
         state_data = fallbackData.states[state];
       }
      
-          
       for (const single of state_data.single) {
         adjusted.single.push({
           min: parseFloat((single.min * (1 + inflation)).toFixed(2)),
@@ -877,11 +794,6 @@ export function updateStateTaxForUniformDistributionInflation(bot: number, top: 
   }
 }
 
-
-
-//
-//
-//
 //captain gain flat inflation
 export async function updateCapitalGainTaxForFlatInflation(inflationRate: number) {
     inflationRate += 1;
@@ -914,11 +826,6 @@ export async function updateCapitalGainTaxForFlatInflation(inflationRate: number
     return adjusted;
   }
 
-
-
-//
-//
-//
 //captial gain normal distribtion
 export async function updateCapitalGainTaxForNormalDistributionInflation(mean: number, std: number) {
     const inflationRate = generateNormal(mean, std);
@@ -951,10 +858,6 @@ export async function updateCapitalGainTaxForNormalDistributionInflation(mean: n
     return adjusted;
 }
 
-
-//
-//
-//
 //captial gain uniform distribution
 export async function updateCapitalGainTaxForUniformDistributionInflation(mean: number, std: number) {
     const inflationRate = generateUniform(mean, std);
@@ -987,10 +890,6 @@ export async function updateCapitalGainTaxForUniformDistributionInflation(mean: 
     return adjusted;
 }
 
-
-//
-//
-//
 //standard deduction for flat inflation
 export async function updateStandardDeductionForInflation(inflationRate: number) {
     const currentYear = new Date().getFullYear();
@@ -1012,9 +911,6 @@ export async function updateStandardDeductionForInflation(inflationRate: number)
     };
 }
 
-//
-//
-//
 //standard deduction for normal distribution
 export async function updateStandardDeductionNormalDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
@@ -1038,10 +934,6 @@ export async function updateStandardDeductionNormalDistributionInflation(mean: n
     };
   }
 
-
-//
-//
-//
 //standard deduction for uniform distribution
 export async function updateStandardDeductionUniformDistributionInflation(mean: number, std: number) {
     const currentYear = new Date().getFullYear();
@@ -1065,55 +957,6 @@ export async function updateStandardDeductionUniformDistributionInflation(mean: 
     };
   }
 
-
-///
-//
-//
-//calculate the rmd
-// export async function calculateRMD(financialPlan: IFinancialPlan, age: number, curYearIncome: number): Promise<number> {    
-//     try{
-//         const db = getDB();
-//         const currentYear = new Date().getFullYear();
-//         const collectionName = `rmd_${currentYear}`;
-//         const dis = db.collection(collectionName);
-
-//         // Find distribution period (D)
-//         dis.findOne({ age: age })
-//             .then(doc => {
-//                 if (doc && doc.distribution_period) {
-//                     const distribution: number = doc.distribution_period;
-
-//                     // Find sum of pre-tax investments (S)
-//                     let sum = 0;
-//                     financialPlan.investments.forEach(investment => {
-//                         if (investment.taxStatus === "pre-tax") {
-//                             sum += investment.value;
-//                         }
-//                     });
-
-//                     // Calculate RMD
-//                     const rmd = sum / distribution;
-
-//                     // Add RMD to current year income
-//                     curYearIncome += rmd;
-
-//                     return rmd;
-//                 } else {
-//                     throw new Error("Distribution period not found for the given age");
-//                 }
-//             })
-//             .catch(err => {
-//                 console.error("Error calculating RMD:", err);
-//                 return -1; // Return current income if there's an error
-//             });
-        
-
-//         return -1; // Return the income as a fallback
-//     } catch (err) {
-//         console.error("Error calculating RMD:", err);
-//         return -1;
-//     }
-// }
 export async function calculateRMD(financialPlan: IFinancialPlan, age: number, curYearIncome: number): Promise<number> {    
   try {
       //console.log("Starting RMD calculation function")
@@ -1152,11 +995,6 @@ export async function calculateRMD(financialPlan: IFinancialPlan, age: number, c
   }
 }
 
-
-
-
-//
-//
 //Helper Function for part 3 of simulation
 //RMD move
 export function calculateRMD_Investment(financialPlan: IFinancialPlan, rmd: number): IInvestment[] {
@@ -1211,9 +1049,6 @@ export function calculateRMD_Investment(financialPlan: IFinancialPlan, rmd: numb
     return allInvestments; // Return the updated investments array
 }
 
-
-//
-//
 //Helper function got part 5 of the simulation
 //roth optimizer
 export function performRothOptimizer(
@@ -1247,11 +1082,11 @@ export function performRothOptimizer(
     
     const deductionValue = standardDeduction[marriedStatus] ?? 0;
     
-    //PartB of 5
+    // PartB of 5
     let rc = u - (fedTaxableIncome - deductionValue);
     let amount_transferred = 0;
 
-    //Part C of 5
+    // Part C of 5
     for (const investId of rothStrategy) {
       const investment = allInvestments.find((inv) => inv.id === investId);
       if (!investment) continue;
@@ -1272,14 +1107,14 @@ export function performRothOptimizer(
         rc = 0;
       }
   
-      //finds all investment with "after tax" and same investmentTYpe
+      // finds all investment with "after tax" and same investmentTYpe
       const foundInvest = allInvestments.find(
         (inv) =>
           inv.investmentType === investment.investmentType &&
           inv.taxStatus === "after-tax"
       );
   
-      //ADDs the value to the "after-tax" investment
+      // ADDs the value to the "after-tax" investment
       if (foundInvest) {
         foundInvest.value += movedValue;
       } else {
@@ -1302,15 +1137,6 @@ export function performRothOptimizer(
     return currentYearIncome;
   }
 
-
-
-
-
-
-
-//
-//
-//
 //Helper function for part 4 of simulation
 export function calculateInvestmentValue(financialplan: IFinancialPlan, currentYearIncome: number): [number, number, number, number] {
     const investments = financialplan.investments;
@@ -1318,7 +1144,6 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         financialplan.investmentTypes.map(t => [t.name, t]) // Use name of InvestmentType as the key
     );
 
-  
     let taxable_income = 0;
     let non_taxable_income = 0;
     let total_expense = 0;
@@ -1328,13 +1153,11 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         const investType = investmentTypesMap.get(investment.investmentType);
         if (!investType) continue;
 
-
         //part 4 step A
         const value = investment.value;
         const income_dist = investType.incomeDistribution;
         const income_distType = income_dist.type;
         
-
         let incomeVal;
         if (income_distType === "fixed") {
             incomeVal = income_dist.value
@@ -1358,7 +1181,6 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         //total income of the investment for the year
         income = Number(income.toFixed(2));
 
-        
         //part 4 step B
         if (investType.taxability && investment.taxStatus === "non-retirement") {
           currentYearIncome += income;
@@ -1367,7 +1189,6 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         if (investment.taxStatus === "pre-tax") {
           taxable_income += income;
         }
-        
 
         // Handle return distribution logic part 4 D and C
         const returnDist = investType.returnDistribution;
@@ -1408,12 +1229,6 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
     return [currentYearIncome, taxable_income, non_taxable_income, total_expense];
 }
 
-
-
-
-//
-//
-//
 //Helper function for part 6
 export function findTotalNonDiscretionary(financialplan: any, year: number, startingYear: number): number {
     const allEvents = financialplan.eventSeries || [];
@@ -1469,7 +1284,6 @@ export function findTotalNonDiscretionary(financialplan: any, year: number, star
   return total;
 }
 
-
 export function payNonDiscretionary(
     financialplan: any,
     previousYearIncome: number,
@@ -1493,7 +1307,6 @@ export function payNonDiscretionary(
 ): number[] {
     const age = currentAge + year;
     const total_income = previousYearIncome + previousYearSocialSecurityIncome;
-
   
     // part a
     const total_taxable_income = total_income - (getStandardDeduction(married_status,standardDeductionBrackets) ?? 0);
@@ -1510,11 +1323,9 @@ export function payNonDiscretionary(
         ? previousYearEarlyWithdrawals * 0.1
         : 0;
 
-
     // part d
     const total_non_discretionary = findTotalNonDiscretionary(financialplan, year, startingYear);
     const total_payment_amount = total_non_discretionary + (federal_tax ?? 0) + (state_tax ?? 0) + (capital_gain_tax ?? 0) + early_withdrawal_tax;
-
 
     // part e
     const cash_investments = (financialplan.investments || []).filter((i: any) => i.investmentType === "cash");
@@ -1535,7 +1346,6 @@ export function payNonDiscretionary(
     // part f
     const all_investments = financialplan.investments || [];
     const withdrawal_strategy: string[] = financialplan.expenseWithdrawalStrategy || [];
-
 
     if (total_withdrawal_amount > 0) { //this means not enough cash on hand pay with investment
         for (const invest_id of withdrawal_strategy) {
@@ -1568,7 +1378,6 @@ export function payNonDiscretionary(
                 if ((investment.taxStatus === "pre-tax" || investment.taxStatus === "after-tax") && age < 59) {
                     early_withdrawal_total += invest_value;
                 }
-                
                 
             } else {//sells part investment
                 investment.value -= total_withdrawal_amount;
@@ -1603,15 +1412,6 @@ export function payNonDiscretionary(
     return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, total_payment_amount, federal_tax, state_tax];
 }
 
-
-
-
-
-
-
-//
-//
-//
 // Helper function for part7
 
 export function payDiscretionary(
@@ -1750,7 +1550,6 @@ export function payDiscretionary(
               const fraction = total_event_cost / invest_value;
               currentYearGain += fraction * (invest_value - purchase_price);
 
-
               //reset purchase price 
               if (list_of_purchase_price[investment.id]) {
                 list_of_purchase_price[investment.id].purchase_price = (1-fraction)*purchase_price;
@@ -1781,17 +1580,6 @@ export function payDiscretionary(
     return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, percentage ];
   }
 
-
-
-
-
-
-
-
-//
-///
-///
-///
 ///Helper function for part 8
 export function runInvestEvents(
   financialplan: IFinancialPlan, 
@@ -1840,14 +1628,12 @@ export function runInvestEvents(
         allocationList = Object.fromEntries(allocationList.entries());
       }
      
-      
       for (const [name, percentage] of Object.entries(allocationList)) {
         const total = percentage * invest_amount;
         const each_investment = financialplan.investments.find((inv) => inv.id === name);
         const tax_status = each_investment?.taxStatus || "unknown";
         item.push([name, total, tax_status]);
       }
-  
       
       //total amount of after-tax investments
       let B_total_purchase = 0;
@@ -1913,17 +1699,6 @@ export function runInvestEvents(
     }
   }
 
-
-
-
-
-
-
-
-//
-//
-///
-//
 //Helper function for part 9
 export function runRebalance(
     financialplan: IFinancialPlan,
@@ -1942,18 +1717,18 @@ export function runRebalance(
     startingYear+year < list_of_rebalance_Schedule[event.name][0] + list_of_rebalance_Schedule[event.name][1]
     );
 
-    console.log("year: ",(startingYear+year))
+    // console.log("year: ",(startingYear+year))
     for (const event of rebalanceEvents) {
       let allocationList: { [key: string]: number } = {};
       allocationList = event.assetAllocation || {};
       if (allocationList instanceof Map) {
         allocationList = Object.fromEntries(allocationList.entries());
       }
-      console.log("list----",allocationList);
+      // console.log("list----",allocationList);
       //finds the sum of the investment
       let sum = 0;
       for (const [name, percentage] of Object.entries(allocationList)) {
-        console.log("names: ",name);
+        // console.log("names: ",name);
         const each_investment = financialplan.investments.find((inv) => inv.id === name);
         sum += each_investment?.value ?? 0;
       }
@@ -1994,10 +1769,8 @@ export function runRebalance(
           each_investment.value = sum * percentage;
         }
       }
-      
-     
     }
-  
+
     return currentYearGain;
   }
   

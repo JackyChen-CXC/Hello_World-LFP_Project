@@ -3,7 +3,6 @@ import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog, createLog } from "./logHelper";
 import * as path from 'path';
-import { Worker } from 'worker_threads';
 import { fork } from 'child_process';
 import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, enforceScenarioParameter, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
