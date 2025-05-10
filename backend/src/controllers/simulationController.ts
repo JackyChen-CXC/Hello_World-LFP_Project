@@ -522,11 +522,7 @@ export const runSimulation = async (req: any, res: any) => {
 
             // get this year's InflationAssumption
             const inflationRate = generateFromDistribution(plan.inflationAssumption);
-            if(!inflationRate){
-                createLog(username, 'inflationRate not found.');
-                return;
-                // return res.status(404).json({ error: 'inflationRate not found.' });
-            }
+            
             // inflate tax brackets
             let federal_tax_bracket;
             let capital_tax_bracket;
@@ -536,28 +532,25 @@ export const runSimulation = async (req: any, res: any) => {
             state_tax_bracket = updateStateTaxForInflation(state_tax_file, inflationRate, plan.residenceState);
             switch (plan.inflationAssumption.type) {
                 case "fixed":
-                    if(plan.inflationAssumption.value){
-                        const value = plan.inflationAssumption.value;
-                        federal_tax_bracket = await updateFederalTaxForFlatInflation(value);
-                        capital_tax_bracket = await updateCapitalGainTaxForFlatInflation(value);
-                        standard_deduction_bracket = await updateStandardDeductionForInflation(value);
-                    }
+                    const value = plan.inflationAssumption.value ?? 0;
+                    federal_tax_bracket = await updateFederalTaxForFlatInflation(value);
+                    capital_tax_bracket = await updateCapitalGainTaxForFlatInflation(value);
+                    standard_deduction_bracket = await updateStandardDeductionForInflation(value);
+                    break;
                 case "normal":
-                    if(plan.inflationAssumption.stdev && plan.inflationAssumption.mean){
-                        const stdev = plan.inflationAssumption.stdev;
-                        const mean = plan.inflationAssumption.mean;
-                        federal_tax_bracket = await updateFederalTaxForNormalDistributionInflation(mean, stdev);
-                        capital_tax_bracket = await updateCapitalGainTaxForNormalDistributionInflation(mean, stdev);
-                        standard_deduction_bracket = await updateStandardDeductionNormalDistributionInflation(mean, stdev);
-                    }   
+                    const stdev = plan.inflationAssumption.stdev ?? 0;
+                    const mean = plan.inflationAssumption.mean ?? 0;
+                    federal_tax_bracket = await updateFederalTaxForNormalDistributionInflation(mean, stdev);
+                    capital_tax_bracket = await updateCapitalGainTaxForNormalDistributionInflation(mean, stdev);
+                    standard_deduction_bracket = await updateStandardDeductionNormalDistributionInflation(mean, stdev);
+                    break;
                 case "uniform":
-                    if(plan.inflationAssumption.lower && plan.inflationAssumption.upper){
-                        const lower = plan.inflationAssumption.lower;
-                        const upper = plan.inflationAssumption.upper;
-                        federal_tax_bracket = await updateFederalTaxForUniformDistributionInflation(lower, upper);
-                        capital_tax_bracket = await updateCapitalGainTaxForUniformDistributionInflation(lower, upper);
-                        standard_deduction_bracket = await updateStandardDeductionUniformDistributionInflation(lower, upper);
-                    }
+                    const lower = plan.inflationAssumption.lower ?? 0;
+                    const upper = plan.inflationAssumption.upper ?? 0;
+                    federal_tax_bracket = await updateFederalTaxForUniformDistributionInflation(lower, upper);
+                    capital_tax_bracket = await updateCapitalGainTaxForUniformDistributionInflation(lower, upper);
+                    standard_deduction_bracket = await updateStandardDeductionUniformDistributionInflation(lower, upper);
+                    break;
             }
             if(!federal_tax_bracket || !capital_tax_bracket || !standard_deduction_bracket || !state_tax_bracket){
                 createLog(username, "ERROR, Brackets did not update correctly.")
@@ -645,7 +638,7 @@ export const runSimulation = async (req: any, res: any) => {
             
             let federal_tax = vals[4];
             let state_tax = vals[5]
-            createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, `);
+            createLog(username, `after 6, currentYearGain: ${currentYearGain}, currentYearEarlyWithdrawal: ${currentYearEarlyWithdrawal}, federal tax ${federal_tax}, state tax ${state_tax}`);
 
             // writeLog(username, "Paid non-discretionary expenses and the previous year’s taxes ", "log");
             // // 7. Pay discretionary expenses in the order given by the spending strategy (Pre-tax -> +curYearIncome)

@@ -28,15 +28,11 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
         break;
       case "start":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-        if(temp.start.value){
-          temp.start.value = params.index;
-        }
+        temp.start.value = params.index;
         break;
       case "duration":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-        if(temp.duration.value){
-          temp.duration.value = params.index;
-        }
+        temp.duration.value = params.index;
         break;
       case "initialAmount":
         temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
@@ -64,21 +60,15 @@ export function enforceScenarioParameter(plan: IFinancialPlan, params: scenarioE
           break;
         case "start":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          if(temp.start.value){
-            temp.start.value = params.index2;
-          }
+          temp.start.value = params.index2;
           break;
         case "duration":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          if(temp.duration.value){
-            temp.duration.value = params.index2;
-          }
+          temp.duration.value = params.index2;
           break;
         case "initialAmount":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
-          if(temp.initialAmount)
-            temp.initialAmount = params.index2;
-          break;
+          temp.initialAmount = params.index2;
         case "percentage":
           temp = plan.eventSeries.filter(event => event.name === params.itemId)[0];
           if(temp.assetAllocation){
@@ -149,6 +139,9 @@ export function probabilityOfSuccess(financialGoal: number, totalInvestmentsOver
 // @output = [year] range = [10%-90%, 20%-80%, 30%-70%, 40%-60%, 50%-50% (median value)]
 // [investments, income, expenses + taxes, early withdrawal tax, percentage of total discretionary expenses incurred]
 export function generateRange(total: any[][]){
+  if(total.length<=0){
+    return [[[0,0],[0,0],[0,0],[0,0],[0,0]]];
+  }
   const range: number[][][] = []; // [min, max],
   // check if need to convert from 3D to 2D array
   const check = Array.isArray(total[0][0]);
@@ -314,8 +307,7 @@ export function generateFromDistribution(dist: IDistribution | undefined): numbe
     if(dist){
         switch (dist.type) { // fixed number
             case "fixed":
-              if(dist.value)
-                return dist.value;
+              return dist.value ?? 0;
             case "normal": // normal distibution
                 if (typeof dist.mean === "number" && typeof dist.stdev === "number") {
                     // Box-Muller transform
