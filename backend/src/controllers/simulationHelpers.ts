@@ -229,7 +229,7 @@ export function getValueOfExpenses(eventSeries: ILifeEvent[], year: number, star
   if(events){
     for(const event of events){
       if (event && event.start.value && event.duration.value && 
-      startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){
+      startingYear + year >= event.start.value && startingYear + year < startingYear + event.duration.value){
         output.push(event.initialAmount ?? 0);
       } else{
         output.push(0); // presevere order
@@ -1200,13 +1200,13 @@ export function calculateInvestmentValue(financialplan: IFinancialPlan, currentY
         incomeVal = incomeVal ?? 0;
         if (investType.incomeAmtOrPct === "percent") {
           //Update the change in value
-          investment.value += (investment.value * incomeVal);
+          investment.value = (investment.value + incomeVal);
           //Add the income to the investment
-          investment.value += income;
+
         } else {
-          investment.value += (investment.value + incomeVal);
-          investment.value += income;
+          investment.value = (investment.value + incomeVal);
         }
+        currentYearIncome += incomeVal;
 
         // Calculate expense part 4 part e
         const expenseRatio = investType.expenseRatio ?? 0;
@@ -1232,7 +1232,7 @@ export function findTotalNonDiscretionary(financialplan: any, year: number, star
     for (const event of nonDiscretionaryEvents) {
       let cost_of_event = 0;
       if (event && event.start.value && event.duration.value && 
-      startingYear + year < event.start.value && startingYear + year > startingYear + event.duration.value){
+      startingYear + year < event.start.value && startingYear + year >= startingYear + event.duration.value){
         continue; // skip event if not active
       }
 
@@ -1432,8 +1432,9 @@ export function payDiscretionary(
     for (const event_id of spending_strategy) { 
       const event = all_events.find(e => e.name === event_id);
       if (event && event.discretionary && event.start.value && event.duration.value && 
-        startingYear + year > event.start.value && startingYear + year < startingYear + event.duration.value){ // check
+        startingYear + year >= event.start.value && startingYear + year < startingYear + event.duration.value){ // check
         events.push(event);
+        total_disc_cost += event.initialAmount ?? 0;
       }
     }
   
@@ -1483,7 +1484,6 @@ export function payDiscretionary(
 
       //check for userfraction
       total_event_cost = total_event_cost * (event.userFraction ?? 0);
-      total_disc_cost += total_event_cost;
 
       //check if cash exist
       const cash_investment = (financialplan.investments || []).find((i: any) => i.investmentType === "cash");
@@ -1492,10 +1492,12 @@ export function payDiscretionary(
         if (paid_with_cash <= 0){ //this means we have enough cash to pay for event
           cash_investment.value -= total_event_cost;
           total_cost_paid += total_event_cost;
+          total_event_cost = 0;
           continue; //if we have enough cash, pay for discretionary event and move to next event
         }else{
           total_cost_paid += total_event_cost;
           cash_investment.value -= total_event_cost;
+          total_event_cost = 0;
         }
       }
 
@@ -1566,9 +1568,9 @@ export function payDiscretionary(
 
         }
       }
+      currentYearEarlyWithdrawal += early_withdrawal_total;
     }
     const percentage = Number.isNaN(total_cost_paid/total_disc_cost) ? 0 : total_cost_paid/total_disc_cost;
-    //console.log(percentage);
     return [currYearIncome, currentYearGain, currentYearEarlyWithdrawal, percentage ];
   }
 

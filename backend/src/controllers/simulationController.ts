@@ -3,7 +3,7 @@ import Simulation from "../models/Simulation";
 import SimulationResult from "../models/SimulationResult";
 import { writeLog, createLog } from "./logHelper";
 import * as path from 'path';
-import { fork } from 'child_process';
+import { ChildProcess, fork } from 'child_process';
 import { calculateInvestmentValue, calculateRMD, calculateRMD_Investment, computeMeanAndMedian, deepCopyDocument, enforceScenarioParameter, generateFromDistribution, generateOutput, generateRange, getCash, getLifeEventsByType, getTotalAssetValue, getValueOfExpenses, getValueOfInvestments, hashIntoTotal, payDiscretionary, payNonDiscretionary, performRothOptimizer, probabilityOfSuccess, runInvestEvents, runRebalance, standardizeTimeRangesForEventSeries, updateCapitalGainTaxForFlatInflation, updateCapitalGainTaxForNormalDistributionInflation, updateCapitalGainTaxForUniformDistributionInflation, updateFederalTaxForFlatInflation, updateFederalTaxForNormalDistributionInflation, updateFederalTaxForUniformDistributionInflation, updateIncomeEvents, updateScenarioParameter, updateStandardDeductionForInflation, updateStandardDeductionNormalDistributionInflation, updateStandardDeductionUniformDistributionInflation, updateStateTaxForInflation } from "./simulationHelpers";
 
 // Main Functions for making the simulation
@@ -64,6 +64,11 @@ export const createSimulation = async (req: any, res: any) => {
             min = parameters[0].min;
             max = parameters[0].max;
             step = parameters[0].step;
+            if(itemType==="rothConversionOpt"){
+                min = 0;
+                max = 1;
+                step = 1;
+            }
         }
         if(algorithmType === "2d"){
             itemType2 = parameters[1].itemType;
@@ -104,9 +109,9 @@ export const createSimulation = async (req: any, res: any) => {
 
         // set up Scenario Exploration Params
         let rangeIterator: scenarioExplorationParams;
-        if( (algorithmType === "1d" || algorithmType === "2d") && itemType && itemId && min && max && step){
+        if( (algorithmType === "1d" || algorithmType === "2d") && itemType && itemId && min!==undefined && max!==undefined && step!==undefined){
             console.log("scenario parameter 1 defined");
-            if(algorithmType === "2d" && itemType2 && itemId2 && min2 && max2 && step2){
+            if(algorithmType === "2d" && itemType2 && itemId2 && min2!==undefined && max2!==undefined && step2!==undefined){
                 console.log("scenario parameter 2 defined");
                 rangeIterator = {
                     algorithmType: algorithmType,
@@ -164,6 +169,7 @@ export const createSimulation = async (req: any, res: any) => {
         const totalPercentageTotalDiscretionary: number[][][] = [];   // value
         const totalYealyIncome: number[][][] = [];            // value -> currYearIncome
         const totalYearlyExpenses: number[][][] = [];         // value -> total expenses total
+        let incomeOrder:string[] = [], investmentOrder:string[] = [], expensesOrder:string[] = [];
 
         // const total_worker = 2;
         const total_worker = Math.min(require('os').cpus().length - 1, 4); // Use at most N-1 cores, max 4
@@ -172,6 +178,7 @@ export const createSimulation = async (req: any, res: any) => {
         const extra_simulation = simulations % total_worker;
 
         const workerPath = path.resolve(__dirname, 'simulationWorker.ts');
+        const allWorkers: ChildProcess[] = [];
 
         let rangeIndex = 0;
         // iterate through scenario parameter 1
@@ -226,6 +233,9 @@ export const createSimulation = async (req: any, res: any) => {
                             if(success && data) {
                                 // Process all simulations from this worker at once
                                 for(let raw_vals of data){
+                                    incomeOrder = raw_vals.incomeOrder;
+                                    investmentOrder = raw_vals.investmentOrder;
+                                    expensesOrder = raw_vals.expensesOrder
                                     hashIntoTotal(totalInvestmentsOverTime, raw_vals.InvestmentsOverTime, rangeIndex);
                                     hashIntoTotal(totalIncomeOverTime, raw_vals.IncomeOverTime, rangeIndex);
                                     hashIntoTotal(totalExpensesOverTime, raw_vals.ExpensesOverTime, rangeIndex);
@@ -244,6 +254,8 @@ export const createSimulation = async (req: any, res: any) => {
                             console.error(`Worker ${i} error:`, err);
                             reject(err);
                         });
+
+                        allWorkers.push(child);
                     });
                     workerPromises.push(workerPromise);
                 }
@@ -262,6 +274,9 @@ export const createSimulation = async (req: any, res: any) => {
             rangeIterator.index2 = rangeIterator.min2;
             updateScenarioParameter(plan, rangeIterator, 1);
         }
+        for (const worker of allWorkers) {
+            worker.kill();
+        }
         console.log(rangeIterator);
         // OUTPUT - compute the raw values into output type (4.1 probability of success, 4.2 range and 4.3 mean/median values)
         console.log("range: ",totalInvestmentsOverTime.length,", range index: ", rangeIndex);
@@ -279,19 +294,22 @@ export const createSimulation = async (req: any, res: any) => {
         const investmentOverTimeVals = totalInvestmentsOverTime.map(range => computeMeanAndMedian(range));
         output.medianInvestmentsOverTime = investmentOverTimeVals.map(range => range.medians);
         output.avgInvestmentsOverTime = investmentOverTimeVals.map(range => range.means);
-        output.investmentOrder = plan.investments.map(investments => investments.id);
+        output.investmentOrder = investmentOrder;
+        // output.investmentOrder = plan.investments.map(investments => investments.id);
 
         const incomeOverTimeVals = totalIncomeOverTime.map(range => computeMeanAndMedian(range));
         output.medianIncomeOverTime = incomeOverTimeVals.map(range => range.medians);
         output.avgIncomeOverTime = incomeOverTimeVals.map(range => range.means);
-        output.incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
+        output.incomeOrder = incomeOrder;
+        // output.incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
 
         const expensesOverTimeVals = totalExpensesOverTime.map(range => computeMeanAndMedian(range));
         output.medianExpensesOverTime = expensesOverTimeVals.map(range => range.medians);
         output.avgExpensesOverTime = expensesOverTimeVals.map(range => range.means);
-        let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
-        output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
-        output.expensesOrder.push(...taxOrder);
+        output.expensesOrder = expensesOrder;
+        // let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
+        // output.expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
+        // output.expensesOrder.push(...taxOrder);
 
         // createLog(username+"_"+plan.name, "input",incomeOverTimeVals);
         // createLog(username+"_"+plan.name, "median output", output.medianIncomeOverTime);
@@ -494,7 +512,7 @@ export const runSimulation = async (req: any, res: any) => {
             console.log("------",startYear,duration);
         });
 
-        console.log(list_of_invest_Schedule);
+        // console.log(list_of_invest_Schedule);
         //const num_years = 3;
         const num_years = lifeExpectancy - age;
         // get specified spouse year of death if spouse exists
@@ -696,19 +714,28 @@ export const runSimulation = async (req: any, res: any) => {
             previousYearEarlyWithdrawals = currentYearEarlyWithdrawal;
             currentYearGain = 0;
             currentYearEarlyWithdrawal = 0;
-        
+            createLog(username+"_"+plan.name, plan);
+            // console.log(plan);
         }
         
         // const end = process.hrtime(start);
         // console.log(`Execution time: ${end[0]}s ${end[1] / 1e6}ms`);
         // console.log("ended")
         // console.log(earlyWithdrawalTax);
-        // console.log(plan.eventSeries);
+
+        const incomeOrder = getLifeEventsByType(plan.eventSeries,"income").map(events => events.name);
+        const investmentOrder = plan.investments.map(investments => investments.id);
+        let taxOrder: string[] = ["federal income tax", "state income tax", "capital gains tax", "early withdrawal tax"];
+        const expensesOrder = getLifeEventsByType(plan.eventSeries,"expense").map(events => events.name);
+        expensesOrder.push(...taxOrder);
 
         res.status(200).json({
             status: "OK",
             error: false,
             data: {
+                incomeOrder,
+                investmentOrder,
+                expensesOrder,
                 InvestmentsOverTime,
                 IncomeOverTime,
                 ExpensesOverTime,
