@@ -1,6 +1,8 @@
-# Hello_World - Lifetime Financial Planner
-CSE 416 Section 1, Scott Stoller - Hello World
+# Team Hello_World - Lifetime Financial Planner
 Jacky Chen, Vicki Yang, Jack Zhang, Zisang Wu
+
+### Disclaimer
+Anyone who makes decisions based on the output of this application does so at their own risk.
 
 ### Frontend 
 To setup -
